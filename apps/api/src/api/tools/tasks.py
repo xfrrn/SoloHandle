@@ -89,6 +89,8 @@ def update_task(
         fields["due_at"] = ensure_iso8601(due_at)
     if remind_at is not None:
         fields["remind_at"] = ensure_iso8601(remind_at)
+        fields["reminded_at"] = None
+        fields["notification_id"] = None
     if tags is not None:
         fields["tags_json"] = json_dumps(normalize_tags(tags))
     if project is not None:
@@ -139,6 +141,8 @@ def postpone_task(
         fields["due_at"] = ensure_iso8601(new_due_at)
     if new_remind_at is not None:
         fields["remind_at"] = ensure_iso8601(new_remind_at)
+        fields["reminded_at"] = None
+        fields["notification_id"] = None
     fields["updated_at"] = now_iso8601()
 
     with get_connection() as conn:

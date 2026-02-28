@@ -21,6 +21,8 @@ class TaskService:
             "priority": row["priority"],
             "due_at": row["due_at"],
             "remind_at": row["remind_at"],
+            "reminded_at": row["reminded_at"],
+            "notification_id": row["notification_id"],
             "repeat_rule": row["repeat_rule"],
             "project": row["project"],
             "tags": json_loads(row["tags_json"]),

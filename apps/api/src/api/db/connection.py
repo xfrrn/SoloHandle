@@ -73,6 +73,8 @@ def ensure_tables(conn: sqlite3.Connection) -> None:
             priority TEXT NOT NULL,
             due_at TEXT,
             remind_at TEXT,
+            reminded_at TEXT,
+            notification_id INTEGER,
             repeat_rule TEXT,
             project TEXT,
             tags_json TEXT NOT NULL,
@@ -136,7 +138,18 @@ def ensure_tables(conn: sqlite3.Connection) -> None:
         "CREATE INDEX IF NOT EXISTS idx_orchestrator_undo_token ON orchestrator_logs(undo_token)"
     )
 
+    _ensure_column(cur, "tasks", "reminded_at", "reminded_at TEXT")
+    _ensure_column(cur, "tasks", "notification_id", "notification_id INTEGER")
+
     conn.commit()
+
+
+def _ensure_column(cur: sqlite3.Cursor, table: str, column: str, definition: str) -> None:
+    rows = cur.execute(f"PRAGMA table_info({table})").fetchall()
+    columns = {row["name"] for row in rows}
+    if column in columns:
+        return
+    cur.execute(f"ALTER TABLE {table} ADD COLUMN {definition}")
 
 
 def now_iso8601(tz: str = DEFAULT_TZ) -> str:

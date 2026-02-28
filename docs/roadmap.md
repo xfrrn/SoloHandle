@@ -75,9 +75,9 @@
 
 **目标**：固定协议，方便前端和外部集成。
 
-- [ ] `docs/api.md`：接口说明
-- [ ] `docs/schemas.md`：工具/卡片 schema
-- [ ] `packages/schemas` 下输出 JSON Schema
+- [x] `docs/api.md`：接口说明
+- [x] `docs/schemas.md`：工具/卡片 schema
+- [x] `packages/schemas` 下输出 JSON Schema
 
 **验证**
 
@@ -89,9 +89,9 @@
 
 **目标**：任务提醒能真正触发通知。
 
-- [ ] scheduler 轮询 `tasks.remind_at`
-- [ ] 写入 `notifications`
-- [ ] 状态字段（reminded_at / notification_id）
+- [x] scheduler 轮询 `tasks.remind_at`
+- [x] 写入 `notifications`
+- [x] 状态字段（reminded_at / notification_id）
 
 ---
 

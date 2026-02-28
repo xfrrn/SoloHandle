@@ -35,8 +35,8 @@ class TaskRepository:
     ) -> int:
         cur = self._conn.execute(
             """
-            INSERT INTO tasks (title, status, priority, due_at, remind_at, repeat_rule, project, tags_json, note, idempotency_key, is_deleted, created_at, updated_at, completed_at)
-            VALUES (?, ?, ?, ?, ?, NULL, ?, ?, ?, ?, 0, ?, ?, NULL)
+            INSERT INTO tasks (title, status, priority, due_at, remind_at, reminded_at, notification_id, repeat_rule, project, tags_json, note, idempotency_key, is_deleted, created_at, updated_at, completed_at)
+            VALUES (?, ?, ?, ?, ?, NULL, NULL, NULL, ?, ?, ?, ?, 0, ?, ?, NULL)
             """,
             (
                 title,
@@ -97,5 +97,20 @@ class TaskRepository:
     def list_due_tasks(self) -> list[sqlite3.Row]:
         rows = self._conn.execute(
             "SELECT * FROM tasks WHERE is_deleted = 0 AND due_at IS NOT NULL"
+        ).fetchall()
+        return list(rows)
+
+    def list_pending_reminders(self, limit: int) -> list[sqlite3.Row]:
+        rows = self._conn.execute(
+            """
+            SELECT * FROM tasks
+            WHERE is_deleted = 0
+              AND remind_at IS NOT NULL
+              AND reminded_at IS NULL
+              AND status NOT IN ('done', 'canceled')
+            ORDER BY remind_at ASC
+            LIMIT ?
+            """,
+            (limit,),
         ).fetchall()
         return list(rows)

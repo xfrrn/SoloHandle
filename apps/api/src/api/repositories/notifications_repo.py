@@ -20,14 +20,15 @@ class NotificationRepository:
         title: str,
         content: Optional[str],
         scheduled_at: str,
+        sent_at: Optional[str],
         created_at: str,
     ) -> int:
         cur = self._conn.execute(
             """
             INSERT INTO notifications (task_id, title, content, scheduled_at, sent_at, read_at, is_deleted, created_at)
-            VALUES (?, ?, ?, ?, NULL, NULL, 0, ?)
+            VALUES (?, ?, ?, ?, ?, NULL, 0, ?)
             """,
-            (task_id, title, content, scheduled_at, created_at),
+            (task_id, title, content, scheduled_at, sent_at, created_at),
         )
         return int(cur.lastrowid)
 

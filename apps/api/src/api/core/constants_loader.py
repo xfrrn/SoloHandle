@@ -98,7 +98,7 @@ def _require_list_of_str(value: Any, path: str) -> list[str]:
 
 def _load_json(path: Path) -> dict[str, Any]:
     try:
-        text = path.read_text(encoding="utf-8")
+        text = path.read_text(encoding="utf-8-sig")
     except FileNotFoundError as exc:
         raise ConstantsError(f"constants file not found: {path}") from exc
 

@@ -31,6 +31,7 @@ class NotificationService:
         title: str,
         content: Optional[str],
         scheduled_at: str,
+        sent_at: Optional[str] = None,
     ) -> dict[str, Any]:
         created_at = now_iso8601()
         notification_id = self._repo.insert(
@@ -38,6 +39,7 @@ class NotificationService:
             title=title,
             content=content,
             scheduled_at=scheduled_at,
+            sent_at=sent_at,
             created_at=created_at,
         )
         row = self._repo.get_by_id(notification_id)
