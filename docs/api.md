@@ -1,41 +1,41 @@
-# API ÎÄµµ
+ï»¿# API æ–‡æ¡£
 
-»ù´¡ËµÃ÷
-- Base URL: ÓÉ²¿Êğ»·¾³¾ö¶¨
+åŸºç¡€è¯´æ˜
+- Base URL: ç”±éƒ¨ç½²ç¯å¢ƒå†³å®š
 - Content-Type: `application/json`
-- ËùÓĞÊ±¼ä×Ö¶Î±ØĞëÊÇ´øÊ±ÇøÆ«ÒÆµÄ ISO8601£¨ÀıÈç `2026-02-28T10:30:00+08:00`£©
-- Ä¬ÈÏÊ±ÇøÎª `Asia/Shanghai`
+- æ‰€æœ‰æ—¶é—´å­—æ®µå¿…é¡»æ˜¯å¸¦æ—¶åŒºåç§»çš„ ISO8601ï¼ˆä¾‹å¦‚ `2026-02-28T10:30:00+08:00`ï¼‰
+- é»˜è®¤æ—¶åŒºä¸º `Asia/Shanghai`
 
 ## POST /chat
 
-ÓÃÍ¾
-- Í³Ò»Èë¿Ú£º´´½¨²İ¸å¡¢È·ÈÏÌá½»¡¢³·Ïú
+ç”¨é€”
+- ç»Ÿä¸€å…¥å£ï¼šåˆ›å»ºè‰ç¨¿ã€ç¡®è®¤æäº¤ã€æ’¤é”€
 
-ÇëÇóÌå
-- ²Î¿¼ `packages/schemas/chat_request.schema.json`
-- »¥³âÂß¼­
-  - µ± `undo_token` ´æÔÚÊ±Ö´ĞĞ³·Ïú
-  - ·ñÔòµ± `confirm_draft_ids` ´æÔÚÊ±Ö´ĞĞÈ·ÈÏÌá½»
-  - ·ñÔò±ØĞëÌá¹© `text` Ö´ĞĞÒâÍ¼Ê¶±ğ²¢Éú³É²İ¸å
+è¯·æ±‚ä½“
+- å‚è€ƒ `packages/schemas/chat_request.schema.json`
+- äº’æ–¥é€»è¾‘
+  - å½“ `undo_token` å­˜åœ¨æ—¶æ‰§è¡Œæ’¤é”€
+  - å¦åˆ™å½“ `confirm_draft_ids` å­˜åœ¨æ—¶æ‰§è¡Œç¡®è®¤æäº¤
+  - å¦åˆ™å¿…é¡»æä¾› `text` æ‰§è¡Œæ„å›¾è¯†åˆ«å¹¶ç”Ÿæˆè‰ç¨¿
 
-×Ö¶Î
-- `text` string: ÓÃ»§ÊäÈëÎÄ±¾
-- `confirm_draft_ids` string[]: ĞèÒªÈ·ÈÏµÄ²İ¸å ID ÁĞ±í
-- `undo_token` string: ³·Ïú token
-- `request_id` string: ¿ÉÑ¡¡£ÓÃÓÚ¹ØÁªÒ»´Î²İ¸åÉú³ÉÇëÇó
+å­—æ®µ
+- `text` string: ç”¨æˆ·è¾“å…¥æ–‡æœ¬
+- `confirm_draft_ids` string[]: éœ€è¦ç¡®è®¤çš„è‰ç¨¿ ID åˆ—è¡¨
+- `undo_token` string: æ’¤é”€ token
+- `request_id` string: å¯é€‰ã€‚ç”¨äºå…³è”ä¸€æ¬¡è‰ç¨¿ç”Ÿæˆè¯·æ±‚
 
-ÏìÓ¦
-- ²Î¿¼ `packages/schemas/chat_response.schema.json`
-- ¿ÉÄÜÊÇÒÔÏÂËÄÖÖÖ®Ò»£º³ÎÇå¡¢²İ¸å¡¢Ìá½»½á¹û¡¢³·Ïú½á¹û
+å“åº”
+- å‚è€ƒ `packages/schemas/chat_response.schema.json`
+- å¯èƒ½æ˜¯ä»¥ä¸‹å››ç§ä¹‹ä¸€ï¼šæ¾„æ¸…ã€è‰ç¨¿ã€æäº¤ç»“æœã€æ’¤é”€ç»“æœ
 
-Ê¾Àı: Éú³É²İ¸å
+ç¤ºä¾‹: ç”Ÿæˆè‰ç¨¿
 ```json
 {
-  "text": "ÎÒ½ñÌì»¨ÁË25ÔªÂò¿§·È"
+  "text": "æˆ‘ä»Šå¤©èŠ±äº†25å…ƒä¹°å’–å•¡"
 }
 ```
 
-Ê¾Àı: Éú³É²İ¸åÏìÓ¦
+ç¤ºä¾‹: ç”Ÿæˆè‰ç¨¿å“åº”
 ```json
 {
   "drafts": [
@@ -52,7 +52,7 @@
       "card_id": "uuid",
       "type": "expense",
       "status": "draft",
-      "title": "Ö§³ö",
+      "title": "æ”¯å‡º",
       "subtitle": "25 CNY",
       "data": {"amount": 25, "category": "food"},
       "actions": []
@@ -62,34 +62,34 @@
 }
 ```
 
-Ê¾Àı: È·ÈÏÌá½»
+ç¤ºä¾‹: ç¡®è®¤æäº¤
 ```json
 {
   "confirm_draft_ids": ["uuid-1", "uuid-2"]
 }
 ```
 
-Ê¾Àı: ³·Ïú
+ç¤ºä¾‹: æ’¤é”€
 ```json
 {
   "undo_token": "uuid"
 }
 ```
 
-´íÎó
-- `400 invalid_json`: ÇëÇóÌå²»ÊÇ JSON
-- `400 invalid_param`: ²ÎÊıÀàĞÍ»ò·¶Î§´íÎó
-- `400 not_found`: ²İ¸å»ò³·Ïú token ²»´æÔÚ
+é”™è¯¯
+- `400 invalid_json`: è¯·æ±‚ä½“ä¸æ˜¯ JSON
+- `400 invalid_param`: å‚æ•°ç±»å‹æˆ–èŒƒå›´é”™è¯¯
+- `400 not_found`: è‰ç¨¿æˆ–æ’¤é”€ token ä¸å­˜åœ¨
 
 ## GET /router/health
 
-ÓÃÍ¾
-- ¼ì²é LLM Router ÊÇ·ñÒÑÅäÖÃ
+ç”¨é€”
+- æ£€æŸ¥ LLM Router æ˜¯å¦å·²é…ç½®
 
-ÏìÓ¦
-- ²Î¿¼ `packages/schemas/router_health.schema.json`
+å“åº”
+- å‚è€ƒ `packages/schemas/router_health.schema.json`
 
-Ê¾ÀıÏìÓ¦
+ç¤ºä¾‹å“åº”
 ```json
 {
   "llm_configured": true,
@@ -97,3 +97,4 @@
   "base_url": "https://api.openai.com/v1"
 }
 ```
+

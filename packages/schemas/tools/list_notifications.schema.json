@@ -1,4 +1,4 @@
-{
+﻿{
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "tools/list_notifications.schema.json",
   "title": "list_notifications arguments",
@@ -9,3 +9,4 @@
     "limit": {"type": "integer", "minimum": 1, "maximum": 200, "default": 20}
   }
 }
+

@@ -1,4 +1,4 @@
-{
+﻿{
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "tools/create_task.schema.json",
   "title": "create_task arguments",
@@ -16,3 +16,4 @@
     "idempotency_key": {"type": ["string", "null"]}
   }
 }
+

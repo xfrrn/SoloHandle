@@ -1,4 +1,4 @@
-{
+﻿{
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "tools/search_events.schema.json",
   "title": "search_events arguments",
@@ -19,3 +19,4 @@
     "offset": {"type": "integer", "minimum": 0, "default": 0}
   }
 }
+

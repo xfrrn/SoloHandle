@@ -1,26 +1,26 @@
-# Schema ÎÄµµ
+ï»¿# Schema æ–‡æ¡£
 
-±¾ÏîÄ¿µÄĞ­ÒéÓëÄ£ĞÍÒÔ JSON Schema ¹Ì»¯£¬Î»ÓÚ `packages/schemas`¡£
+æœ¬é¡¹ç›®çš„åè®®ä¸æ¨¡å‹ä»¥ JSON Schema å›ºåŒ–ï¼Œä½äº `packages/schemas`ã€‚
 
-## Èë¿ÚÓë»ù´¡¶ÔÏó
+## å…¥å£ä¸åŸºç¡€å¯¹è±¡
 
-- `packages/schemas/chat_request.schema.json`: `/chat` ÇëÇóÌå
-- `packages/schemas/chat_response.schema.json`: `/chat` ÏìÓ¦Ìå
-- `packages/schemas/router_health.schema.json`: `/router/health` ÏìÓ¦Ìå
-- `packages/schemas/router_decision.schema.json`: LLM Router Êä³öĞ­Òé
-- `packages/schemas/tool_call.schema.json`: ToolCall ½á¹¹
-- `packages/schemas/card.schema.json`: ¿¨Æ¬½á¹¹
-- `packages/schemas/draft.schema.json`: ²İ¸å½á¹¹
+- `packages/schemas/chat_request.schema.json`: `/chat` è¯·æ±‚ä½“
+- `packages/schemas/chat_response.schema.json`: `/chat` å“åº”ä½“
+- `packages/schemas/router_health.schema.json`: `/router/health` å“åº”ä½“
+- `packages/schemas/router_decision.schema.json`: LLM Router è¾“å‡ºåè®®
+- `packages/schemas/tool_call.schema.json`: ToolCall ç»“æ„
+- `packages/schemas/card.schema.json`: å¡ç‰‡ç»“æ„
+- `packages/schemas/draft.schema.json`: è‰ç¨¿ç»“æ„
 
-## ÁìÓò¶ÔÏó
+## é¢†åŸŸå¯¹è±¡
 
-- `packages/schemas/event.schema.json`: ÊÂ¼ş¶ÔÏó
-- `packages/schemas/task.schema.json`: ÈÎÎñ¶ÔÏó
-- `packages/schemas/notification.schema.json`: Í¨Öª¶ÔÏó
+- `packages/schemas/event.schema.json`: äº‹ä»¶å¯¹è±¡
+- `packages/schemas/task.schema.json`: ä»»åŠ¡å¯¹è±¡
+- `packages/schemas/notification.schema.json`: é€šçŸ¥å¯¹è±¡
 
-## Tools Èë²Î
+## Tools å…¥å‚
 
-LLM Router ¼°Íâ²¿¼¯³ÉÓ¦×ñÊØÒÔÏÂ tool Èë²Î schema£º
+LLM Router åŠå¤–éƒ¨é›†æˆåº”éµå®ˆä»¥ä¸‹ tool å…¥å‚ schemaï¼š
 
 - `packages/schemas/tools/create_expense.schema.json`
 - `packages/schemas/tools/create_lifelog.schema.json`
@@ -42,27 +42,32 @@ LLM Router ¼°Íâ²¿¼¯³ÉÓ¦×ñÊØÒÔÏÂ tool Èë²Î schema£º
 - `packages/schemas/tools/list_notifications.schema.json`
 - `packages/schemas/tools/mark_notification_read.schema.json`
 
-## Ã¶¾ÙÖµ
+## æšä¸¾å€¼
 
-ÊÂ¼şÀàĞÍ
+äº‹ä»¶ç±»å‹
 - `expense`, `lifelog`, `meal`, `mood`
 
-Ö§³ö·ÖÀà
+æ”¯å‡ºåˆ†ç±»
 - `food`, `transport`, `shopping`, `entertainment`, `housing`, `medical`, `education`, `other`, `unknown`
 
-²ÍÊ³ÀàĞÍ
+é¤é£Ÿç±»å‹
 - `breakfast`, `lunch`, `dinner`, `snack`, `unknown`
 
-ÈÎÎñ×´Ì¬
+ä»»åŠ¡çŠ¶æ€
 - `todo`, `doing`, `done`, `canceled`
 
-ÈÎÎñÓÅÏÈ¼¶
+ä»»åŠ¡ä¼˜å…ˆçº§
 - `low`, `medium`, `high`
 
-Êı¾İÀ´Ô´
+æ•°æ®æ¥æº
 - `chat_text`, `chat_image`, `chat_voice`, `import`
 
-## Ê±¼äÓëÊ±Çø
+## æ—¶é—´ä¸æ—¶åŒº
 
-- ËùÓĞÊ±¼ä×Ö¶Î±ØĞëÊÇ´øÊ±ÇøÆ«ÒÆµÄ ISO8601 ×Ö·û´®
-- Ä¬ÈÏÊ±ÇøÎª `Asia/Shanghai`
+- æ‰€æœ‰æ—¶é—´å­—æ®µå¿…é¡»æ˜¯å¸¦æ—¶åŒºåç§»çš„ ISO8601 å­—ç¬¦ä¸²
+- é»˜è®¤æ—¶åŒºä¸º `Asia/Shanghai`
+
+## å…±äº«å¸¸é‡
+
+- `packages/constants/ai_companion.constants.json`: æšä¸¾ä¸é»˜è®¤æ—¶åŒº
+

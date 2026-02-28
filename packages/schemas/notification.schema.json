@@ -1,4 +1,4 @@
-{
+﻿{
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "notification.schema.json",
   "title": "Notification",
@@ -27,3 +27,4 @@
     "is_deleted": {"type": "integer", "enum": [0, 1]}
   }
 }
+

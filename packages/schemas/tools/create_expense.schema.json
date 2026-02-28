@@ -1,4 +1,4 @@
-{
+﻿{
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "tools/create_expense.schema.json",
   "title": "create_expense arguments",
@@ -35,3 +35,4 @@
     "idempotency_key": {"type": ["string", "null"]}
   }
 }
+

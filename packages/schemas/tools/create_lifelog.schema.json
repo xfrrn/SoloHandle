@@ -1,4 +1,4 @@
-{
+﻿{
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "tools/create_lifelog.schema.json",
   "title": "create_lifelog arguments",
@@ -18,3 +18,4 @@
     "idempotency_key": {"type": ["string", "null"]}
   }
 }
+

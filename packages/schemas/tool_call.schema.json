@@ -1,4 +1,4 @@
-{
+﻿{
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "tool_call.schema.json",
   "title": "ToolCall",
@@ -10,3 +10,4 @@
     "arguments": {"type": "object"}
   }
 }
+
