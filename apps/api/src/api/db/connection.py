@@ -2,6 +2,7 @@
 
 import json
 import os
+from pathlib import Path
 import sqlite3
 from dataclasses import dataclass
 from datetime import datetime, timezone
@@ -9,7 +10,7 @@ from typing import Any, Iterable, Optional
 from zoneinfo import ZoneInfo
 
 DEFAULT_TZ = "Asia/Shanghai"
-DEFAULT_DB_PATH = os.path.join("data", "app.db")
+DEFAULT_DB_PATH = str(Path(__file__).resolve().parents[2] / "data" / "app.db")
 
 
 @dataclass
@@ -110,6 +111,28 @@ def ensure_tables(conn: sqlite3.Connection) -> None:
         "CREATE INDEX IF NOT EXISTS idx_notifications_scheduled_at ON notifications(scheduled_at)"
     )
     cur.execute("CREATE INDEX IF NOT EXISTS idx_notifications_read_at ON notifications(read_at)")
+
+    cur.execute(
+        """
+        CREATE TABLE IF NOT EXISTS orchestrator_logs (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            kind TEXT NOT NULL,
+            request_id TEXT,
+            draft_id TEXT,
+            tool_name TEXT,
+            payload_json TEXT,
+            result_json TEXT,
+            undo_token TEXT,
+            created_at TEXT NOT NULL
+        )
+        """
+    )
+    cur.execute(
+        "CREATE INDEX IF NOT EXISTS idx_orchestrator_draft_id ON orchestrator_logs(draft_id)"
+    )
+    cur.execute(
+        "CREATE INDEX IF NOT EXISTS idx_orchestrator_undo_token ON orchestrator_logs(undo_token)"
+    )
 
     conn.commit()
 

@@ -1,0 +1,17 @@
+﻿# Project runtime data
+/data/
+**/*.db
+**/*.sqlite
+**/*.sqlite3
+
+# Python runtime cache (project code only)
+**/__pycache__/
+
+# Local virtual environment for apps/api
+/apps/api/.venv/
+
+# Pytest cache in apps/api
+/apps/api/.pytest_cache/
+
+# Local LLM config (contains secrets)
+/apps/api/config.toml
