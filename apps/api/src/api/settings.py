@@ -4,7 +4,10 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Optional
 
-import tomllib
+try:
+    import tomllib  # Python 3.11+
+except ModuleNotFoundError:  # pragma: no cover
+    import tomli as tomllib
 
 DEFAULT_CONFIG_PATH = Path(__file__).resolve().parents[2] / "config.toml"
 
