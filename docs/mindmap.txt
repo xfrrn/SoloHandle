@@ -1,0 +1,134 @@
+AI 个人助理应用（Chat + Router(JSON) + Tools + Events/Tasks + Dashboard + Memory）
+├─ 客户端入口
+│  ├─ 手机端（PWA/网页 → 后期原生App）
+│  └─ 输入形式
+│     ├─ 文本对话
+│     ├─ 图片/截图（记账）
+│     └─ 语音（后期）
+│
+├─ 后端核心（你的服务）
+│  ├─ API 层
+│  │  ├─ POST /chat                 统一入口：一句话/一张图 → 自动做事
+│  │  ├─ CRUD /events               事件（生活/记账/心情/运动/餐饮…）
+│  │  ├─ CRUD /tasks                任务实体（状态、截止、提醒）
+│  │  ├─ GET  /dashboard            看板聚合数据
+│  │  ├─ CRUD /memory               记忆（偏好/事实/总结）
+│  │  ├─ CRUD /notifications        提醒/通知中心（后端生成）
+│  │  └─ POST /files                图片/语音上传
+│  │
+│  ├─ Orchestrator 编排器（核心调度）
+│  │  ├─ Session 上下文管理（最近对话/当前模式）
+│  │  ├─ 工具执行日志（可追溯）
+│  │  ├─ Draft 草稿机制（先草稿→确认→提交）
+│  │  ├─ Undo 撤销/更正（防误记账/误建任务）
+│  │  └─ 置信度策略（低追问/中草稿/高直提）
+│  │
+│  ├─ Intent Router 意图路由（方式二：结构化 JSON 输出）
+│  │  ├─ 规则层（高置信度直达）
+│  │  │  ├─ 金额/支付关键词 → 记账
+│  │  │  ├─ 运动关键词 → 运动记录
+│  │  │  ├─ 情绪词/吐槽 → 心情记录
+│  │  │  └─ 提醒/截止/待办 → 任务
+│  │  ├─ LLM 路由层（强约束 JSON）
+│  │  │  ├─ intent: expense | lifelog | mood | workout | task | query | unknown
+│  │  │  ├─ confidence: 0~1
+│  │  │  ├─ events[]: 多事件抽取（一句话拆多条）
+│  │  │  ├─ tool_calls[]: 需要调用的工具列表（可多个）
+│  │  │  ├─ need_clarification + clarify_question
+│  │  │  └─ reply_to_user（自然语言回复）
+│  │  └─ 解析与校验
+│  │     ├─ schema 校验（字段缺失/类型错误）
+│  │     └─ 补全默认值（类别未知/时间用 now）
+│  │
+│  ├─ Tools 工具层（方式一：工具调用，后端真实执行）
+│  │  ├─ 记账工具（Expense）
+│  │  │  ├─ create_expense(amount, category, note, happened_at, ...)
+│  │  │  ├─ update_expense(expense_id, ...)
+│  │  │  └─ categorize_expense(规则/模型后期)
+│  │  ├─ 生活记录工具（LifeLog / Meal / Location）
+│  │  │  ├─ create_lifelog(text, happened_at, tags, ...)
+│  │  │  ├─ create_meal(meal_type, items, happened_at, ...)
+│  │  │  └─ create_location(place, happened_at, ...)
+│  │  ├─ 心情工具（Mood）
+│  │  │  ├─ create_mood(mood, intensity, topic, happened_at, ...)
+│  │  │  └─ mood_summary(period)
+│  │  ├─ 任务工具（Task）
+│  │  │  ├─ create_task(title, due_at?, remind_at?, priority?, tags?, project?)
+│  │  │  ├─ update_task(task_id, ...)
+│  │  │  ├─ complete_task(task_id)
+│  │  │  ├─ postpone_task(task_id, new_due_at?, new_remind_at?)
+│  │  │  ├─ search_tasks(query?, status?, date_range?, tags?, project?)
+│  │  │  ├─ list_tasks_today() / list_tasks_overdue() / list_tasks_upcoming(days)
+│  │  │  └─ schedule_reminder(task_id, remind_at) / cancel_reminder(task_id)
+│  │  ├─ 查询/聚合工具（Query）
+│  │  │  ├─ search_events(query, filters)
+│  │  │  ├─ aggregate_stats(type, period, group_by)
+│  │  │  └─ summarize_period(period, focus)
+│  │  └─ 文件解析工具（截图记账）
+│  │     ├─ parse_receipt_image(OCR/视觉：金额/商户/时间/商品)
+│  │     └─ parse_text_entities(从文本抽金额/地点/时间等)
+│  │
+│  ├─ Reminder Scheduler 提醒调度器（让任务“会提醒”）
+│  │  ├─ 定时轮询（每 30s/60s）
+│  │  │  └─ 查 tasks.remind_at <= now AND status != done
+│  │  ├─ 生成通知（notifications）
+│  │  │  ├─ 写入数据库（未读提醒）
+│  │  │  └─ （后期）推送：PWA Push / 原生通知
+│  │  ├─ 重复任务（可选）
+│  │  │  └─ repeat_rule → 计算下一次 remind_at/due_at
+│  │  └─ 防重复提醒（幂等）
+│  │     └─ reminded_at / notification_id 标记
+│  │
+│  └─ 数据层（Data）
+│     ├─ Event Store（统一事件）
+│     │  └─ events(type, data_json, happened_at, tags, source, confidence)
+│     ├─ Task Store（任务实体）
+│     │  └─ tasks(status, due_at, remind_at, priority, tags, project, ...)
+│     ├─ Notifications（提醒中心）
+│     │  └─ notifications(task_id?, title, content, scheduled_at, sent_at, read_at)
+│     ├─ 附件存储（images/voices）
+│     └─ 索引（后期）
+│        ├─ 全文索引（先）
+│        └─ 向量索引（后）
+│
+├─ Memory 记忆系统（像“活人”一样服务你）
+│  ├─ Facts（事实/偏好，可编辑）
+│  │  ├─ 记账分类偏好（午餐默认餐饮、常用支付方式…）
+│  │  ├─ 常去地点/常用商户
+│  │  ├─ 任务偏好（默认提醒提前 30 分钟等）
+│  │  └─ 禁止项（“不要自动记录这类内容”）
+│  ├─ Summaries（总结记忆）
+│  │  ├─ weekly_summary（月/周总结写成 summary 事件）
+│  │  └─ monthly_summary
+│  └─ 写入规则
+│     ├─ 高置信度 + 对未来有用 + 可撤销
+│     └─ 用户可一键更正/删除记忆
+│
+├─ 交互呈现（关键体验）
+│  ├─ AI 自然语言回复（一句话像人）
+│  ├─ 操作卡片（已识别的事件/任务，可编辑/撤销/补充）
+│  └─ 状态流转
+│     ├─ Draft（草稿）
+│     ├─ NeedClarification（追问）
+│     ├─ Committed（已入库）
+│     └─ Undoable（可撤销）
+│
+└─ 看板 Dashboard（价值展示）
+   ├─ 财务（Expense）
+   │  ├─ 本月总支出/日均
+   │  ├─ 分类占比（餐饮/交通/购物…）
+   │  └─ 近 7/30 天趋势
+   ├─ 健康（Workout）
+   │  ├─ 运动次数/时长
+   │  └─ streak（连续打卡）
+   ├─ 情绪（Mood）
+   │  ├─ valence 趋势
+   │  └─ 触发主题（topic）
+   ├─ 任务（Tasks）
+   │  ├─ 今日任务（due/today）
+   │  ├─ 即将到期（upcoming）
+   │  ├─ 逾期任务（overdue）
+   │  └─ 完成率（本周）
+   └─ 生活（LifeLog）
+      ├─ 时间轴/热力图
+      └─ 重要事件回顾（AI 摘要）
