@@ -2,17 +2,22 @@
 
 from typing import Any, Iterable, Optional
 
-from api.services.tasks_service import (
-    complete_task as _complete_task,
-    create_task as _create_task,
-    list_tasks_overdue as _list_tasks_overdue,
-    list_tasks_today as _list_tasks_today,
-    postpone_task as _postpone_task,
-    search_tasks as _search_tasks,
-    soft_delete_task as _soft_delete_task,
-    undo_task as _undo_task,
-    update_task as _update_task,
+from api.db.connection import (
+    ToolError,
+    ensure_iso8601,
+    ensure_tables,
+    get_connection,
+    json_dumps,
+    normalize_tags,
+    now_iso8601,
+    require_enum,
+    require_non_empty_str,
 )
+from api.repositories.tasks_repo import TaskRepository
+from api.services.tasks_service import TaskService
+
+TASK_STATUS = {"todo", "doing", "done", "canceled"}
+TASK_PRIORITY = {"low", "medium", "high"}
 
 
 def create_task(
@@ -27,16 +32,31 @@ def create_task(
     idempotency_key: Optional[str] = None,
 ) -> dict[str, Any]:
     """Create a task."""
-    return _create_task(
-        title=title,
-        due_at=due_at,
-        remind_at=remind_at,
-        priority=priority,
-        tags=tags,
-        project=project,
-        note=note,
-        idempotency_key=idempotency_key,
-    )
+    title_value = require_non_empty_str(title, "title")
+    pr = require_enum(priority, "priority", TASK_PRIORITY)
+    if project is not None and not isinstance(project, str):
+        raise ToolError("invalid_param", "project must be string or null")
+    if note is not None and not isinstance(note, str):
+        raise ToolError("invalid_param", "note must be string or null")
+
+    due_at_iso = ensure_iso8601(due_at)
+    remind_at_iso = ensure_iso8601(remind_at)
+    tags_list = normalize_tags(tags)
+
+    with get_connection() as conn:
+        ensure_tables(conn)
+        service = TaskService(TaskRepository(conn))
+        return service.create_task(
+            title=title_value,
+            status="todo",
+            priority=pr,
+            due_at=due_at_iso,
+            remind_at=remind_at_iso,
+            tags=tags_list,
+            project=project,
+            note=note,
+            idempotency_key=idempotency_key,
+        )
 
 
 def update_task(
@@ -52,22 +72,51 @@ def update_task(
     note: Optional[str] = None,
 ) -> dict[str, Any]:
     """Update a task."""
-    return _update_task(
-        task_id=task_id,
-        title=title,
-        status=status,
-        priority=priority,
-        due_at=due_at,
-        remind_at=remind_at,
-        tags=tags,
-        project=project,
-        note=note,
-    )
+    if not isinstance(task_id, int) or task_id <= 0:
+        raise ToolError("invalid_param", "task_id must be positive integer")
+
+    fields: dict[str, Any] = {}
+    if title is not None:
+        fields["title"] = require_non_empty_str(title, "title")
+    if status is not None:
+        fields["status"] = require_enum(status, "status", TASK_STATUS)
+    if priority is not None:
+        fields["priority"] = require_enum(priority, "priority", TASK_PRIORITY)
+    if due_at is not None:
+        fields["due_at"] = ensure_iso8601(due_at)
+    if remind_at is not None:
+        fields["remind_at"] = ensure_iso8601(remind_at)
+    if tags is not None:
+        fields["tags_json"] = json_dumps(normalize_tags(tags))
+    if project is not None:
+        if not isinstance(project, str):
+            raise ToolError("invalid_param", "project must be string or null")
+        fields["project"] = project
+    if note is not None:
+        if not isinstance(note, str):
+            raise ToolError("invalid_param", "note must be string or null")
+        fields["note"] = note
+
+    if not fields:
+        raise ToolError("invalid_param", "no fields to update")
+
+    fields["updated_at"] = now_iso8601()
+
+    with get_connection() as conn:
+        ensure_tables(conn)
+        service = TaskService(TaskRepository(conn))
+        return service.update_task(task_id, fields)
 
 
 def complete_task(task_id: int) -> dict[str, Any]:
     """Complete a task."""
-    return _complete_task(task_id)
+    if not isinstance(task_id, int) or task_id <= 0:
+        raise ToolError("invalid_param", "task_id must be positive integer")
+
+    with get_connection() as conn:
+        ensure_tables(conn)
+        service = TaskService(TaskRepository(conn))
+        return service.complete_task(task_id)
 
 
 def postpone_task(
@@ -77,9 +126,22 @@ def postpone_task(
     new_remind_at: Optional[str] = None,
 ) -> dict[str, Any]:
     """Postpone a task due/remind time."""
-    return _postpone_task(
-        task_id=task_id, new_due_at=new_due_at, new_remind_at=new_remind_at
-    )
+    if not isinstance(task_id, int) or task_id <= 0:
+        raise ToolError("invalid_param", "task_id must be positive integer")
+    if new_due_at is None and new_remind_at is None:
+        raise ToolError("invalid_param", "new_due_at or new_remind_at required")
+
+    fields: dict[str, Any] = {}
+    if new_due_at is not None:
+        fields["due_at"] = ensure_iso8601(new_due_at)
+    if new_remind_at is not None:
+        fields["remind_at"] = ensure_iso8601(new_remind_at)
+    fields["updated_at"] = now_iso8601()
+
+    with get_connection() as conn:
+        ensure_tables(conn)
+        service = TaskService(TaskRepository(conn))
+        return service.update_task(task_id, fields)
 
 
 def search_tasks(
@@ -92,31 +154,64 @@ def search_tasks(
     offset: int = 0,
 ) -> dict[str, Any]:
     """Search tasks using simple filters."""
-    return _search_tasks(
-        query=query,
-        status=status,
-        date_from=date_from,
-        date_to=date_to,
-        limit=limit,
-        offset=offset,
-    )
+    if limit <= 0 or limit > 200:
+        raise ToolError("invalid_param", "limit must be in 1..200")
+    if offset < 0:
+        raise ToolError("invalid_param", "offset must be >= 0")
+
+    status_value = None
+    if status is not None:
+        status_value = require_enum(status, "status", TASK_STATUS)
+
+    date_from_iso = ensure_iso8601(date_from)
+    date_to_iso = ensure_iso8601(date_to)
+
+    with get_connection() as conn:
+        ensure_tables(conn)
+        service = TaskService(TaskRepository(conn))
+        return service.search_tasks(
+            query=query,
+            status=status_value,
+            date_from=date_from_iso,
+            date_to=date_to_iso,
+            limit=limit,
+            offset=offset,
+        )
 
 
 def list_tasks_today(timezone: str = "Asia/Tokyo") -> dict[str, Any]:
     """List tasks due today in the given timezone."""
-    return _list_tasks_today(timezone)
+    with get_connection() as conn:
+        ensure_tables(conn)
+        service = TaskService(TaskRepository(conn))
+        return service.list_tasks_today(timezone)
 
 
 def list_tasks_overdue(timezone: str = "Asia/Tokyo") -> dict[str, Any]:
     """List overdue tasks in the given timezone."""
-    return _list_tasks_overdue(timezone)
+    with get_connection() as conn:
+        ensure_tables(conn)
+        service = TaskService(TaskRepository(conn))
+        return service.list_tasks_overdue(timezone)
 
 
 def soft_delete_task(task_id: int) -> dict[str, Any]:
     """Soft delete a task."""
-    return _soft_delete_task(task_id)
+    if not isinstance(task_id, int) or task_id <= 0:
+        raise ToolError("invalid_param", "task_id must be positive integer")
+
+    with get_connection() as conn:
+        ensure_tables(conn)
+        service = TaskService(TaskRepository(conn))
+        return service.set_deleted(task_id, 1)
 
 
 def undo_task(task_id: int) -> dict[str, Any]:
     """Undo soft delete for a task."""
-    return _undo_task(task_id)
+    if not isinstance(task_id, int) or task_id <= 0:
+        raise ToolError("invalid_param", "task_id must be positive integer")
+
+    with get_connection() as conn:
+        ensure_tables(conn)
+        service = TaskService(TaskRepository(conn))
+        return service.set_deleted(task_id, 0)
