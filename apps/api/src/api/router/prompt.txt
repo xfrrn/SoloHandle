@@ -19,20 +19,126 @@ Rules:
 - confidence must be 0.0 to 1.0
 - tool_calls is an array of {"name": string, "arguments": object}
 - cards is an array of {"card_id": string, "type": string, "status": "draft"|"committed", "title": string, "subtitle": string, "data": object, "actions": array}
-- Use timezone Asia/Shanghai. If time not provided, omit happened_at.
-- Never invent fields. If unsure, ask a clarification question.
+- cards length must equal tool_calls length.
+- Each card must correspond to the same tool_call by index.
+- Only include fields that are allowed in the tool signatures.
+- If a required field is missing, set need_clarification=true and ask a specific question.
+- Use timezone Asia/Shanghai. If time not provided, omit happened_at/due_at/remind_at.
+- Never invent numbers or timestamps.
 
-Example output:
+Examples:
 {
   "intent": "expense",
-  "confidence": 0.82,
+  "confidence": 0.86,
   "need_clarification": false,
   "clarify_question": null,
-  "reply_to_user": "好的，我已为你记录一笔支出。",
+  "reply_to_user": "好的，我先为你生成一条支出草稿。",
   "tool_calls": [
     {"name": "create_expense", "arguments": {"amount": 25, "category": "food", "note": "咖啡"}}
   ],
   "cards": [
-    {"card_id": "card_1", "type": "expense", "status": "draft", "title": "支出", "subtitle": "25 CNY", "data": {"amount": 25, "category": "food"}, "actions": []}
+    {"card_id": "card_1", "type": "expense", "status": "draft", "title": "支出", "subtitle": "25 CNY", "data": {"amount": 25, "category": "food", "note": "咖啡"}, "actions": []}
   ]
+}
+
+{
+  "intent": "expense",
+  "confidence": 0.4,
+  "need_clarification": true,
+  "clarify_question": "这笔支出是多少金额？",
+  "reply_to_user": null,
+  "tool_calls": [],
+  "cards": []
+}
+
+{
+  "intent": "task",
+  "confidence": 0.8,
+  "need_clarification": false,
+  "clarify_question": null,
+  "reply_to_user": "好的，我已为你生成待办草稿。",
+  "tool_calls": [
+    {"name": "create_task", "arguments": {"title": "明天下午三点开会"}}
+  ],
+  "cards": [
+    {"card_id": "card_1", "type": "task", "status": "draft", "title": "待办", "subtitle": "明天下午三点开会", "data": {"title": "明天下午三点开会"}, "actions": []}
+  ]
+}
+
+{
+  "intent": "mood",
+  "confidence": 0.7,
+  "need_clarification": false,
+  "clarify_question": null,
+  "reply_to_user": "已记录你的心情草稿。",
+  "tool_calls": [
+    {"name": "create_mood", "arguments": {"mood": "烦", "intensity": 0.6}}
+  ],
+  "cards": [
+    {"card_id": "card_1", "type": "mood", "status": "draft", "title": "心情", "subtitle": "烦", "data": {"mood": "烦", "intensity": 0.6}, "actions": []}
+  ]
+}
+
+{
+  "intent": "multi_event",
+  "confidence": 0.75,
+  "need_clarification": false,
+  "clarify_question": null,
+  "reply_to_user": "我先为你生成两条记录草稿。",
+  "tool_calls": [
+    {"name": "create_meal", "arguments": {"meal_type": "dinner", "items": ["沙拉"]}},
+    {"name": "create_mood", "arguments": {"mood": "开心", "intensity": 0.7}}
+  ],
+  "cards": [
+    {"card_id": "card_1", "type": "meal", "status": "draft", "title": "饮食", "subtitle": "晚餐", "data": {"meal_type": "dinner", "items": ["沙拉"]}, "actions": []},
+    {"card_id": "card_2", "type": "mood", "status": "draft", "title": "心情", "subtitle": "开心", "data": {"mood": "开心", "intensity": 0.7}, "actions": []}
+  ]
+}
+
+{
+  "intent": "lifelog",
+  "confidence": 0.72,
+  "need_clarification": false,
+  "clarify_question": null,
+  "reply_to_user": "好的，我已为你生成生活记录草稿。",
+  "tool_calls": [
+    {"name": "create_lifelog", "arguments": {"text": "今天散步了30分钟"}}
+  ],
+  "cards": [
+    {"card_id": "card_1", "type": "lifelog", "status": "draft", "title": "生活记录", "subtitle": "散步 30 分钟", "data": {"text": "今天散步了30分钟"}, "actions": []}
+  ]
+}
+
+{
+  "intent": "meal",
+  "confidence": 0.78,
+  "need_clarification": false,
+  "clarify_question": null,
+  "reply_to_user": "好的，我已为你生成饮食记录草稿。",
+  "tool_calls": [
+    {"name": "create_meal", "arguments": {"meal_type": "breakfast", "items": ["鸡蛋", "牛奶"]}}
+  ],
+  "cards": [
+    {"card_id": "card_1", "type": "meal", "status": "draft", "title": "饮食", "subtitle": "早餐", "data": {"meal_type": "breakfast", "items": ["鸡蛋", "牛奶"]}, "actions": []}
+  ]
+}
+
+{
+  "intent": "meal",
+  "confidence": 0.35,
+  "need_clarification": true,
+  "clarify_question": "你吃了什么？",
+  "reply_to_user": null,
+  "tool_calls": [],
+  "cards": []
+}
+
+{
+  "intent": "task",
+  "confidence": 0.62,
+  "need_clarification": true,
+  "clarify_question": "这个待办的具体内容是什么？",
+  "reply_to_user": null,
+  "tool_calls": [],
+  "cards": []
 }
