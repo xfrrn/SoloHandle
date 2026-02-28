@@ -10,7 +10,12 @@ from api.db.connection import ToolError
 from api.router.provider import LLMProvider, load_provider_from_config
 from api.router.schema import RouterDecision
 
-PROMPT_PATH = Path(__file__).with_name("prompt.txt")
+PROMPT_PATH = (
+    Path(__file__).resolve().parents[5]
+    / "packages"
+    / "prompts"
+    / "router_prompt.txt"
+)
 
 
 def route(text: str, provider: LLMProvider | None = None, max_retries: int = 2) -> RouterDecision:
