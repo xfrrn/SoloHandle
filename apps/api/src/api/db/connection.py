@@ -10,7 +10,7 @@ from typing import Any, Iterable, Optional
 from zoneinfo import ZoneInfo
 
 DEFAULT_TZ = "Asia/Shanghai"
-DEFAULT_DB_PATH = str(Path(__file__).resolve().parents[2] / "data" / "app.db")
+DEFAULT_DB_PATH = str(Path(__file__).resolve().parents[5] / "data" / "app.db")
 
 
 @dataclass
