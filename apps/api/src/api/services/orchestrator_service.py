@@ -4,7 +4,17 @@ from dataclasses import dataclass
 from typing import Any, Iterable, Optional
 from uuid import uuid4
 
-from api.db.connection import ToolError, ensure_tables, get_connection, json_dumps, json_loads, now_iso8601
+from api.core.time_parse import parse_natural_time
+from api.db.connection import (
+    DEFAULT_TZ,
+    ToolError,
+    ensure_iso8601,
+    ensure_tables,
+    get_connection,
+    json_dumps,
+    json_loads,
+    now_iso8601,
+)
 from api.repositories.orchestrator_repo import OrchestratorRepository
 from api.router.route import route as llm_route
 from api.tools.events import create_expense, create_lifelog, create_meal, create_mood, undo_event
@@ -156,6 +166,7 @@ def _drafts_from_decision(decision) -> list[Draft]:
     for idx, call in enumerate(decision.tool_calls):
         draft_id = str(uuid4())
         payload = dict(call.arguments)
+        payload = _normalize_time_fields(payload, call.name)
         payload.setdefault("idempotency_key", draft_id)
         card = _pick_card(decision.cards, idx, draft_id, call.name, payload)
         drafts.append(
@@ -175,6 +186,7 @@ def _fallback_drafts(text: str) -> list[Draft]:
 
     def add(tool_name: str, payload: dict[str, Any], confidence: float = 0.5) -> None:
         draft_id = str(uuid4())
+        payload = _normalize_time_fields(payload, tool_name)
         payload = {**payload, "idempotency_key": draft_id}
         card = _pick_card([], 0, draft_id, tool_name, payload)
         drafts.append(
@@ -228,6 +240,26 @@ def _undo_tool(tool_name: str, result: dict[str, Any]) -> dict[str, Any]:
             return {"task": undo_task(task_id)}
         return {"task": None}
     return {"unknown": tool_name}
+
+
+def _normalize_time_fields(payload: dict[str, Any], tool_name: str) -> dict[str, Any]:
+    fields: list[str] = []
+    if tool_name == "create_task":
+        fields = ["due_at", "remind_at"]
+    elif tool_name in {"create_expense", "create_lifelog", "create_meal", "create_mood"}:
+        fields = ["happened_at"]
+
+    for field in fields:
+        value = payload.get(field)
+        if value is None or not isinstance(value, str):
+            continue
+        try:
+            payload[field] = ensure_iso8601(value)
+            continue
+        except ToolError:
+            parsed = parse_natural_time(value, DEFAULT_TZ)
+            payload[field] = parsed
+    return payload
 
 
 def _extract_amount(text: str) -> Optional[float]:
