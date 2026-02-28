@@ -1,0 +1,89 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "chat_response.schema.json",
+  "title": "ChatResponse",
+  "oneOf": [
+    {"$ref": "#/$defs/clarification_response"},
+    {"$ref": "#/$defs/draft_response"},
+    {"$ref": "#/$defs/commit_response"},
+    {"$ref": "#/$defs/undo_response"}
+  ],
+  "$defs": {
+    "card": {"$ref": "card.schema.json"},
+    "draft": {"$ref": "draft.schema.json"},
+    "event": {"$ref": "event.schema.json"},
+    "task": {"$ref": "task.schema.json"},
+    "clarification_response": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["need_clarification", "clarify_question", "drafts", "cards"],
+      "properties": {
+        "need_clarification": {"const": true},
+        "clarify_question": {"type": "string"},
+        "reply_to_user": {"type": ["string", "null"]},
+        "drafts": {"type": "array", "items": {"$ref": "#/$defs/draft"}},
+        "cards": {"type": "array", "items": {"$ref": "#/$defs/card"}}
+      }
+    },
+    "draft_response": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["drafts", "cards", "request_id"],
+      "properties": {
+        "drafts": {"type": "array", "items": {"$ref": "#/$defs/draft"}},
+        "cards": {"type": "array", "items": {"$ref": "#/$defs/card"}},
+        "request_id": {"type": "string"}
+      }
+    },
+    "commit_response": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["committed", "undo_token"],
+      "properties": {
+        "committed": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["draft_id", "tool_name", "result"],
+            "properties": {
+              "draft_id": {"type": "string"},
+              "tool_name": {"type": "string"},
+              "result": {"oneOf": [{"$ref": "#/$defs/event"}, {"$ref": "#/$defs/task"}]}
+            }
+          }
+        },
+        "undo_token": {"type": "string"}
+      }
+    },
+    "undo_response": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["undone", "undo_token"],
+      "properties": {
+        "undone": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "oneOf": [
+              {
+                "required": ["event"],
+                "properties": {"event": {"oneOf": [{"$ref": "#/$defs/event"}, {"type": "null"}]}}
+              },
+              {
+                "required": ["task"],
+                "properties": {"task": {"oneOf": [{"$ref": "#/$defs/task"}, {"type": "null"}]}}
+              },
+              {
+                "required": ["unknown"],
+                "properties": {"unknown": {"type": "string"}}
+              }
+            ]
+          }
+        },
+        "undo_token": {"type": "string"}
+      }
+    }
+  }
+}

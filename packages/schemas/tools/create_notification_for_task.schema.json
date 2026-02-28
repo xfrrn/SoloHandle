@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "tools/create_notification_for_task.schema.json",
+  "title": "create_notification_for_task arguments",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["scheduled_at"],
+  "properties": {
+    "task_id": {"type": ["integer", "null"], "minimum": 1},
+    "scheduled_at": {"type": "string", "format": "date-time"},
+    "title": {"type": ["string", "null"]},
+    "content": {"type": ["string", "null"]}
+  }
+}

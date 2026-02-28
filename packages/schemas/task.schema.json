@@ -1,0 +1,39 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "task.schema.json",
+  "title": "Task",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "task_id",
+    "title",
+    "status",
+    "priority",
+    "due_at",
+    "remind_at",
+    "repeat_rule",
+    "project",
+    "tags",
+    "note",
+    "created_at",
+    "updated_at",
+    "completed_at",
+    "is_deleted"
+  ],
+  "properties": {
+    "task_id": {"type": "integer", "minimum": 1},
+    "title": {"type": "string"},
+    "status": {"type": "string", "enum": ["todo", "doing", "done", "canceled"]},
+    "priority": {"type": "string", "enum": ["low", "medium", "high"]},
+    "due_at": {"type": ["string", "null"], "format": "date-time"},
+    "remind_at": {"type": ["string", "null"], "format": "date-time"},
+    "repeat_rule": {"type": ["string", "null"]},
+    "project": {"type": ["string", "null"]},
+    "tags": {"type": "array", "items": {"type": "string"}, "maxItems": 20},
+    "note": {"type": ["string", "null"]},
+    "created_at": {"type": "string", "format": "date-time"},
+    "updated_at": {"type": "string", "format": "date-time"},
+    "completed_at": {"type": ["string", "null"], "format": "date-time"},
+    "is_deleted": {"type": "integer", "enum": [0, 1]}
+  }
+}

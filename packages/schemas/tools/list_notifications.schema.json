@@ -1,0 +1,11 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "tools/list_notifications.schema.json",
+  "title": "list_notifications arguments",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "unread_only": {"type": "boolean", "default": true},
+    "limit": {"type": "integer", "minimum": 1, "maximum": 200, "default": 20}
+  }
+}

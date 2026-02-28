@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "router_health.schema.json",
+  "title": "RouterHealth",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["llm_configured", "model", "base_url"],
+  "properties": {
+    "llm_configured": {"type": "boolean"},
+    "model": {"type": ["string", "null"]},
+    "base_url": {"type": ["string", "null"]}
+  }
+}

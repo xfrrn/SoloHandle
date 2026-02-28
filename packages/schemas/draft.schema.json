@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "draft.schema.json",
+  "title": "Draft",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["draft_id", "tool_name", "payload", "confidence", "status"],
+  "properties": {
+    "draft_id": {"type": "string"},
+    "tool_name": {"type": "string"},
+    "payload": {"type": "object"},
+    "confidence": {"type": "number", "minimum": 0, "maximum": 1},
+    "status": {"type": "string", "enum": ["draft"]}
+  }
+}

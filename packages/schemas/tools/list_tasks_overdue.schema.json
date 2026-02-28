@@ -1,0 +1,10 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "tools/list_tasks_overdue.schema.json",
+  "title": "list_tasks_overdue arguments",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "timezone": {"type": "string", "default": "Asia/Tokyo"}
+  }
+}

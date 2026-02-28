@@ -1,0 +1,11 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "tools/mark_notification_read.schema.json",
+  "title": "mark_notification_read arguments",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["notification_id"],
+  "properties": {
+    "notification_id": {"type": "integer", "minimum": 1}
+  }
+}

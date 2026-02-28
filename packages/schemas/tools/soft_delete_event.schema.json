@@ -1,0 +1,11 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "tools/soft_delete_event.schema.json",
+  "title": "soft_delete_event arguments",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["event_id"],
+  "properties": {
+    "event_id": {"type": "integer", "minimum": 1}
+  }
+}

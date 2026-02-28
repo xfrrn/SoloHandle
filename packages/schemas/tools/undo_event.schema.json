@@ -1,0 +1,11 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "tools/undo_event.schema.json",
+  "title": "undo_event arguments",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["event_id"],
+  "properties": {
+    "event_id": {"type": "integer", "minimum": 1}
+  }
+}

@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "tools/search_events.schema.json",
+  "title": "search_events arguments",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "query": {"type": ["string", "null"]},
+    "types": {
+      "type": ["array", "null"],
+      "items": {
+        "type": "string",
+        "enum": ["expense", "lifelog", "meal", "mood"]
+      }
+    },
+    "date_from": {"type": ["string", "null"], "format": "date-time"},
+    "date_to": {"type": ["string", "null"], "format": "date-time"},
+    "limit": {"type": "integer", "minimum": 1, "maximum": 200, "default": 20},
+    "offset": {"type": "integer", "minimum": 0, "default": 0}
+  }
+}

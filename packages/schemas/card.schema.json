@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "card.schema.json",
+  "title": "Card",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["card_id", "type", "status", "title", "subtitle", "data", "actions"],
+  "properties": {
+    "card_id": {"type": "string"},
+    "type": {"type": "string"},
+    "status": {"type": "string", "enum": ["draft", "committed"]},
+    "title": {"type": "string"},
+    "subtitle": {"type": "string"},
+    "data": {"type": "object"},
+    "actions": {"type": "array", "items": {"type": "object"}}
+  }
+}

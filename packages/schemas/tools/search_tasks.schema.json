@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "tools/search_tasks.schema.json",
+  "title": "search_tasks arguments",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "query": {"type": ["string", "null"]},
+    "status": {"type": ["string", "null"], "enum": ["todo", "doing", "done", "canceled"]},
+    "date_from": {"type": ["string", "null"], "format": "date-time"},
+    "date_to": {"type": ["string", "null"], "format": "date-time"},
+    "limit": {"type": "integer", "minimum": 1, "maximum": 200, "default": 20},
+    "offset": {"type": "integer", "minimum": 0, "default": 0}
+  }
+}
