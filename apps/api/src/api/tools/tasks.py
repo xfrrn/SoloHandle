@@ -2,6 +2,7 @@
 
 from typing import Any, Iterable, Optional
 
+from api.core.constants_loader import get_constants
 from api.db.connection import (
     ToolError,
     ensure_iso8601,
@@ -16,24 +17,25 @@ from api.db.connection import (
 from api.repositories.tasks_repo import TaskRepository
 from api.services.tasks_service import TaskService
 
-TASK_STATUS = {"todo", "doing", "done", "canceled"}
-TASK_PRIORITY = {"low", "medium", "high"}
-
-
 def create_task(
     *,
     title: Any,
     due_at: Optional[str] = None,
     remind_at: Optional[str] = None,
-    priority: str = "medium",
+    priority: Optional[str] = None,
     tags: Optional[Iterable[str]] = None,
     project: Optional[str] = None,
     note: Optional[str] = None,
     idempotency_key: Optional[str] = None,
 ) -> dict[str, Any]:
     """Create a task."""
+    consts = get_constants()
     title_value = require_non_empty_str(title, "title")
-    pr = require_enum(priority, "priority", TASK_PRIORITY)
+    pr = require_enum(
+        priority or consts.task.default_priority,
+        "priority",
+        consts.task.priority,
+    )
     if project is not None and not isinstance(project, str):
         raise ToolError("invalid_param", "project must be string or null")
     if note is not None and not isinstance(note, str):
@@ -48,7 +50,7 @@ def create_task(
         service = TaskService(TaskRepository(conn))
         return service.create_task(
             title=title_value,
-            status="todo",
+            status=consts.task.default_status,
             priority=pr,
             due_at=due_at_iso,
             remind_at=remind_at_iso,
@@ -72,6 +74,7 @@ def update_task(
     note: Optional[str] = None,
 ) -> dict[str, Any]:
     """Update a task."""
+    consts = get_constants()
     if not isinstance(task_id, int) or task_id <= 0:
         raise ToolError("invalid_param", "task_id must be positive integer")
 
@@ -79,9 +82,9 @@ def update_task(
     if title is not None:
         fields["title"] = require_non_empty_str(title, "title")
     if status is not None:
-        fields["status"] = require_enum(status, "status", TASK_STATUS)
+        fields["status"] = require_enum(status, "status", consts.task.status)
     if priority is not None:
-        fields["priority"] = require_enum(priority, "priority", TASK_PRIORITY)
+        fields["priority"] = require_enum(priority, "priority", consts.task.priority)
     if due_at is not None:
         fields["due_at"] = ensure_iso8601(due_at)
     if remind_at is not None:
@@ -161,7 +164,8 @@ def search_tasks(
 
     status_value = None
     if status is not None:
-        status_value = require_enum(status, "status", TASK_STATUS)
+        consts = get_constants()
+        status_value = require_enum(status, "status", consts.task.status)
 
     date_from_iso = ensure_iso8601(date_from)
     date_to_iso = ensure_iso8601(date_to)
@@ -179,20 +183,24 @@ def search_tasks(
         )
 
 
-def list_tasks_today(timezone: str = "Asia/Tokyo") -> dict[str, Any]:
+def list_tasks_today(timezone: Optional[str] = None) -> dict[str, Any]:
     """List tasks due today in the given timezone."""
+    consts = get_constants()
+    tz = timezone or consts.defaults.timezone
     with get_connection() as conn:
         ensure_tables(conn)
         service = TaskService(TaskRepository(conn))
-        return service.list_tasks_today(timezone)
+        return service.list_tasks_today(tz)
 
 
-def list_tasks_overdue(timezone: str = "Asia/Tokyo") -> dict[str, Any]:
+def list_tasks_overdue(timezone: Optional[str] = None) -> dict[str, Any]:
     """List overdue tasks in the given timezone."""
+    consts = get_constants()
+    tz = timezone or consts.defaults.timezone
     with get_connection() as conn:
         ensure_tables(conn)
         service = TaskService(TaskRepository(conn))
-        return service.list_tasks_overdue(timezone)
+        return service.list_tasks_overdue(tz)
 
 
 def soft_delete_task(task_id: int) -> dict[str, Any]:

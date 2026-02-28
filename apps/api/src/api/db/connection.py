@@ -9,7 +9,9 @@ from datetime import datetime, timezone
 from typing import Any, Iterable, Optional
 from zoneinfo import ZoneInfo
 
-DEFAULT_TZ = "Asia/Shanghai"
+from api.core.constants_loader import get_constants
+
+DEFAULT_TZ = get_constants().defaults.timezone
 DEFAULT_DB_PATH = str(Path(__file__).resolve().parents[5] / "data" / "app.db")
 
 
@@ -174,6 +176,7 @@ def json_loads(value: str) -> Any:
 
 
 def normalize_tags(tags: Optional[Iterable[str]]) -> list[str]:
+    consts = get_constants()
     if tags is None:
         return []
     if isinstance(tags, str):
@@ -186,8 +189,12 @@ def normalize_tags(tags: Optional[Iterable[str]]) -> list[str]:
         if not s:
             continue
         out.append(s)
-    if len(out) > 20:
-        raise ToolError("too_many_tags", "Tags size must be <= 20", {"count": len(out)})
+    if len(out) > consts.limits.max_tags:
+        raise ToolError(
+            "too_many_tags",
+            f"Tags size must be <= {consts.limits.max_tags}",
+            {"count": len(out)},
+        )
     return out
 
 

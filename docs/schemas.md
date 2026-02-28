@@ -69,5 +69,5 @@ LLM Router 及外部集成应遵守以下 tool 入参 schema：
 
 ## 共享常量
 
-- `packages/constants/ai_companion.constants.json`: 枚举与默认时区
+- `packages/constants/constants.json`: 枚举与默认时区
 

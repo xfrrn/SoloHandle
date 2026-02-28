@@ -2,6 +2,7 @@
 
 from typing import Any, Iterable, Optional
 
+from api.core.constants_loader import get_constants
 from api.db.connection import (
     ToolError,
     ensure_iso8601,
@@ -17,52 +18,43 @@ from api.db.connection import (
 from api.repositories.events_repo import EventRepository
 from api.services.events_service import EventService
 
-EVENT_TYPES = {"expense", "lifelog", "meal", "mood"}
-EXPENSE_CATEGORIES = {
-    "food",
-    "transport",
-    "shopping",
-    "entertainment",
-    "housing",
-    "medical",
-    "education",
-    "other",
-    "unknown",
-}
-MEAL_TYPES = {"breakfast", "lunch", "dinner", "snack", "unknown"}
-SOURCES = {"chat_text", "chat_image", "chat_voice", "import"}
-
-
 def create_expense(
     *,
     amount: Any,
-    currency: str = "CNY",
-    category: str = "unknown",
+    currency: Optional[str] = None,
+    category: Optional[str] = None,
     note: Optional[str] = None,
     happened_at: Optional[str] = None,
     tags: Optional[Iterable[str]] = None,
-    source: str = "chat_text",
-    confidence: float = 0.8,
+    source: Optional[str] = None,
+    confidence: Optional[float] = None,
     idempotency_key: Optional[str] = None,
 ) -> dict[str, Any]:
     """Create an expense event."""
+    consts = get_constants()
     amt = require_positive_number(amount, "amount")
-    cat = require_enum(category, "category", EXPENSE_CATEGORIES)
+    cat = require_enum(
+        category or consts.expense.default_category,
+        "category",
+        consts.expense.categories,
+    )
     if note is not None and not isinstance(note, str):
         raise ToolError("invalid_param", "note must be string or null")
-    if not isinstance(currency, str) or not currency.strip():
+    currency_value = currency or consts.defaults.currency
+    if not isinstance(currency_value, str) or not currency_value.strip():
         raise ToolError("invalid_param", "currency must be non-empty string")
 
     data = {
         "amount": amt,
-        "currency": currency.strip(),
+        "currency": currency_value.strip(),
         "category": cat,
         "note": note,
     }
     happened_at_iso = normalize_iso8601(happened_at)
     tags_list = normalize_tags(tags)
-    src = require_enum(source, "source", SOURCES)
-    conf = require_number_in_range(confidence, "confidence", 0.0, 1.0)
+    src = require_enum(source or consts.defaults.source, "source", consts.sources)
+    conf_value = confidence if confidence is not None else consts.defaults.confidence
+    conf = require_number_in_range(conf_value, "confidence", 0.0, 1.0)
 
     with get_connection() as conn:
         ensure_tables(conn)
@@ -83,17 +75,19 @@ def create_lifelog(
     text: Any,
     happened_at: Optional[str] = None,
     tags: Optional[Iterable[str]] = None,
-    source: str = "chat_text",
-    confidence: float = 0.8,
+    source: Optional[str] = None,
+    confidence: Optional[float] = None,
     idempotency_key: Optional[str] = None,
 ) -> dict[str, Any]:
     """Create a lifelog event."""
+    consts = get_constants()
     text_value = require_non_empty_str(text, "text")
     data = {"text": text_value}
     happened_at_iso = normalize_iso8601(happened_at)
     tags_list = normalize_tags(tags)
-    src = require_enum(source, "source", SOURCES)
-    conf = require_number_in_range(confidence, "confidence", 0.0, 1.0)
+    src = require_enum(source or consts.defaults.source, "source", consts.sources)
+    conf_value = confidence if confidence is not None else consts.defaults.confidence
+    conf = require_number_in_range(conf_value, "confidence", 0.0, 1.0)
 
     with get_connection() as conn:
         ensure_tables(conn)
@@ -115,12 +109,13 @@ def create_meal(
     items: Iterable[str],
     happened_at: Optional[str] = None,
     tags: Optional[Iterable[str]] = None,
-    source: str = "chat_text",
-    confidence: float = 0.8,
+    source: Optional[str] = None,
+    confidence: Optional[float] = None,
     idempotency_key: Optional[str] = None,
 ) -> dict[str, Any]:
     """Create a meal event."""
-    meal = require_enum(meal_type, "meal_type", MEAL_TYPES)
+    consts = get_constants()
+    meal = require_enum(meal_type, "meal_type", consts.meal.types)
     if isinstance(items, str) or not isinstance(items, Iterable):
         raise ToolError("invalid_param", "items must be list of strings")
     items_list = [require_non_empty_str(i, "item") for i in items]
@@ -129,8 +124,9 @@ def create_meal(
     data = {"meal_type": meal, "items": items_list}
     happened_at_iso = normalize_iso8601(happened_at)
     tags_list = normalize_tags(tags)
-    src = require_enum(source, "source", SOURCES)
-    conf = require_number_in_range(confidence, "confidence", 0.0, 1.0)
+    src = require_enum(source or consts.defaults.source, "source", consts.sources)
+    conf_value = confidence if confidence is not None else consts.defaults.confidence
+    conf = require_number_in_range(conf_value, "confidence", 0.0, 1.0)
 
     with get_connection() as conn:
         ensure_tables(conn)
@@ -154,11 +150,12 @@ def create_mood(
     note: Optional[str] = None,
     happened_at: Optional[str] = None,
     tags: Optional[Iterable[str]] = None,
-    source: str = "chat_text",
-    confidence: float = 0.8,
+    source: Optional[str] = None,
+    confidence: Optional[float] = None,
     idempotency_key: Optional[str] = None,
 ) -> dict[str, Any]:
     """Create a mood event."""
+    consts = get_constants()
     mood_value = require_non_empty_str(mood, "mood")
     inten = require_number_in_range(intensity, "intensity", 0.0, 1.0)
     if topic is not None and not isinstance(topic, str):
@@ -173,8 +170,9 @@ def create_mood(
     }
     happened_at_iso = normalize_iso8601(happened_at)
     tags_list = normalize_tags(tags)
-    src = require_enum(source, "source", SOURCES)
-    conf = require_number_in_range(confidence, "confidence", 0.0, 1.0)
+    src = require_enum(source or consts.defaults.source, "source", consts.sources)
+    conf_value = confidence if confidence is not None else consts.defaults.confidence
+    conf = require_number_in_range(conf_value, "confidence", 0.0, 1.0)
 
     with get_connection() as conn:
         ensure_tables(conn)
@@ -207,7 +205,8 @@ def search_events(
 
     types_list = None
     if types is not None:
-        types_list = [require_enum(t, "type", EVENT_TYPES) for t in types]
+        consts = get_constants()
+        types_list = [require_enum(t, "type", consts.event_types) for t in types]
 
     date_from_iso = ensure_iso8601(date_from)
     date_to_iso = ensure_iso8601(date_to)

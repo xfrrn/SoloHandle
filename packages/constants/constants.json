@@ -1,0 +1,40 @@
+﻿{
+  "defaults": {
+    "timezone": "Asia/Shanghai",
+    "currency": "CNY",
+    "confidence": 0.8,
+    "source": "chat_text"
+  },
+  "expense": {
+    "categories": [
+      "food",
+      "transport",
+      "shopping",
+      "entertainment",
+      "housing",
+      "medical",
+      "education",
+      "other",
+      "unknown"
+    ],
+    "default_category": "unknown"
+  },
+  "meal": {
+    "types": ["breakfast", "lunch", "dinner", "snack", "unknown"]
+  },
+  "task": {
+    "status": ["todo", "doing", "done", "canceled"],
+    "priority": ["low", "medium", "high"],
+    "default_priority": "medium",
+    "default_status": "todo",
+    "default_remind_offset_minutes": 30
+  },
+  "limits": {
+    "max_tags": 20,
+    "max_text_len": 2000
+  },
+  "sources": ["chat_text", "chat_image", "chat_voice", "import"],
+  "event": {
+    "types": ["expense", "lifelog", "meal", "mood"]
+  }
+}
