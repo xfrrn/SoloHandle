@@ -4,14 +4,42 @@
 **/*.sqlite
 **/*.sqlite3
 
-# Python runtime cache (project code only)
+# Local environment files
+.env
+.env.*
+
+# Python runtime cache
 **/__pycache__/
+**/*.py[cod]
+**/.mypy_cache/
+**/.ruff_cache/
+**/.coverage
+**/coverage.xml
+**/.pytest_cache/
 
-# Local virtual environment for apps/api
-/apps/api/.venv/
+# Local virtual environments
+.venv/
+**/.venv/
+**/venv/
 
-# Pytest cache in apps/api
-/apps/api/.pytest_cache/
+# Editor/OS
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
 
 # Local LLM config (contains secrets)
 /apps/api/config.toml
+
+# Flutter/Dart (apps/web)
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.packages
+pubspec.lock
+build/
+web/flutter_bootstrap.js
+web/flutter.js
+web/flutter_service_worker.js
+web/version.json
+web/assets/

@@ -1,0 +1,9 @@
+{
+  "name": "AI Companion",
+  "short_name": "Companion",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#F4F1EC",
+  "theme_color": "#1B4959",
+  "description": "Minimal web UI for AI Companion"
+}
