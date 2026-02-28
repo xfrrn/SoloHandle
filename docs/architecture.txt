@@ -1,0 +1,58 @@
+ai-companion/
+├─ README.md
+├─ mindmap.txt
+├─ LICENSE
+├─ .gitignore
+├─ docs/
+│  ├─ architecture.md
+│  ├─ api.md
+│  ├─ schemas.md
+│  └─ screenshots/
+│
+├─ apps/
+│  ├─ api/                         # 后端服务（核心）
+│  │  ├─ pyproject.toml
+│  │  ├─ src/
+│  │  │  └─ api/
+│  │  │     ├─ main.py              # FastAPI app
+│  │  │     ├─ settings.py          # 配置（时区默认 Asia/Shanghai）
+│  │  │     ├─ routes/              # HTTP 路由（后面再做 /chat /events /tasks）
+│  │  │     ├─ core/                # 核心工具（时间、校验、错误、日志）
+│  │  │     │  ├─ time.py
+│  │  │     │  ├─ errors.py
+│  │  │     │  ├─ json.py
+│  │  │     │  └─ idempotency.py
+│  │  │     ├─ db/                  # 数据库层
+│  │  │     │  ├─ connection.py     # sqlite 连接
+│  │  │     │  ├─ migrations.py     # 建表/升级（MVP 可用 init_schema）
+│  │  │     │  └─ schema.sql
+│  │  │     ├─ models/              # 数据结构（Pydantic / dataclass）
+│  │  │     ├─ repositories/        # CRUD/查询（只做数据访问）
+│  │  │     ├─ services/            # 业务服务（组合 repo + 规则）
+│  │  │     ├─ tools/               # ✅ 你现在要做的 Tools 层（执行层）
+│  │  │     │  ├─ events.py
+│  │  │     │  ├─ tasks.py
+│  │  │     │  └─ notifications.py
+│  │  │     ├─ scheduler/           # 提醒调度器（后面加）
+│  │  │     └─ tests/
+│  │  └─ web/                       # 前端（后面做 PWA）
+│  │     ├─ package.json
+│  │     ├─ src/
+│  │     └─ ...
+│
+├─ packages/
+│  ├─ schemas/                      # 共享协议（强烈推荐）
+│  │  ├─ events.schema.json
+│  │  ├─ tools.schema.json
+│  │  └─ chat.schema.json
+│  └─ sdk/                          # 可选：给前端/脚本用的轻量客户端
+│     └─ ...
+│
+├─ scripts/
+│  ├─ dev.sh
+│  ├─ init_db.py
+│  └─ smoke_test.py
+│
+└─ docker/
+   ├─ Dockerfile.api
+   └─ docker-compose.yml
