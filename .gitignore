@@ -27,17 +27,20 @@
 Thumbs.db
 .idea/
 .vscode/
+*.iml
 
 # Local LLM config (contains secrets)
 /apps/api/config.toml
 
-# Flutter/Dart (apps/web)
+# Flutter/Dart (apps/web + apps/mobile)
+.metadata
 .dart_tool/
 .flutter-plugins
 .flutter-plugins-dependencies
 .packages
 pubspec.lock
 build/
+**/flutter_export_environment.sh
 web/flutter_bootstrap.js
 web/flutter.js
 web/flutter_service_worker.js

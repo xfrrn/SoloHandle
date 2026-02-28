@@ -24,10 +24,32 @@ async def chat(request: Request) -> dict:
     text = body.get("text")
     confirm_draft_ids = body.get("confirm_draft_ids")
     undo_token = body.get("undo_token")
+    action = body.get("action")
+    draft_id = body.get("draft_id")
+    patch = body.get("patch")
+    task_id = body.get("task_id")
+    op = body.get("op")
+    payload = body.get("payload")
 
     service = get_orchestrator_service()
 
     try:
+        if action == "edit":
+            if not isinstance(draft_id, str) or not draft_id.strip():
+                raise ToolError("invalid_param", "draft_id must be non-empty string")
+            if patch is None:
+                raise ToolError("invalid_param", "patch is required")
+            return service.edit_draft(draft_id.strip(), patch)
+
+        if action == "task_action":
+            if not isinstance(task_id, int) or task_id <= 0:
+                raise ToolError("invalid_param", "task_id must be positive integer")
+            if not isinstance(op, str) or not op.strip():
+                raise ToolError("invalid_param", "op must be non-empty string")
+            if payload is not None and not isinstance(payload, dict):
+                raise ToolError("invalid_param", "payload must be object")
+            return service.task_action(task_id, op.strip(), payload)
+
         if undo_token:
             if not isinstance(undo_token, str):
                 raise ToolError("invalid_param", "undo_token must be string")

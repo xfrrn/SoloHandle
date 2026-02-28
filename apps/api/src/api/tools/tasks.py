@@ -1,5 +1,6 @@
 ﻿from __future__ import annotations
 
+from datetime import datetime, timedelta
 from typing import Any, Iterable, Optional
 
 from api.core.constants_loader import get_constants
@@ -16,6 +17,15 @@ from api.db.connection import (
 )
 from api.repositories.tasks_repo import TaskRepository
 from api.services.tasks_service import TaskService
+
+
+def _parse_iso8601(value: str) -> datetime:
+    if value.endswith("Z"):
+        value = value[:-1] + "+00:00"
+    dt = datetime.fromisoformat(value)
+    if dt.tzinfo is None:
+        raise ToolError("invalid_time", "ISO8601 time must include offset", {"value": value})
+    return dt
 
 def create_task(
     *,
@@ -43,6 +53,14 @@ def create_task(
 
     due_at_iso = ensure_iso8601(due_at)
     remind_at_iso = ensure_iso8601(remind_at)
+    if due_at_iso is not None and remind_at_iso is None:
+        minutes = consts.task.default_remind_offset_minutes
+        if minutes > 0:
+            try:
+                dt = _parse_iso8601(due_at_iso)
+                remind_at_iso = (dt - timedelta(minutes=minutes)).isoformat()
+            except ToolError:
+                pass
     tags_list = normalize_tags(tags)
 
     with get_connection() as conn:

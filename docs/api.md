@@ -23,10 +23,17 @@
 - `confirm_draft_ids` string[]: 需要确认的草稿 ID 列表
 - `undo_token` string: 撤销 token
 - `request_id` string: 可选。用于关联一次草稿生成请求
+- `action` string: 可选。用于草稿编辑，目前支持 `edit`
+- `draft_id` string: 草稿 ID（action=edit 时必填）
+- `patch` object: 结构化修改（action=edit 时必填）
+- `task_id` int: 任务 ID（action=task_action 时必填）
+- `op` string: 任务操作（complete / postpone / delete）
+- `payload` object: 任务操作额外参数（例如延期）
 
 响应
 - 参考 `packages/schemas/chat_response.schema.json`
 - 可能是以下四种之一：澄清、草稿、提交结果、撤销结果
+- 任务操作会返回 `task + undo_token`
 
 示例: 生成草稿
 ```json
@@ -73,6 +80,32 @@
 ```json
 {
   "undo_token": "uuid"
+}
+```
+
+示例: 编辑草稿（结构化 patch）
+```json
+{
+  "action": "edit",
+  "draft_id": "uuid",
+  "patch": {
+    "title": "写周报",
+    "due_at": "2026-02-28T18:00:00+08:00",
+    "remind_at": "2026-02-28T17:30:00+08:00",
+    "priority": "high"
+  }
+}
+```
+
+示例: 任务操作（结构化 action）
+```json
+{
+  "action": "task_action",
+  "task_id": 12,
+  "op": "postpone",
+  "payload": {
+    "due_at": "2026-03-01T18:00:00+08:00"
+  }
 }
 ```
 

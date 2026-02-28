@@ -6,7 +6,8 @@
     {"$ref": "#/$defs/clarification_response"},
     {"$ref": "#/$defs/draft_response"},
     {"$ref": "#/$defs/commit_response"},
-    {"$ref": "#/$defs/undo_response"}
+    {"$ref": "#/$defs/undo_response"},
+    {"$ref": "#/$defs/task_action_response"}
   ],
   "$defs": {
     "card": {"$ref": "card.schema.json"},
@@ -82,6 +83,15 @@
             ]
           }
         },
+        "undo_token": {"type": "string"}
+      }
+    },
+    "task_action_response": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["task", "undo_token"],
+      "properties": {
+        "task": {"$ref": "#/$defs/task"},
         "undo_token": {"type": "string"}
       }
     }

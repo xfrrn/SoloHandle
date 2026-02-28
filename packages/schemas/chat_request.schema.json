@@ -8,12 +8,20 @@
     "text": {"type": "string"},
     "confirm_draft_ids": {"type": "array", "items": {"type": "string"}, "minItems": 1},
     "undo_token": {"type": "string"},
-    "request_id": {"type": "string"}
+    "request_id": {"type": "string"},
+    "action": {"type": "string", "enum": ["edit", "task_action"]},
+    "draft_id": {"type": "string"},
+    "patch": {"type": "object"},
+    "task_id": {"type": "integer", "minimum": 1},
+    "op": {"type": "string", "enum": ["complete", "postpone", "delete"]},
+    "payload": {"type": "object"}
   },
   "anyOf": [
     {"required": ["text"]},
     {"required": ["confirm_draft_ids"]},
-    {"required": ["undo_token"]}
+    {"required": ["undo_token"]},
+    {"required": ["action", "draft_id", "patch"]},
+    {"required": ["action", "task_id", "op"]}
   ]
 }
 

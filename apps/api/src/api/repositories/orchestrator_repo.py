@@ -50,6 +50,20 @@ class OrchestratorRepository:
         ).fetchall()
         return list(rows)
 
+    def get_draft_by_id(self, draft_id: str) -> Optional[sqlite3.Row]:
+        row = self._conn.execute(
+            "SELECT * FROM orchestrator_logs WHERE kind = 'draft' AND draft_id = ?",
+            (draft_id,),
+        ).fetchone()
+        return row
+
+    def update_draft_payload(self, draft_id: str, payload_json: str) -> None:
+        self._conn.execute(
+            "UPDATE orchestrator_logs SET payload_json = ? WHERE kind = 'draft' AND draft_id = ?",
+            (payload_json, draft_id),
+        )
+        self._conn.commit()
+
     def get_commits_by_undo_token(self, undo_token: str) -> list[sqlite3.Row]:
         rows = self._conn.execute(
             "SELECT * FROM orchestrator_logs WHERE kind = 'commit' AND undo_token = ?",
