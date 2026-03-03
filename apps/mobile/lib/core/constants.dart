@@ -1,13 +1,32 @@
 ﻿import "package:flutter/material.dart";
 
 class AppColors {
-  static const background = Color(0xFFF7F7F7);
+  static const background = Color(0xFFF7F9FC);
   static const surface = Color(0xFFFFFFFF);
-  static const textPrimary = Color(0xFF111111);
-  static const textSecondary = Color(0xFF666666);
-  static const divider = Color(0xFFEAEAEA);
-  static const accent = Color(0xFF1D6EF2);
-  static const danger = Color(0xFFE5484D);
+  static const textPrimary = Color(0xFF1E293B);
+  static const textSecondary = Color(0xFF64748B);
+  static const divider = Color(0xFFE2E8F0);
+  
+  // Accents
+  static const accent = Color(0xFF3B82F6); // modern reliable blue
+  static const accentLight = Color(0xFFEFF6FF);
+  
+  // Status colors
+  static const success = Color(0xFF10B981); // beautiful green
+  static const successLight = Color(0xFFECFDF5);
+  static const warning = Color(0xFFF59E0B);
+  static const warningLight = Color(0xFFFFFBEB);
+  static const danger = Color(0xFFEF4444);
+  static const dangerLight = Color(0xFFFEF2F2);
+
+  // Assistant Bubble colors
+  static const assistantBubble = Color(0xFFFFFFFF);
+  static const assistantBubbleBorder = Color(0xFFE2E8F0);
+  
+  // User Bubble Colors
+  static const userBubbleGradientStart = Color(0xFF3B82F6);
+  static const userBubbleGradientEnd = Color(0xFF2563EB);
+  static const userBubbleText = Color(0xFFFFFFFF);
 }
 
 class AppSpacing {

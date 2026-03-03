@@ -19,16 +19,49 @@ class MessageBubble extends StatelessWidget {
       alignment: align,
       child: Container(
         margin: const EdgeInsets.symmetric(vertical: 6),
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         constraints: const BoxConstraints(maxWidth: 320),
         decoration: BoxDecoration(
-          color: bg,
-          borderRadius: BorderRadius.circular(10),
-          border: Border.all(color: AppColors.divider),
+          color: isUser ? null : AppColors.assistantBubble,
+          gradient: isUser
+              ? const LinearGradient(
+                  colors: [
+                    AppColors.userBubbleGradientStart,
+                    AppColors.userBubbleGradientEnd,
+                  ],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                )
+              : null,
+          boxShadow: isUser
+              ? [
+                  BoxShadow(
+                    color: AppColors.accent.withOpacity(0.2),
+                    blurRadius: 8,
+                    offset: const Offset(0, 4),
+                  )
+                ]
+              : [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.04),
+                    blurRadius: 8,
+                    offset: const Offset(0, 2),
+                  )
+                ],
+          borderRadius: BorderRadius.only(
+            topLeft: const Radius.circular(18),
+            topRight: const Radius.circular(18),
+            bottomLeft: Radius.circular(isUser ? 18 : 4),
+            bottomRight: Radius.circular(isUser ? 4 : 18),
+          ),
+          border: isUser ? null : Border.all(color: AppColors.assistantBubbleBorder),
         ),
         child: Text(
           message.text,
-          style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: textColor),
+          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                color: isUser ? AppColors.userBubbleText : AppColors.textPrimary,
+                height: 1.4,
+              ),
         ),
       ),
     );
