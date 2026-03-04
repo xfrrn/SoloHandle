@@ -18,7 +18,12 @@ PROMPT_PATH = (
 )
 
 
-def route(text: str, provider: LLMProvider | None = None, max_retries: int = 2) -> RouterDecision:
+def route(
+    text: str,
+    image_base64: str | None = None,
+    provider: LLMProvider | None = None,
+    max_retries: int = 2,
+) -> RouterDecision:
     prompt = PROMPT_PATH.read_text(encoding="utf-8")
     provider = provider or load_provider_from_config()
     if provider is None:
@@ -27,7 +32,7 @@ def route(text: str, provider: LLMProvider | None = None, max_retries: int = 2) 
     last_error: ToolError | None = None
     user_input = text
     for attempt in range(max_retries + 1):
-        output = provider.generate(prompt, user_input)
+        output = provider.generate(prompt, user_input, image_base64=image_base64)
         try:
             return _parse_decision(output)
         except ToolError as exc:

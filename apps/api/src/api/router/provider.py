@@ -18,7 +18,7 @@ class LLMConfig:
 
 
 class LLMProvider:
-    def generate(self, prompt: str, user_input: str) -> str:
+    def generate(self, prompt: str, user_input: str, image_base64: str | None = None) -> str:
         raise NotImplementedError
 
 
@@ -26,13 +26,20 @@ class OpenAICompatibleProvider(LLMProvider):
     def __init__(self, config: LLMConfig) -> None:
         self._config = config
 
-    def generate(self, prompt: str, user_input: str) -> str:
+    def generate(self, prompt: str, user_input: str, image_base64: str | None = None) -> str:
         url = self._config.base_url.rstrip("/") + "/chat/completions"
+        content = [{"type": "text", "text": user_input}]
+        if image_base64:
+            content.append({
+                "type": "image_url",
+                "image_url": {"url": f"data:image/jpeg;base64,{image_base64}"}
+            })
+            
         payload = {
             "model": self._config.model,
             "messages": [
                 {"role": "system", "content": prompt},
-                {"role": "user", "content": user_input},
+                {"role": "user", "content": content},
             ],
             "temperature": 0.2,
         }

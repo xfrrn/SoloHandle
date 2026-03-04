@@ -41,9 +41,9 @@ class OrchestratorService:
     def __init__(self, repo: OrchestratorRepository) -> None:
         self._repo = repo
 
-    def create_drafts(self, text: str) -> dict[str, Any]:
+    def create_drafts(self, text: str, image_base64: str | None = None) -> dict[str, Any]:
         try:
-            decision = llm_route(text)
+            decision = llm_route(text=text, image_base64=image_base64)
             if decision.need_clarification:
                 return {
                     "need_clarification": True,

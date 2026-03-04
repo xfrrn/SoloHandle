@@ -60,11 +60,13 @@ async def chat(request: Request) -> dict:
                 raise ToolError("invalid_param", "confirm_draft_ids must be list")
             return service.commit_drafts(confirm_draft_ids)
 
-        if not isinstance(text, str) or not text.strip():
-            raise ToolError("invalid_param", "text must be non-empty string")
+        image = body.get("image")
+        
+        if not (text and text.strip()) and not image:
+            raise ToolError("invalid_param", "text or image must be provided")
 
         request_id = body.get("request_id") or str(uuid.uuid4())
-        draft_result = service.create_drafts(text.strip())
+        draft_result = service.create_drafts(text.strip() if text else "", image_base64=image)
         if draft_result.get("need_clarification"):
             return draft_result
 
