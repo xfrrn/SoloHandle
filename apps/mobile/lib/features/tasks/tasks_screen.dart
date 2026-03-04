@@ -1,4 +1,4 @@
-﻿import "package:flutter/material.dart";
+import "package:flutter/material.dart";
 import "package:flutter_riverpod/flutter_riverpod.dart";
 import "package:go_router/go_router.dart";
 
@@ -57,7 +57,8 @@ class _TasksScreenState extends ConsumerState<TasksScreen> {
                   count: state.overdueTasks.length,
                   selected: state.activeScope == TaskScope.overdue,
                   onTap: () => notifier.setScope(TaskScope.overdue),
-                  badgeColor: state.overdueTasks.isNotEmpty ? AppColors.danger : null,
+                  badgeColor:
+                      state.overdueTasks.isNotEmpty ? AppColors.danger : null,
                 ),
                 const SizedBox(width: 10),
                 _ScopeTab(
@@ -168,7 +169,8 @@ class _ScopeTab extends StatelessWidget {
           duration: const Duration(milliseconds: 200),
           padding: const EdgeInsets.symmetric(vertical: 10),
           decoration: BoxDecoration(
-            color: selected ? AppColors.accent.withAlpha(25) : AppColors.surface,
+            color:
+                selected ? AppColors.accent.withAlpha(25) : AppColors.surface,
             borderRadius: BorderRadius.circular(12),
             border: Border.all(
               color: selected ? AppColors.accent : AppColors.divider,
@@ -181,7 +183,8 @@ class _ScopeTab extends StatelessWidget {
                 style: TextStyle(
                   fontSize: 20,
                   fontWeight: FontWeight.w700,
-                  color: badgeColor ?? (selected ? AppColors.accent : AppColors.textPrimary),
+                  color: badgeColor ??
+                      (selected ? AppColors.accent : AppColors.textPrimary),
                 ),
               ),
               const SizedBox(height: 2),
@@ -267,7 +270,8 @@ class _TaskCard extends StatelessWidget {
                   task.title,
                   style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                         fontWeight: FontWeight.w500,
-                        decoration: task.isDone ? TextDecoration.lineThrough : null,
+                        decoration:
+                            task.isDone ? TextDecoration.lineThrough : null,
                         color: task.isDone ? AppColors.textSecondary : null,
                       ),
                 ),
@@ -290,7 +294,8 @@ class _TaskCard extends StatelessWidget {
                   formatIsoToLocal(task.dueAt!),
                   style: TextStyle(
                     fontSize: 12,
-                    color: isOverdue ? AppColors.danger : AppColors.textSecondary,
+                    color:
+                        isOverdue ? AppColors.danger : AppColors.textSecondary,
                   ),
                 ),
                 const Spacer(),
@@ -298,7 +303,8 @@ class _TaskCard extends StatelessWidget {
                   GestureDetector(
                     onTap: onPostpone,
                     child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 10, vertical: 4),
                       decoration: BoxDecoration(
                         color: AppColors.background,
                         borderRadius: BorderRadius.circular(8),
@@ -325,14 +331,16 @@ class _TaskCard extends StatelessWidget {
                 runSpacing: 4,
                 children: task.tags
                     .map((tag) => Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 8, vertical: 3),
                           decoration: BoxDecoration(
                             color: AppColors.accentLight,
                             borderRadius: BorderRadius.circular(8),
                           ),
                           child: Text(
                             tag,
-                            style: const TextStyle(fontSize: 11, color: AppColors.accent),
+                            style: const TextStyle(
+                                fontSize: 11, color: AppColors.accent),
                           ),
                         ))
                     .toList(),

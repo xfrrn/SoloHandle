@@ -25,6 +25,7 @@ Rules:
 - If a required field is missing, set need_clarification=true and ask a specific question.
 - Use timezone Asia/Shanghai. If time not provided, omit happened_at/due_at/remind_at.
 - Never invent numbers or timestamps.
+- If the user provides an image (e.g. receipt, food, note), extract the relevant information from it to generate expense/meal/task drafts as appropriate.
 
 Examples:
 {

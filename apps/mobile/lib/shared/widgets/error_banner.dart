@@ -41,11 +41,13 @@ class ErrorBanner extends StatelessWidget {
               onPressed: onRetry,
               style: TextButton.styleFrom(
                 foregroundColor: AppColors.danger,
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                 minimumSize: Size.zero,
                 tapTargetSize: MaterialTapTargetSize.shrinkWrap,
               ),
-              child: const Text("重试", style: TextStyle(fontWeight: FontWeight.w600)),
+              child: const Text("重试",
+                  style: TextStyle(fontWeight: FontWeight.w600)),
             ),
         ],
       ),

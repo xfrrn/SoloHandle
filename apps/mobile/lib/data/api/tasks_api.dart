@@ -33,7 +33,8 @@ class TasksApi {
     final items = (data["items"] as List)
         .map((e) => TaskDto.fromJson(e as Map<String, dynamic>))
         .toList();
-    return PaginatedResponse(items: items, total: data["total"] as int? ?? items.length);
+    return PaginatedResponse(
+        items: items, total: data["total"] as int? ?? items.length);
   }
 
   Future<TaskDto> complete(int taskId) async {

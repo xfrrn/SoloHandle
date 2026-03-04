@@ -1,4 +1,4 @@
-﻿String formatIsoToLocal(String? value) {
+String formatIsoToLocal(String? value) {
   if (value == null || value.isEmpty) return "";
   try {
     final dt = DateTime.parse(value).toLocal();

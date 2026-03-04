@@ -1,4 +1,4 @@
-﻿import "package:flutter/material.dart";
+import "package:flutter/material.dart";
 
 class AppColors {
   static const background = Color(0xFFF7F9FC);
@@ -6,11 +6,11 @@ class AppColors {
   static const textPrimary = Color(0xFF1E293B);
   static const textSecondary = Color(0xFF64748B);
   static const divider = Color(0xFFE2E8F0);
-  
+
   // Accents
   static const accent = Color(0xFF3B82F6); // modern reliable blue
   static const accentLight = Color(0xFFEFF6FF);
-  
+
   // Status colors
   static const success = Color(0xFF10B981); // beautiful green
   static const successLight = Color(0xFFECFDF5);
@@ -22,7 +22,7 @@ class AppColors {
   // Assistant Bubble colors
   static const assistantBubble = Color(0xFFFFFFFF);
   static const assistantBubbleBorder = Color(0xFFE2E8F0);
-  
+
   // User Bubble Colors
   static const userBubbleGradientStart = Color(0xFF3B82F6);
   static const userBubbleGradientEnd = Color(0xFF2563EB);

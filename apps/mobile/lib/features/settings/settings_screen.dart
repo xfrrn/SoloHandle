@@ -1,4 +1,4 @@
-﻿import "package:flutter/material.dart";
+import "package:flutter/material.dart";
 
 import "../../core/constants.dart";
 import "../../data/storage/local_store.dart";
@@ -55,7 +55,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
           : ListView(
               padding: const EdgeInsets.all(16),
               children: [
-                Text("API Base URL", style: Theme.of(context).textTheme.titleMedium),
+                Text("API Base URL",
+                    style: Theme.of(context).textTheme.titleMedium),
                 const SizedBox(height: 8),
                 TextField(controller: _baseUrlController),
                 const SizedBox(height: 16),
@@ -80,7 +81,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   alignment: Alignment.centerRight,
                   child: TextButton(
                     onPressed: _save,
-                    style: TextButton.styleFrom(foregroundColor: AppColors.accent),
+                    style:
+                        TextButton.styleFrom(foregroundColor: AppColors.accent),
                     child: const Text("保存"),
                   ),
                 ),

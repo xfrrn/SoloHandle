@@ -1,4 +1,4 @@
-﻿import "package:flutter/material.dart";
+import "package:flutter/material.dart";
 import "package:go_router/go_router.dart";
 
 import "../../core/constants.dart";
@@ -44,7 +44,8 @@ class DashboardScreen extends StatelessWidget {
 }
 
 class _InsightTile extends StatelessWidget {
-  const _InsightTile({required this.title, required this.value, required this.onTap});
+  const _InsightTile(
+      {required this.title, required this.value, required this.onTap});
 
   final String title;
   final String value;

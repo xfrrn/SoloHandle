@@ -1,4 +1,4 @@
-﻿import "package:flutter/material.dart";
+import "package:flutter/material.dart";
 
 import "constants.dart";
 
@@ -12,16 +12,20 @@ ThemeData buildAppTheme() {
       surface: AppColors.surface,
       error: AppColors.danger,
     ),
-    textTheme: base.textTheme.copyWith(
-      titleLarge: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
-      titleMedium: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-      bodyLarge: const TextStyle(fontSize: 15),
-      bodyMedium: const TextStyle(fontSize: 14),
-      bodySmall: const TextStyle(fontSize: 12),
-    ).apply(
-      bodyColor: AppColors.textPrimary,
-      displayColor: AppColors.textPrimary,
-    ),
+    textTheme: base.textTheme
+        .copyWith(
+          titleLarge:
+              const TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+          titleMedium:
+              const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+          bodyLarge: const TextStyle(fontSize: 15),
+          bodyMedium: const TextStyle(fontSize: 14),
+          bodySmall: const TextStyle(fontSize: 12),
+        )
+        .apply(
+          bodyColor: AppColors.textPrimary,
+          displayColor: AppColors.textPrimary,
+        ),
     dividerColor: AppColors.divider,
     appBarTheme: const AppBarTheme(
       backgroundColor: AppColors.surface,

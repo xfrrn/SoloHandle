@@ -1,6 +1,9 @@
-﻿import "package:flutter/material.dart";
+import "dart:convert";
+import "dart:typed_data";
+import "package:flutter/material.dart";
 import "package:flutter_riverpod/flutter_riverpod.dart";
 import "package:go_router/go_router.dart";
+import "package:image_picker/image_picker.dart";
 
 import "../../core/constants.dart";
 import "../../core/time.dart";
@@ -24,6 +27,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   final TextEditingController _controller = TextEditingController();
   final ScrollController _scrollController = ScrollController();
   String? _lastPrefill;
+  final ImagePicker _picker = ImagePicker();
+  Uint8List? _selectedImageBytes;
+  String? _selectedImageBase64;
 
   @override
   void initState() {
@@ -48,6 +54,36 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     _controller.dispose();
     _scrollController.dispose();
     super.dispose();
+  }
+
+  Future<void> _pickImage() async {
+    try {
+      final XFile? image = await _picker.pickImage(
+        source: ImageSource.gallery,
+        maxWidth: 1024,
+        maxHeight: 1024,
+        imageQuality: 80,
+      );
+      if (image == null) return;
+      final bytes = await image.readAsBytes();
+      final base64String = base64Encode(bytes);
+      setState(() {
+        _selectedImageBytes = bytes;
+        _selectedImageBase64 = base64String;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("选择图片失败: $e")),
+      );
+    }
+  }
+
+  void _removeImage() {
+    setState(() {
+      _selectedImageBytes = null;
+      _selectedImageBase64 = null;
+    });
   }
 
   @override
@@ -84,8 +120,10 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
               controller: _scrollController,
               padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
               children: [
-                for (final message in state.messages) MessageBubble(message: message),
-                if (state.clarifyQuestion != null) _ClarifyBlock(text: state.clarifyQuestion!),
+                for (final message in state.messages)
+                  MessageBubble(message: message),
+                if (state.clarifyQuestion != null)
+                  _ClarifyBlock(text: state.clarifyQuestion!),
                 if (state.cards.isNotEmpty)
                   ...state.cards.map((card) => _buildCard(card, notifier)),
                 if (state.status != null) _StatusLine(text: state.status!),
@@ -106,10 +144,18 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
           InputBar(
             controller: _controller,
             loading: state.loading,
+            selectedImage: _selectedImageBytes,
+            onPickImage: _pickImage,
+            onRemoveImage: _removeImage,
             onSend: () {
               final text = _controller.text.trim();
+              final imageBase64 = _selectedImageBase64;
+              if (text.isEmpty && imageBase64 == null) return;
+
               _controller.clear();
-              notifier.sendText(text);
+              _removeImage();
+              notifier.sendText(
+                  text: text.isEmpty ? null : text, imageBase64: imageBase64);
             },
           ),
         ],
@@ -140,12 +186,14 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
           onSubmit: (patch) => notifier.editDraft(card.cardId, patch),
         ),
       ),
-      onComplete: card.type == "task" && card.status != "draft" && taskId != null
-          ? () => notifier.taskAction(taskId: taskId, op: "complete")
-          : null,
-      onPostpone: card.type == "task" && card.status != "draft" && taskId != null
-          ? () => _postponeTask(taskId, notifier)
-          : null,
+      onComplete:
+          card.type == "task" && card.status != "draft" && taskId != null
+              ? () => notifier.taskAction(taskId: taskId, op: "complete")
+              : null,
+      onPostpone:
+          card.type == "task" && card.status != "draft" && taskId != null
+              ? () => _postponeTask(taskId, notifier)
+              : null,
       onDelete: card.type == "task" && card.status != "draft" && taskId != null
           ? () => notifier.taskAction(taskId: taskId, op: "delete")
           : null,
@@ -186,7 +234,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       initialTime: TimeOfDay.fromDateTime(now),
     );
     if (time == null) return;
-    final dt = DateTime(date.year, date.month, date.day, time.hour, time.minute);
+    final dt =
+        DateTime(date.year, date.month, date.day, time.hour, time.minute);
     notifier.taskAction(
       taskId: taskId,
       op: "postpone",

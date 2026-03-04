@@ -1,4 +1,4 @@
-﻿import "package:flutter/material.dart";
+import "package:flutter/material.dart";
 import "package:flutter_riverpod/flutter_riverpod.dart";
 import "package:go_router/go_router.dart";
 
@@ -20,7 +20,8 @@ final routerProvider = Provider<GoRouter>((ref) {
         routes: [
           GoRoute(
             path: "/chat",
-            pageBuilder: (context, state) => const NoTransitionPage(child: ChatScreen()),
+            pageBuilder: (context, state) =>
+                const NoTransitionPage(child: ChatScreen()),
           ),
           GoRoute(
             path: "/dashboard",
@@ -34,17 +35,20 @@ final routerProvider = Provider<GoRouter>((ref) {
           ),
           GoRoute(
             path: "/tasks",
-            pageBuilder: (context, state) => const NoTransitionPage(child: TasksScreen()),
+            pageBuilder: (context, state) =>
+                const NoTransitionPage(child: TasksScreen()),
           ),
           GoRoute(
             path: "/me",
-            pageBuilder: (context, state) => const NoTransitionPage(child: SettingsScreen()),
+            pageBuilder: (context, state) =>
+                const NoTransitionPage(child: SettingsScreen()),
           ),
         ],
       ),
       GoRoute(
         path: "/notifications",
-        pageBuilder: (context, state) => const NoTransitionPage(child: NotificationsScreen()),
+        pageBuilder: (context, state) =>
+            const NoTransitionPage(child: NotificationsScreen()),
       ),
     ],
   );
@@ -57,7 +61,8 @@ class _AppShell extends StatelessWidget {
 
   static const _tabs = [
     _TabItem(label: "Chat", icon: Icons.chat_bubble_outline, path: "/chat"),
-    _TabItem(label: "Dashboard", icon: Icons.dashboard_outlined, path: "/dashboard"),
+    _TabItem(
+        label: "Dashboard", icon: Icons.dashboard_outlined, path: "/dashboard"),
     _TabItem(label: "Timeline", icon: Icons.timeline, path: "/timeline"),
     _TabItem(label: "Tasks", icon: Icons.check_box_outlined, path: "/tasks"),
     _TabItem(label: "Me", icon: Icons.person_outline, path: "/me"),

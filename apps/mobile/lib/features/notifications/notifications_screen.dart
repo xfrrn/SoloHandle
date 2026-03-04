@@ -1,4 +1,4 @@
-﻿import "package:flutter/material.dart";
+import "package:flutter/material.dart";
 
 import "../../core/constants.dart";
 
@@ -41,7 +41,10 @@ class _NotificationItem extends StatelessWidget {
           Expanded(child: Text(title)),
           Text(
             time,
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(color: AppColors.textSecondary),
+            style: Theme.of(context)
+                .textTheme
+                .bodySmall
+                ?.copyWith(color: AppColors.textSecondary),
           ),
         ],
       ),

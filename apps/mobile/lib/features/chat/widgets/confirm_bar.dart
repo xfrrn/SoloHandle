@@ -1,9 +1,10 @@
-﻿import "package:flutter/material.dart";
+import "package:flutter/material.dart";
 
 import "../../../core/constants.dart";
 
 class ConfirmBar extends StatelessWidget {
-  const ConfirmBar({super.key, required this.count, required this.onConfirmAll});
+  const ConfirmBar(
+      {super.key, required this.count, required this.onConfirmAll});
 
   final int count;
   final VoidCallback onConfirmAll;

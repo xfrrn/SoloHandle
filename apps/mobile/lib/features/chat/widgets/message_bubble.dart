@@ -1,4 +1,5 @@
-﻿import "package:flutter/material.dart";
+import "dart:convert";
+import "package:flutter/material.dart";
 
 import "../../../core/constants.dart";
 import "../chat_controller.dart";
@@ -54,14 +55,36 @@ class MessageBubble extends StatelessWidget {
             bottomLeft: Radius.circular(isUser ? 18 : 4),
             bottomRight: Radius.circular(isUser ? 4 : 18),
           ),
-          border: isUser ? null : Border.all(color: AppColors.assistantBubbleBorder),
+          border: isUser
+              ? null
+              : Border.all(color: AppColors.assistantBubbleBorder),
         ),
-        child: Text(
-          message.text,
-          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: isUser ? AppColors.userBubbleText : AppColors.textPrimary,
-                height: 1.4,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if (message.imageBytes != null)
+              Padding(
+                padding:
+                    EdgeInsets.only(bottom: message.text != null ? 8.0 : 0.0),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(8),
+                  child: Image.memory(
+                    base64Decode(message.imageBytes!),
+                    fit: BoxFit.cover,
+                  ),
+                ),
               ),
+            if (message.text != null)
+              Text(
+                message.text!,
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      color: isUser
+                          ? AppColors.userBubbleText
+                          : AppColors.textPrimary,
+                      height: 1.4,
+                    ),
+              ),
+          ],
         ),
       ),
     );

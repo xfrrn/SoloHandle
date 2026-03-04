@@ -1,6 +1,7 @@
-﻿class ChatRequest {
+class ChatRequest {
   ChatRequest({
     this.text,
+    this.image,
     this.confirmDraftIds,
     this.undoToken,
     this.requestId,
@@ -13,6 +14,7 @@
   });
 
   final String? text;
+  final String? image;
   final List<String>? confirmDraftIds;
   final String? undoToken;
   final String? requestId;
@@ -26,6 +28,7 @@
   Map<String, dynamic> toJson() {
     final data = <String, dynamic>{};
     if (text != null && text!.trim().isNotEmpty) data["text"] = text!.trim();
+    if (image != null && image!.isNotEmpty) data["image"] = image;
     if (confirmDraftIds != null && confirmDraftIds!.isNotEmpty) {
       data["confirm_draft_ids"] = confirmDraftIds;
     }
@@ -140,8 +143,12 @@ class ChatResponseDto {
       needClarification: json["need_clarification"] == true,
       clarifyQuestion: json["clarify_question"] as String?,
       replyToUser: json["reply_to_user"] as String?,
-      drafts: draftsJson.map((e) => DraftDto.fromJson(e as Map<String, dynamic>)).toList(),
-      cards: cardsJson.map((e) => CardDto.fromJson(e as Map<String, dynamic>)).toList(),
+      drafts: draftsJson
+          .map((e) => DraftDto.fromJson(e as Map<String, dynamic>))
+          .toList(),
+      cards: cardsJson
+          .map((e) => CardDto.fromJson(e as Map<String, dynamic>))
+          .toList(),
       undoToken: json["undo_token"] as String?,
       committed: (json["committed"] as List?) ?? [],
       undone: (json["undone"] as List?) ?? [],

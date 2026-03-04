@@ -1,4 +1,4 @@
-﻿import "package:flutter/material.dart";
+import "package:flutter/material.dart";
 import "package:flutter_riverpod/flutter_riverpod.dart";
 
 import "../../core/constants.dart";
@@ -144,7 +144,8 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
     if (grouped.isEmpty) {
       return _EmptyState(
         icon: Icons.timeline,
-        message: state.searchQuery.isNotEmpty ? "没有找到匹配的记录" : "暂无记录，去 Chat 页面记录吧",
+        message:
+            state.searchQuery.isNotEmpty ? "没有找到匹配的记录" : "暂无记录，去 Chat 页面记录吧",
       );
     }
 
@@ -215,7 +216,8 @@ class _FilterChip extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             if (icon != null) ...[
-              Icon(icon, size: 16, color: selected ? AppColors.accent : iconColor),
+              Icon(icon,
+                  size: 16, color: selected ? AppColors.accent : iconColor),
               const SizedBox(width: 4),
             ],
             Text(

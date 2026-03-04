@@ -1,4 +1,4 @@
-﻿import "package:flutter/material.dart";
+import "package:flutter/material.dart";
 
 import "../../../core/constants.dart";
 import "../../../core/time.dart";
@@ -24,8 +24,11 @@ class CardRenderer extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final subtitle =
-        card.type == "task" ? _subtitleFromData(card.data) : (card.subtitle.isNotEmpty ? card.subtitle : _subtitleFromData(card.data));
+    final subtitle = card.type == "task"
+        ? _subtitleFromData(card.data)
+        : (card.subtitle.isNotEmpty
+            ? card.subtitle
+            : _subtitleFromData(card.data));
     final dataEntries = card.data.entries.toList();
 
     return Container(
@@ -35,7 +38,9 @@ class CardRenderer extends StatelessWidget {
         color: AppColors.surface,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: card.status == "draft" ? AppColors.accent.withAlpha(128) : AppColors.divider,
+          color: card.status == "draft"
+              ? AppColors.accent.withAlpha(128)
+              : AppColors.divider,
         ),
         boxShadow: [
           BoxShadow(
@@ -82,7 +87,9 @@ class CardRenderer extends StatelessWidget {
             Wrap(
               spacing: 6,
               runSpacing: 6,
-              children: _taskBadges(card.data).map((text) => _Badge(text: text)).toList(),
+              children: _taskBadges(card.data)
+                  .map((text) => _Badge(text: text))
+                  .toList(),
             ),
           ],
           if (dataEntries.isNotEmpty) ...[
@@ -113,9 +120,9 @@ class CardRenderer extends StatelessWidget {
                       Text(
                         entry.value.toString(),
                         style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          color: AppColors.textPrimary,
-                          fontWeight: FontWeight.w500,
-                        ),
+                              color: AppColors.textPrimary,
+                              fontWeight: FontWeight.w500,
+                            ),
                       ),
                     ],
                   );
@@ -133,7 +140,8 @@ class CardRenderer extends StatelessWidget {
                   style: OutlinedButton.styleFrom(
                     foregroundColor: AppColors.textSecondary,
                     side: const BorderSide(color: AppColors.divider),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8)),
                     padding: const EdgeInsets.symmetric(horizontal: 16),
                   ),
                   child: const Text("修改"),
@@ -145,7 +153,8 @@ class CardRenderer extends StatelessWidget {
                     backgroundColor: AppColors.accent,
                     foregroundColor: Colors.white,
                     elevation: 0,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8)),
                     padding: const EdgeInsets.symmetric(horizontal: 20),
                   ),
                   child: const Text("确认提交"),
@@ -161,21 +170,23 @@ class CardRenderer extends StatelessWidget {
                   OutlinedButton(
                     onPressed: onPostpone,
                     style: OutlinedButton.styleFrom(
-                       foregroundColor: AppColors.textSecondary,
-                       side: const BorderSide(color: AppColors.divider),
-                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                      foregroundColor: AppColors.textSecondary,
+                      side: const BorderSide(color: AppColors.divider),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8)),
                     ),
                     child: const Text("延期"),
                   ),
                   const SizedBox(width: 8),
                 ],
                 if (onDelete != null) ...[
-                   OutlinedButton(
+                  OutlinedButton(
                     onPressed: onDelete,
                     style: OutlinedButton.styleFrom(
-                       foregroundColor: AppColors.danger,
-                       side: const BorderSide(color: AppColors.dangerLight),
-                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                      foregroundColor: AppColors.danger,
+                      side: const BorderSide(color: AppColors.dangerLight),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8)),
                     ),
                     child: const Text("删除"),
                   ),
@@ -188,7 +199,8 @@ class CardRenderer extends StatelessWidget {
                       backgroundColor: AppColors.success,
                       foregroundColor: Colors.white,
                       elevation: 0,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8)),
                     ),
                     child: const Text("完成"),
                   ),
@@ -215,7 +227,8 @@ class CardRenderer extends StatelessWidget {
     }
     if (parts.isNotEmpty) return parts.join(" · ");
     final time = data["time"] ?? data["happened_at"];
-    if (time is String && time.isNotEmpty) return "时间：${formatIsoToLocal(time)}";
+    if (time is String && time.isNotEmpty)
+      return "时间：${formatIsoToLocal(time)}";
     return "";
   }
 
@@ -336,7 +349,10 @@ class _StatusBadge extends StatelessWidget {
         ),
         child: const Text(
           "草稿",
-          style: TextStyle(color: AppColors.accent, fontSize: 10, fontWeight: FontWeight.w600),
+          style: TextStyle(
+              color: AppColors.accent,
+              fontSize: 10,
+              fontWeight: FontWeight.w600),
         ),
       );
     } else if (status == "failed") {
@@ -348,11 +364,14 @@ class _StatusBadge extends StatelessWidget {
         ),
         child: const Text(
           "失败",
-          style: TextStyle(color: AppColors.danger, fontSize: 10, fontWeight: FontWeight.w600),
+          style: TextStyle(
+              color: AppColors.danger,
+              fontSize: 10,
+              fontWeight: FontWeight.w600),
         ),
       );
     }
-    
+
     return Text(
       "已提交",
       style: Theme.of(context).textTheme.bodySmall?.copyWith(

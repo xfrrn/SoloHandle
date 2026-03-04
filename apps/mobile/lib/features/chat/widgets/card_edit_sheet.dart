@@ -1,4 +1,4 @@
-﻿import "package:flutter/material.dart";
+import "package:flutter/material.dart";
 
 import "../../../core/constants.dart";
 import "../../../core/time.dart";
@@ -62,14 +62,19 @@ class _CardEditSheetState extends State<CardEditSheet> {
           const SizedBox(height: 12),
           _TimeRow(
             label: "截止时间",
-            value: _dueAt == null ? "未设置" : formatIsoToLocal(toIsoWithOffset(_dueAt!)),
+            value: _dueAt == null
+                ? "未设置"
+                : formatIsoToLocal(toIsoWithOffset(_dueAt!)),
             onPick: () => _pickDueAt(context),
-            onClear: _dueAt == null ? null : () => setState(() => _dueAt = null),
+            onClear:
+                _dueAt == null ? null : () => setState(() => _dueAt = null),
           ),
           const SizedBox(height: 8),
           _TimeRow(
             label: "提醒时间",
-            value: _remindAt == null ? "未设置" : formatIsoToLocal(toIsoWithOffset(_remindAt!)),
+            value: _remindAt == null
+                ? "未设置"
+                : formatIsoToLocal(toIsoWithOffset(_remindAt!)),
             onPick: () => _pickRemindAt(context),
             onClear: _remindAt == null
                 ? null
@@ -88,7 +93,8 @@ class _CardEditSheetState extends State<CardEditSheet> {
               ButtonSegment(value: "high", label: Text("高")),
             ],
             selected: {_priority},
-            onSelectionChanged: (value) => setState(() => _priority = value.first),
+            onSelectionChanged: (value) =>
+                setState(() => _priority = value.first),
             showSelectedIcon: false,
           ),
           const SizedBox(height: 16),
@@ -129,7 +135,8 @@ class _CardEditSheetState extends State<CardEditSheet> {
     }
   }
 
-  Future<DateTime?> _pickDateTime(BuildContext context, DateTime? initial) async {
+  Future<DateTime?> _pickDateTime(
+      BuildContext context, DateTime? initial) async {
     final now = DateTime.now();
     final date = await showDatePicker(
       context: context,
@@ -202,7 +209,8 @@ class _TimeRow extends StatelessWidget {
         if (onClear != null)
           TextButton(
             onPressed: onClear,
-            style: TextButton.styleFrom(foregroundColor: AppColors.textSecondary),
+            style:
+                TextButton.styleFrom(foregroundColor: AppColors.textSecondary),
             child: const Text("清空"),
           ),
       ],

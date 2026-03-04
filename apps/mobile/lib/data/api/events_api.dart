@@ -29,6 +29,7 @@ class EventsApi {
     final items = (data["items"] as List)
         .map((e) => EventDto.fromJson(e as Map<String, dynamic>))
         .toList();
-    return PaginatedResponse(items: items, total: data["total"] as int? ?? items.length);
+    return PaginatedResponse(
+        items: items, total: data["total"] as int? ?? items.length);
   }
 }
