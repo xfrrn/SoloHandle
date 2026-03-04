@@ -22,6 +22,7 @@ class ChatState {
     required this.status,
     required this.undoToken,
     required this.clarifyQuestion,
+    this.lastFailedRequest,
   });
 
   final List<ChatMessage> messages;
@@ -31,6 +32,9 @@ class ChatState {
   final String? status;
   final String? undoToken;
   final String? clarifyQuestion;
+  final ChatRequest? lastFailedRequest;
+
+  bool get hasError => status != null && status!.contains("失败");
 
   ChatState copyWith({
     List<ChatMessage>? messages,
@@ -40,6 +44,7 @@ class ChatState {
     String? status,
     String? undoToken,
     String? clarifyQuestion,
+    ChatRequest? lastFailedRequest,
   }) {
     return ChatState(
       messages: messages ?? this.messages,
@@ -49,6 +54,7 @@ class ChatState {
       status: status ?? this.status,
       undoToken: undoToken ?? this.undoToken,
       clarifyQuestion: clarifyQuestion ?? this.clarifyQuestion,
+      lastFailedRequest: lastFailedRequest,
     );
   }
 
@@ -110,6 +116,7 @@ class ChatController extends StateNotifier<ChatState> {
       state = state.copyWith(
         loading: false,
         status: "请求失败：$exc",
+        lastFailedRequest: ChatRequest(text: text),
       );
     }
   }
@@ -135,6 +142,7 @@ class ChatController extends StateNotifier<ChatState> {
       state = state.copyWith(
         loading: false,
         status: "确认失败：$exc",
+        lastFailedRequest: ChatRequest(confirmDraftIds: draftIds),
       );
     }
   }
@@ -214,6 +222,19 @@ class ChatController extends StateNotifier<ChatState> {
         loading: false,
         status: "任务操作失败：$exc",
       );
+    }
+  }
+
+  /// Retry the last failed request.
+  Future<void> retry() async {
+    final req = state.lastFailedRequest;
+    if (req == null) return;
+    if (req.text != null) {
+      await sendText(req.text!);
+    } else if (req.confirmDraftIds != null) {
+      await confirmDrafts(req.confirmDraftIds!);
+    } else if (req.undoToken != null) {
+      await undo();
     }
   }
 }

@@ -5,6 +5,7 @@ import "package:go_router/go_router.dart";
 import "../../core/constants.dart";
 import "../../core/time.dart";
 import "../../data/api/dto.dart";
+import "../../shared/widgets/error_banner.dart";
 import "chat_controller.dart";
 import "widgets/card_edit_sheet.dart";
 import "widgets/card_renderer.dart";
@@ -88,6 +89,11 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                 if (state.cards.isNotEmpty)
                   ...state.cards.map((card) => _buildCard(card, notifier)),
                 if (state.status != null) _StatusLine(text: state.status!),
+                if (state.hasError && state.lastFailedRequest != null)
+                  ErrorBanner(
+                    message: state.status ?? "请求失败",
+                    onRetry: () => notifier.retry(),
+                  ),
               ],
             ),
           ),
