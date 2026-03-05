@@ -1,9 +1,19 @@
 import 'package:flutter/material.dart';
 import '../../../core/constants.dart';
 import '../../../shared/widgets/glass_card.dart';
+import '../dashboard_state.dart';
 
 class TaskStreakCard extends StatelessWidget {
-  const TaskStreakCard({super.key});
+  const TaskStreakCard({
+    super.key,
+    required this.todayCompleted,
+    required this.todayTotal,
+    required this.streaks,
+  });
+
+  final int todayCompleted;
+  final int todayTotal;
+  final List<TaskStreakModel> streaks;
 
   @override
   Widget build(BuildContext context) {
@@ -33,7 +43,7 @@ class TaskStreakCard extends StatelessWidget {
                         ),
                   ),
                   Text(
-                    '今天已完成 3 个任务',
+                    '今天已完成 $todayCompleted / $todayTotal 个任务',
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
                           color: AppColors.textSecondary,
                         ),
@@ -45,11 +55,12 @@ class TaskStreakCard extends StatelessWidget {
           const SizedBox(height: 24),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceAround,
-            children: [
-              _buildStreakCircle(context, label: '阅读', days: 12, progress: 0.8),
-              _buildStreakCircle(context, label: '运动', days: 5, progress: 0.5),
-              _buildStreakCircle(context, label: '冥想', days: 2, progress: 0.2),
-            ],
+            children: streaks.map((s) => _buildStreakCircle(
+              context, 
+              label: s.label, 
+              days: s.days, 
+              progress: s.progress,
+            )).toList(),
           )
         ],
       ),

@@ -1,13 +1,37 @@
+import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
 import '../../../core/constants.dart';
 import '../../../shared/widgets/glass_card.dart';
+import '../dashboard_state.dart';
 
 class FinanceChartCard extends StatelessWidget {
-  const FinanceChartCard({super.key});
+  const FinanceChartCard({
+    super.key,
+    required this.totalExpense,
+    required this.trend,
+  });
+
+  final double totalExpense;
+  final List<ExpenseTrendModel> trend;
 
   @override
   Widget build(BuildContext context) {
+    // Process trend data to generate spots
+    final spots = <FlSpot>[];
+    double maxAmount = 3000;
+    
+    if (trend.isNotEmpty) {
+      maxAmount = trend.map((e) => e.amount).reduce(max);
+      maxAmount = maxAmount == 0 ? 1000 : maxAmount * 1.2;
+      
+      for (int i = 0; i < trend.length; i++) {
+        spots.add(FlSpot(i.toDouble(), trend[i].amount));
+      }
+    } else {
+      spots.add(const FlSpot(0, 0));
+    }
+
     return GlassCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -19,7 +43,7 @@ class FinanceChartCard extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    '本月支出',
+                    '最近30天支出',
                     style: Theme.of(context).textTheme.titleMedium?.copyWith(
                           color: AppColors.textSecondary,
                           fontWeight: FontWeight.w500,
@@ -27,7 +51,7 @@ class FinanceChartCard extends StatelessWidget {
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    '¥2,450.00',
+                    '¥${totalExpense.toStringAsFixed(2)}',
                     style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                           color: AppColors.textPrimary,
                           fontWeight: FontWeight.bold,
@@ -38,17 +62,10 @@ class FinanceChartCard extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                 decoration: BoxDecoration(
-                  color: AppColors.successLight,
+                  color: AppColors.accentLight,
                   borderRadius: BorderRadius.circular(20),
                 ),
-                child: const Text(
-                  '-12%',
-                  style: TextStyle(
-                    color: AppColors.success,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 12,
-                  ),
-                ),
+                child: const Icon(Icons.show_chart, color: AppColors.accent, size: 16),
               ),
             ],
           ),
@@ -60,7 +77,7 @@ class FinanceChartCard extends StatelessWidget {
                 gridData: FlGridData(
                   show: true,
                   drawVerticalLine: false,
-                  horizontalInterval: 1000,
+                  horizontalInterval: (maxAmount / 3) > 0 ? (maxAmount / 3) : 100,
                   getDrawingHorizontalLine: (value) {
                     return FlLine(
                       color: AppColors.divider.withOpacity(0.5),
@@ -77,57 +94,36 @@ class FinanceChartCard extends StatelessWidget {
                     sideTitles: SideTitles(
                       showTitles: true,
                       reservedSize: 22,
-                      interval: 1,
+                      interval: trend.length > 5 ? (trend.length / 5).toDouble() : 1.0,
                       getTitlesWidget: (value, meta) {
                         const style = TextStyle(
                           color: AppColors.textSecondary,
                           fontSize: 10,
                         );
-                        String text = '';
-                        switch (value.toInt()) {
-                          case 1:
-                            text = '1日';
-                            break;
-                          case 7:
-                            text = '7日';
-                            break;
-                          case 14:
-                            text = '14日';
-                            break;
-                          case 21:
-                            text = '21日';
-                            break;
-                          case 28:
-                            text = '28日';
-                            break;
+                        final index = value.toInt();
+                        if (index >= 0 && index < trend.length) {
+                           // Example: '2023-11-05' -> '11-05'
+                           final dateStr = trend[index].date;
+                           final displayStr = dateStr.length >= 10 ? dateStr.substring(5) : dateStr;
+                           return SideTitleWidget(
+                             meta: meta,
+                             child: Text(displayStr, style: style),
+                           );
                         }
-                        return SideTitleWidget(
-                          meta: meta,
-                          child: Text(text, style: style),
-                        );
+                        return const SizedBox.shrink();
                       },
                     ),
                   ),
                   leftTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
                 ),
                 borderData: FlBorderData(show: false),
-                minX: 1,
-                maxX: 31,
+                minX: 0,
+                maxX: (trend.length - 1).toDouble() > 0 ? (trend.length - 1).toDouble() : 1,
                 minY: 0,
-                maxY: 3000,
+                maxY: maxAmount,
                 lineBarsData: [
                   LineChartBarData(
-                    spots: const [
-                      FlSpot(1, 150),
-                      FlSpot(4, 300),
-                      FlSpot(7, 280),
-                      FlSpot(10, 800),
-                      FlSpot(14, 1200),
-                      FlSpot(17, 1350),
-                      FlSpot(21, 1900),
-                      FlSpot(25, 2100),
-                      FlSpot(28, 2450),
-                    ],
+                    spots: spots,
                     isCurved: true,
                     color: AppColors.accent,
                     barWidth: 3,

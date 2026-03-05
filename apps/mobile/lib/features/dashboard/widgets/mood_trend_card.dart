@@ -2,12 +2,23 @@ import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
 import '../../../core/constants.dart';
 import '../../../shared/widgets/glass_card.dart';
+import '../dashboard_state.dart';
 
 class MoodTrendCard extends StatelessWidget {
-  const MoodTrendCard({super.key});
+  const MoodTrendCard({super.key, required this.trend});
+
+  final List<MoodTrendModel> trend;
 
   @override
   Widget build(BuildContext context) {
+    final spots = <FlSpot>[];
+    double sum = 0;
+    for (int i = 0; i < trend.length; i++) {
+        spots.add(FlSpot(i.toDouble(), trend[i].averageValence));
+        sum += trend[i].averageValence;
+    }
+    final avgMood = trend.isNotEmpty ? sum / trend.length : 0;
+
     return GlassCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -34,7 +45,7 @@ class MoodTrendCard extends StatelessWidget {
                         ),
                   ),
                   Text(
-                    '过去 7 天平均 7.5 分',
+                    '过去 7 天平均 ${avgMood.toStringAsFixed(1)} 分',
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
                           color: AppColors.textSecondary,
                         ),
@@ -58,18 +69,20 @@ class MoodTrendCard extends StatelessWidget {
                     sideTitles: SideTitles(
                       showTitles: true,
                       reservedSize: 22,
-                      interval: 1,
+                      interval: trend.length > 5 ? (trend.length / 5).toDouble() : 1.0,
                       getTitlesWidget: (value, meta) {
                         const style = TextStyle(
                           color: AppColors.textSecondary,
                           fontSize: 10,
                         );
-                        final days = ['一', '二', '三', '四', '五', '六', '日'];
-                        if (value >= 0 && value < days.length) {
-                          return SideTitleWidget(
-                            meta: meta,
-                            child: Text(days[value.toInt()], style: style),
-                          );
+                        final index = value.toInt();
+                        if (index >= 0 && index < trend.length) {
+                            final dateStr = trend[index].date;
+                            final displayStr = dateStr.length >= 10 ? dateStr.substring(5) : dateStr;
+                            return SideTitleWidget(
+                                meta: meta,
+                                child: Text(displayStr, style: style),
+                            );
                         }
                         return const SizedBox.shrink();
                       },
@@ -78,20 +91,12 @@ class MoodTrendCard extends StatelessWidget {
                 ),
                 borderData: FlBorderData(show: false),
                 minX: 0,
-                maxX: 6,
+                maxX: (trend.length - 1).toDouble() > 0 ? (trend.length - 1).toDouble() : 1,
                 minY: 0,
                 maxY: 10,
                 lineBarsData: [
                   LineChartBarData(
-                    spots: const [
-                      FlSpot(0, 6.0),
-                      FlSpot(1, 7.5),
-                      FlSpot(2, 8.0),
-                      FlSpot(3, 6.5),
-                      FlSpot(4, 7.0),
-                      FlSpot(5, 9.0),
-                      FlSpot(6, 8.5),
-                    ],
+                    spots: spots.isEmpty ? const [FlSpot(0, 5)] : spots,
                     isCurved: true,
                     curveSmoothness: 0.35,
                     color: const Color(0xFFF59E0B), // Warm yellow/orange
