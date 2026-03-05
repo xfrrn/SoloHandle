@@ -7,6 +7,7 @@ from api.routes.chat import router as chat_router
 from api.routes.events import router as events_router
 from api.routes.router_health import router as router_health_router
 from api.routes.tasks import router as tasks_router
+from api.routes.dashboard import router as dashboard_router
 
 app = FastAPI(title="AI Companion API")
 app.add_middleware(
@@ -20,4 +21,5 @@ app.include_router(chat_router)
 app.include_router(events_router)
 app.include_router(tasks_router)
 app.include_router(router_health_router)
+app.include_router(dashboard_router)
 
