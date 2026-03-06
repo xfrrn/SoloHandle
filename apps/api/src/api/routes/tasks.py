@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from fastapi import APIRouter, HTTPException, Query
 
-from api.db.connection import ToolError, get_connection
+from api.db.connection import ToolError, ensure_tables, get_connection
 from api.repositories.tasks_repo import TaskRepository
 from api.services.tasks_service import TaskService
 
@@ -11,6 +11,7 @@ router = APIRouter()
 
 def _get_task_service() -> TaskService:
     conn = get_connection()
+    ensure_tables(conn)
     return TaskService(TaskRepository(conn))
 
 

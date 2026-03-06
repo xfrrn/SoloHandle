@@ -9,6 +9,7 @@ class EventDto {
     required this.data,
     required this.source,
     required this.confidence,
+    required this.commitId,
     required this.createdAt,
     required this.updatedAt,
     required this.isDeleted,
@@ -21,6 +22,7 @@ class EventDto {
   final Map<String, dynamic> data;
   final String source;
   final double confidence;
+  final String? commitId;
   final String createdAt;
   final String updatedAt;
   final int isDeleted;
@@ -35,6 +37,7 @@ class EventDto {
       data: (json["data"] as Map?)?.cast<String, dynamic>() ?? {},
       source: json["source"] as String? ?? "",
       confidence: (json["confidence"] as num?)?.toDouble() ?? 0.0,
+      commitId: json["commit_id"] as String?,
       createdAt: json["created_at"] as String? ?? "",
       updatedAt: json["updated_at"] as String? ?? "",
       isDeleted: json["is_deleted"] as int? ?? 0,
@@ -72,6 +75,7 @@ class TaskDto {
     required this.tags,
     required this.project,
     required this.note,
+    required this.commitId,
     required this.createdAt,
     required this.updatedAt,
     required this.completedAt,
@@ -87,6 +91,7 @@ class TaskDto {
   final List<String> tags;
   final String? project;
   final String? note;
+  final String? commitId;
   final String createdAt;
   final String updatedAt;
   final String? completedAt;
@@ -112,6 +117,7 @@ class TaskDto {
       tags: tagsList,
       project: json["project"] as String?,
       note: json["note"] as String?,
+      commitId: json["commit_id"] as String?,
       createdAt: json["created_at"] as String? ?? "",
       updatedAt: json["updated_at"] as String? ?? "",
       completedAt: json["completed_at"] as String?,

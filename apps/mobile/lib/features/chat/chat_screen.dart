@@ -204,9 +204,6 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     final state = ref.watch(chatControllerProvider);
     final notifier = ref.read(chatControllerProvider.notifier);
     ref.listen<ChatState>(chatControllerProvider, (prev, next) {
-      if (prev?.undoToken != next.undoToken && next.undoToken != null) {
-        _showUndoSnack(context);
-      }
       if (_lastMessageCount != next.messages.length) {
         _lastMessageCount = next.messages.length;
         if (_shouldAutoScroll) {
@@ -262,37 +259,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                       message: state.status ?? "请求失败",
                       onRetry: () => notifier.retry(),
                     ),
-                  if (state.undoToken != null)
-                    Padding(
-                      padding: const EdgeInsets.only(top: 16, bottom: 8),
-                      child: Align(
-                        alignment: Alignment.center,
-                        child: Dismissible(
-                          key: ValueKey(state.undoToken),
-                          direction: DismissDirection.horizontal,
-                          onDismissed: (_) => notifier.undo(),
-                          child: TextButton.icon(
-                            style: TextButton.styleFrom(
-                              foregroundColor: AppColors.danger,
-                              backgroundColor: AppColors.danger.withOpacity(0.1),
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 16, vertical: 8),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(20),
-                              ),
-                            ),
-                            onPressed: () {
-                              notifier.undo();
-                            },
-                            icon: const Icon(Icons.undo, size: 18),
-                            label: const Text("撤销刚才的记录"),
-                          ),
-                        ),
-                      ),
-                    ),
-                ],
-              ),
+              ],
             ),
+          ),
           ),
           AnimatedSlide(
             duration: const Duration(milliseconds: 250),
@@ -392,33 +361,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     context.push("/notifications");
   }
 
-  void _showUndoSnack(BuildContext context) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        duration: const Duration(seconds: 6),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text("已提交，可在 10 分钟内撤销"),
-            const SizedBox(height: 8),
-            TweenAnimationBuilder<double>(
-              tween: Tween(begin: 1, end: 0),
-              duration: const Duration(seconds: 6),
-              builder: (context, value, _) {
-                return LinearProgressIndicator(
-                  value: value,
-                  backgroundColor: AppColors.dangerLight,
-                  valueColor:
-                      const AlwaysStoppedAnimation<Color>(AppColors.danger),
-                );
-              },
-            ),
-          ],
-        ),
-      ),
-    );
-  }
+  // 撤销提示已移动至 Timeline
 
   int? _extractTaskId(CardDto card) {
     final value = card.data["task_id"];

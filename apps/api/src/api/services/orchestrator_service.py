@@ -94,6 +94,7 @@ class OrchestratorService:
                 payload_json=json_dumps(d.payload),
                 result_json=None,
                 undo_token=None,
+                commit_id=None,
                 created_at=created_at,
             )
             items.append(
@@ -119,7 +120,8 @@ class OrchestratorService:
         for row in drafts:
             tool_name = row["tool_name"]
             payload = json_loads(row["payload_json"])
-            result = _call_tool(tool_name, payload)
+            commit_id = str(uuid4())
+            result = _call_tool(tool_name, {**payload, "commit_id": commit_id})
             self._repo.insert_log(
                 kind="commit",
                 request_id=row["request_id"],
@@ -128,12 +130,14 @@ class OrchestratorService:
                 payload_json=row["payload_json"],
                 result_json=json_dumps(result),
                 undo_token=undo_token,
+                commit_id=commit_id,
                 created_at=created_at,
             )
             committed.append(
                 {
                     "draft_id": row["draft_id"],
                     "tool_name": tool_name,
+                    "commit_id": commit_id,
                     "result": result,
                 }
             )
@@ -152,6 +156,15 @@ class OrchestratorService:
             undone.append(_undo_tool(tool_name, result))
 
         return {"undone": undone, "undo_token": undo_token}
+
+    def undo_commit(self, commit_id: str) -> dict[str, Any]:
+        row = self._repo.get_commit_by_id(commit_id)
+        if row is None:
+            raise ToolError("not_found", "commit_id not found", {"commit_id": commit_id})
+        tool_name = row["tool_name"]
+        result = json_loads(row["result_json"]) if row["result_json"] else {}
+        undone = _undo_tool(tool_name, result)
+        return {"undone": [undone], "commit_id": commit_id}
 
     def edit_draft(self, draft_id: str, patch: dict[str, Any]) -> dict[str, Any]:
         row = self._repo.get_draft_by_id(draft_id)
@@ -205,6 +218,7 @@ class OrchestratorService:
             payload_json=json_dumps({"task_id": task_id, "op": op, "payload": payload}),
             result_json=json_dumps({"task": result, "prev": prev, "op": op}),
             undo_token=undo_token,
+            commit_id=str(uuid4()),
             created_at=created_at,
         )
         return {"task": result, "undo_token": undo_token}

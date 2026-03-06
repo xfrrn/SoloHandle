@@ -11,6 +11,7 @@
     "audio": {"type": "string"},
     "confirm_draft_ids": {"type": "array", "items": {"type": "string"}, "minItems": 1},
     "undo_token": {"type": "string"},
+    "commit_id": {"type": "string"},
     "request_id": {"type": "string"},
     "action": {"type": "string", "enum": ["edit", "task_action"]},
     "draft_id": {"type": "string"},
@@ -26,6 +27,7 @@
     {"required": ["audio"]},
     {"required": ["confirm_draft_ids"]},
     {"required": ["undo_token"]},
+    {"required": ["commit_id"]},
     {"required": ["action", "draft_id", "patch"]},
     {"required": ["action", "task_id", "op"]}
   ]

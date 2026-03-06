@@ -37,6 +37,7 @@ def create_task(
     project: Optional[str] = None,
     note: Optional[str] = None,
     idempotency_key: Optional[str] = None,
+    commit_id: Optional[str] = None,
 ) -> dict[str, Any]:
     """Create a task."""
     consts = get_constants()
@@ -76,6 +77,7 @@ def create_task(
             project=project,
             note=note,
             idempotency_key=idempotency_key,
+            commit_id=commit_id,
         )
 
 

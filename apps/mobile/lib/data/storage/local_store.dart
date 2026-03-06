@@ -3,6 +3,7 @@ import "package:shared_preferences/shared_preferences.dart";
 class LocalStore {
   static const _keyBaseUrl = "base_url";
   static const _keyToken = "api_token";
+  static const _keyUndoToken = "undo_token";
 
   Future<String?> getBaseUrl() async {
     final prefs = await SharedPreferences.getInstance();
@@ -22,5 +23,20 @@ class LocalStore {
   Future<void> setToken(String value) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_keyToken, value);
+  }
+
+  Future<String?> getUndoToken() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString(_keyUndoToken);
+  }
+
+  Future<void> setUndoToken(String value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_keyUndoToken, value);
+  }
+
+  Future<void> clearUndoToken() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(_keyUndoToken);
   }
 }

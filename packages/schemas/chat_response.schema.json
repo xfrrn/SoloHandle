@@ -46,10 +46,11 @@
           "items": {
             "type": "object",
             "additionalProperties": false,
-            "required": ["draft_id", "tool_name", "result"],
+            "required": ["draft_id", "tool_name", "result", "commit_id"],
             "properties": {
               "draft_id": {"type": "string"},
               "tool_name": {"type": "string"},
+              "commit_id": {"type": "string"},
               "result": {"oneOf": [{"$ref": "#/$defs/event"}, {"$ref": "#/$defs/task"}]}
             }
           }
@@ -60,7 +61,7 @@
     "undo_response": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["undone", "undo_token"],
+      "required": ["undone"],
       "properties": {
         "undone": {
           "type": "array",
@@ -83,7 +84,8 @@
             ]
           }
         },
-        "undo_token": {"type": "string"}
+        "undo_token": {"type": "string"},
+        "commit_id": {"type": "string"}
       }
     },
     "task_action_response": {

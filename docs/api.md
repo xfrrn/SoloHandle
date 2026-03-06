@@ -25,6 +25,7 @@
 - `audio` string: 语音 base64
 - `confirm_draft_ids` string[]: 需要确认的草稿 ID 列表
 - `undo_token` string: 撤销 token
+- `commit_id` string: 撤销单个 commit
 - `request_id` string: 可选。用于关联一次草稿生成请求
 - `action` string: 可选。用于草稿编辑，目前支持 `edit`
 - `draft_id` string: 草稿 ID（action=edit 时必填）
@@ -37,6 +38,7 @@
 - 参考 `packages/schemas/chat_response.schema.json`
 - 可能是以下四种之一：澄清、草稿、提交结果、撤销结果
 - 任务操作会返回 `task + undo_token`
+ - 提交结果中每条记录包含 `commit_id`，可用于按条撤销
 
 示例: 生成草稿
 ```json
@@ -94,6 +96,12 @@
 }
 ```
 
+示例: 撤销指定 commit
+```json
+{
+  "commit_id": "uuid"
+}
+```
 示例: 编辑草稿（结构化 patch）
 ```json
 {

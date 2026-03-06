@@ -29,6 +29,7 @@ def create_expense(
     source: Optional[str] = None,
     confidence: Optional[float] = None,
     idempotency_key: Optional[str] = None,
+    commit_id: Optional[str] = None,
 ) -> dict[str, Any]:
     """Create an expense event."""
     consts = get_constants()
@@ -67,6 +68,7 @@ def create_expense(
             source=src,
             confidence=conf,
             idempotency_key=idempotency_key,
+            commit_id=commit_id,
         )
 
 
@@ -78,6 +80,7 @@ def create_lifelog(
     source: Optional[str] = None,
     confidence: Optional[float] = None,
     idempotency_key: Optional[str] = None,
+    commit_id: Optional[str] = None,
 ) -> dict[str, Any]:
     """Create a lifelog event."""
     consts = get_constants()
@@ -100,6 +103,7 @@ def create_lifelog(
             source=src,
             confidence=conf,
             idempotency_key=idempotency_key,
+            commit_id=commit_id,
         )
 
 
@@ -112,6 +116,7 @@ def create_meal(
     source: Optional[str] = None,
     confidence: Optional[float] = None,
     idempotency_key: Optional[str] = None,
+    commit_id: Optional[str] = None,
 ) -> dict[str, Any]:
     """Create a meal event."""
     consts = get_constants()
@@ -139,6 +144,7 @@ def create_meal(
             source=src,
             confidence=conf,
             idempotency_key=idempotency_key,
+            commit_id=commit_id,
         )
 
 
@@ -153,6 +159,7 @@ def create_mood(
     source: Optional[str] = None,
     confidence: Optional[float] = None,
     idempotency_key: Optional[str] = None,
+    commit_id: Optional[str] = None,
 ) -> dict[str, Any]:
     """Create a mood event."""
     consts = get_constants()
@@ -185,6 +192,7 @@ def create_mood(
             source=src,
             confidence=conf,
             idempotency_key=idempotency_key,
+            commit_id=commit_id,
         )
 
 

@@ -18,13 +18,14 @@ class OrchestratorRepository:
         payload_json: Optional[str],
         result_json: Optional[str],
         undo_token: Optional[str],
+        commit_id: Optional[str],
         created_at: str,
     ) -> int:
         cur = self._conn.execute(
             """
             INSERT INTO orchestrator_logs (
-                kind, request_id, draft_id, tool_name, payload_json, result_json, undo_token, created_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                kind, request_id, draft_id, tool_name, payload_json, result_json, undo_token, commit_id, created_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 kind,
@@ -34,6 +35,7 @@ class OrchestratorRepository:
                 payload_json,
                 result_json,
                 undo_token,
+                commit_id,
                 created_at,
             ),
         )
@@ -70,3 +72,10 @@ class OrchestratorRepository:
             (undo_token,),
         ).fetchall()
         return list(rows)
+
+    def get_commit_by_id(self, commit_id: str) -> Optional[sqlite3.Row]:
+        row = self._conn.execute(
+            "SELECT * FROM orchestrator_logs WHERE kind = 'commit' AND commit_id = ?",
+            (commit_id,),
+        ).fetchone()
+        return row

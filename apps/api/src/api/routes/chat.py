@@ -29,6 +29,7 @@ async def chat(request: Request) -> dict:
     images = body.get("images")
     confirm_draft_ids = body.get("confirm_draft_ids")
     undo_token = body.get("undo_token")
+    commit_id = body.get("commit_id")
     action = body.get("action")
     draft_id = body.get("draft_id")
     patch = body.get("patch")
@@ -54,6 +55,11 @@ async def chat(request: Request) -> dict:
             if payload is not None and not isinstance(payload, dict):
                 raise ToolError("invalid_param", "payload must be object")
             return service.task_action(task_id, op.strip(), payload)
+
+        if commit_id:
+            if not isinstance(commit_id, str):
+                raise ToolError("invalid_param", "commit_id must be string")
+            return service.undo_commit(commit_id)
 
         if undo_token:
             if not isinstance(undo_token, str):

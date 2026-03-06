@@ -27,6 +27,7 @@ class TaskService:
             "project": row["project"],
             "tags": json_loads(row["tags_json"]),
             "note": row["note"],
+            "commit_id": row["commit_id"],
             "created_at": row["created_at"],
             "updated_at": row["updated_at"],
             "completed_at": row["completed_at"],
@@ -45,6 +46,7 @@ class TaskService:
         project: Optional[str],
         note: Optional[str],
         idempotency_key: Optional[str],
+        commit_id: Optional[str] = None,
     ) -> dict[str, Any]:
         if idempotency_key:
             row = self._repo.get_by_idempotency(idempotency_key)
@@ -63,6 +65,7 @@ class TaskService:
             tags_json=json_dumps(tags),
             note=note,
             idempotency_key=idempotency_key,
+            commit_id=commit_id,
             created_at=created_at,
             updated_at=updated_at,
         )

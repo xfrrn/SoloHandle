@@ -89,6 +89,7 @@ class ChatController extends StateNotifier<ChatState> {
 
   final ChatRepository _repo;
   final Ref _ref;
+  final LocalStore _store = LocalStore();
 
   Future<void> sendText({
     String? text,
@@ -157,6 +158,18 @@ class ChatController extends StateNotifier<ChatState> {
     state = state.copyWith(loading: true, status: "正在确认...");
     try {
       final resp = await _repo.send(ChatRequest(confirmDraftIds: draftIds));
+      final committedCards = state.cards
+          .map(
+            (c) => CardDto(
+              cardId: c.cardId,
+              type: c.type,
+              status: "committed",
+              title: c.title,
+              subtitle: c.subtitle,
+              data: c.data,
+            ),
+          )
+          .toList();
       final updatedMessages = [
         ...state.messages,
         ChatMessage(
@@ -167,10 +180,14 @@ class ChatController extends StateNotifier<ChatState> {
         loading: false,
         status: "已确认 ${resp.committed.length} 条记录",
         drafts: [],
-        cards: [],
+        cards: committedCards,
         undoToken: resp.undoToken,
         messages: updatedMessages,
       );
+
+      if (resp.undoToken != null && resp.undoToken!.isNotEmpty) {
+        await _store.setUndoToken(resp.undoToken!);
+      }
       
       // Refresh timeline when records are committed
       _ref.read(timelineControllerProvider.notifier).loadEvents();
@@ -200,6 +217,7 @@ class ChatController extends StateNotifier<ChatState> {
         messages: updatedMessages,
         undoToken: null, // Clear token after successful undo
       );
+      await _store.clearUndoToken();
       
       // Refresh timeline after undoing records
       _ref.read(timelineControllerProvider.notifier).loadEvents();

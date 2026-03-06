@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from fastapi import APIRouter, Query
 
-from api.db.connection import get_connection
+from api.db.connection import ensure_tables, get_connection
 from api.repositories.events_repo import EventRepository
 from api.services.events_service import EventService
 
@@ -11,6 +11,7 @@ router = APIRouter()
 
 def _get_event_service() -> EventService:
     conn = get_connection()
+    ensure_tables(conn)
     return EventService(EventRepository(conn))
 
 

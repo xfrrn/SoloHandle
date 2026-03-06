@@ -30,13 +30,14 @@ class TaskRepository:
         tags_json: str,
         note: Optional[str],
         idempotency_key: Optional[str],
+        commit_id: Optional[str],
         created_at: str,
         updated_at: str,
     ) -> int:
         cur = self._conn.execute(
             """
-            INSERT INTO tasks (title, status, priority, due_at, remind_at, reminded_at, notification_id, repeat_rule, project, tags_json, note, idempotency_key, is_deleted, created_at, updated_at, completed_at)
-            VALUES (?, ?, ?, ?, ?, NULL, NULL, NULL, ?, ?, ?, ?, 0, ?, ?, NULL)
+            INSERT INTO tasks (title, status, priority, due_at, remind_at, reminded_at, notification_id, repeat_rule, project, tags_json, note, idempotency_key, commit_id, is_deleted, created_at, updated_at, completed_at)
+            VALUES (?, ?, ?, ?, ?, NULL, NULL, NULL, ?, ?, ?, ?, ?, 0, ?, ?, NULL)
             """,
             (
                 title,
@@ -48,6 +49,7 @@ class TaskRepository:
                 tags_json,
                 note,
                 idempotency_key,
+                commit_id,
                 created_at,
                 updated_at,
             ),

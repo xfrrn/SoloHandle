@@ -51,6 +51,7 @@ def ensure_tables(conn: sqlite3.Connection) -> None:
             source TEXT NOT NULL,
             confidence REAL NOT NULL,
             idempotency_key TEXT,
+            commit_id TEXT,
             is_deleted INTEGER NOT NULL DEFAULT 0,
             created_at TEXT NOT NULL,
             updated_at TEXT NOT NULL
@@ -80,6 +81,7 @@ def ensure_tables(conn: sqlite3.Connection) -> None:
             tags_json TEXT NOT NULL,
             note TEXT,
             idempotency_key TEXT,
+            commit_id TEXT,
             is_deleted INTEGER NOT NULL DEFAULT 0,
             created_at TEXT NOT NULL,
             updated_at TEXT NOT NULL,
@@ -127,6 +129,7 @@ def ensure_tables(conn: sqlite3.Connection) -> None:
             payload_json TEXT,
             result_json TEXT,
             undo_token TEXT,
+            commit_id TEXT,
             created_at TEXT NOT NULL
         )
         """
@@ -140,6 +143,9 @@ def ensure_tables(conn: sqlite3.Connection) -> None:
 
     _ensure_column(cur, "tasks", "reminded_at", "reminded_at TEXT")
     _ensure_column(cur, "tasks", "notification_id", "notification_id INTEGER")
+    _ensure_column(cur, "tasks", "commit_id", "commit_id TEXT")
+    _ensure_column(cur, "events", "commit_id", "commit_id TEXT")
+    _ensure_column(cur, "orchestrator_logs", "commit_id", "commit_id TEXT")
 
     conn.commit()
 

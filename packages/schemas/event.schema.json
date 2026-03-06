@@ -36,6 +36,7 @@
           "enum": ["chat_text", "chat_image", "chat_voice", "import"]
         },
         "confidence": {"type": "number", "minimum": 0, "maximum": 1},
+        "commit_id": {"type": ["string", "null"]},
         "created_at": {"type": "string", "format": "date-time"},
         "updated_at": {"type": "string", "format": "date-time"},
         "is_deleted": {"type": "integer", "enum": [0, 1]}

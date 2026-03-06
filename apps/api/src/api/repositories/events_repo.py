@@ -28,13 +28,14 @@ class EventRepository:
         source: str,
         confidence: float,
         idempotency_key: Optional[str],
+        commit_id: Optional[str],
         created_at: str,
         updated_at: str,
     ) -> int:
         cur = self._conn.execute(
             """
-            INSERT INTO events (type, data_json, happened_at, tags_json, source, confidence, idempotency_key, is_deleted, created_at, updated_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, 0, ?, ?)
+            INSERT INTO events (type, data_json, happened_at, tags_json, source, confidence, idempotency_key, commit_id, is_deleted, created_at, updated_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?)
             """,
             (
                 event_type,
@@ -44,6 +45,7 @@ class EventRepository:
                 source,
                 confidence,
                 idempotency_key,
+                commit_id,
                 created_at,
                 updated_at,
             ),

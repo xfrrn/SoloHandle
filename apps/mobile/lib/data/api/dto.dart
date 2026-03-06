@@ -6,6 +6,7 @@ class ChatRequest {
     this.audio,
     this.confirmDraftIds,
     this.undoToken,
+    this.commitId,
     this.requestId,
     this.action,
     this.draftId,
@@ -21,6 +22,7 @@ class ChatRequest {
   final String? audio;
   final List<String>? confirmDraftIds;
   final String? undoToken;
+  final String? commitId;
   final String? requestId;
   final String? action;
   final String? draftId;
@@ -40,6 +42,9 @@ class ChatRequest {
     }
     if (undoToken != null && undoToken!.trim().isNotEmpty) {
       data["undo_token"] = undoToken!.trim();
+    }
+    if (commitId != null && commitId!.trim().isNotEmpty) {
+      data["commit_id"] = commitId!.trim();
     }
     if (requestId != null && requestId!.trim().isNotEmpty) {
       data["request_id"] = requestId!.trim();
