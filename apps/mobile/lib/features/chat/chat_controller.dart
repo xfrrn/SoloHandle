@@ -78,7 +78,7 @@ class ChatMessage {
 
   final MessageRole role;
   final String? text;
-  final String? imageBytes;
+  final List<String>? imageBytes;
   final String? audioBytes;
 }
 
@@ -90,7 +90,11 @@ class ChatController extends StateNotifier<ChatState> {
   final ChatRepository _repo;
   final Ref _ref;
 
-  Future<void> sendText({String? text, String? imageBase64, String? audioBase64}) async {
+  Future<void> sendText({
+    String? text,
+    List<String>? imageBase64,
+    String? audioBase64,
+  }) async {
     final hasText = text != null && text.trim().isNotEmpty;
     final hasImage = imageBase64 != null && imageBase64.isNotEmpty;
     final hasAudio = audioBase64 != null && audioBase64.isNotEmpty;
@@ -116,7 +120,13 @@ class ChatController extends StateNotifier<ChatState> {
       clarifyQuestion: null,
     );
     try {
-      final req = ChatRequest(text: text, image: imageBase64, audio: audioBase64);
+      final imageForRequest = hasImage ? imageBase64!.first : null;
+      final req = ChatRequest(
+        text: text,
+        image: imageForRequest,
+        images: imageBase64,
+        audio: audioBase64,
+      );
       state = state.copyWith(lastFailedRequest: req); // track for retry
 
       final resp = await _repo.send(req);
@@ -262,7 +272,11 @@ class ChatController extends StateNotifier<ChatState> {
     final req = state.lastFailedRequest;
     if (req == null) return;
     if (req.text != null || req.image != null || req.audio != null) {
-      await sendText(text: req.text, imageBase64: req.image, audioBase64: req.audio);
+      await sendText(
+        text: req.text,
+        imageBase64: req.images ?? (req.image != null ? [req.image!] : null),
+        audioBase64: req.audio,
+      );
     } else if (req.confirmDraftIds != null) {
       await confirmDrafts(req.confirmDraftIds!);
     } else if (req.undoToken != null) {

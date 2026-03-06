@@ -4,7 +4,7 @@
 
 ## 入口与基础对象
 
-- `packages/schemas/chat_request.schema.json`: `/chat` 请求体
+- `packages/schemas/chat_request.schema.json`: `/chat` 请求体（支持 text/image/images/audio）
 - `packages/schemas/chat_response.schema.json`: `/chat` 响应体
 - `packages/schemas/router_health.schema.json`: `/router/health` 响应体
 - `packages/schemas/router_decision.schema.json`: LLM Router 输出协议

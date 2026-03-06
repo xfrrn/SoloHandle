@@ -30,10 +30,13 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   final ScrollController _scrollController = ScrollController();
   String? _lastPrefill;
   final ImagePicker _picker = ImagePicker();
-  Uint8List? _selectedImageBytes;
-  String? _selectedImageBase64;
+  List<Uint8List> _selectedImageBytes = [];
+  List<String> _selectedImageBase64 = [];
   final AudioRecorder _audioRecorder = AudioRecorder();
   bool _isRecording = false;
+  bool _shouldAutoScroll = true;
+  bool _showAllCards = false;
+  int _lastMessageCount = 0;
 
   @override
   void initState() {
@@ -59,6 +62,20 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     _scrollController.dispose();
     _audioRecorder.dispose();
     super.dispose();
+  }
+
+  void _scrollToBottom({bool jump = false}) {
+    if (!_scrollController.hasClients) return;
+    final target = _scrollController.position.maxScrollExtent + 120;
+    if (jump) {
+      _scrollController.jumpTo(target);
+    } else {
+      _scrollController.animateTo(
+        target,
+        duration: const Duration(milliseconds: 350),
+        curve: Curves.easeOutCubic,
+      );
+    }
   }
 
   Future<void> _startRecording() async {
@@ -130,18 +147,33 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     if (source == null) return;
 
     try {
-      final XFile? image = await _picker.pickImage(
-        source: source,
-        maxWidth: 1024,
-        maxHeight: 1024,
-        imageQuality: 80,
-      );
-      if (image == null) return;
-      final bytes = await image.readAsBytes();
-      final base64String = base64Encode(bytes);
+      List<XFile> images = [];
+      if (source == ImageSource.gallery) {
+        images = await _picker.pickMultiImage(
+          maxWidth: 1024,
+          maxHeight: 1024,
+          imageQuality: 80,
+        );
+      } else {
+        final single = await _picker.pickImage(
+          source: source,
+          maxWidth: 1024,
+          maxHeight: 1024,
+          imageQuality: 80,
+        );
+        if (single != null) images = [single];
+      }
+      if (images.isEmpty) return;
+      final bytesList = <Uint8List>[];
+      final base64List = <String>[];
+      for (final image in images) {
+        final bytes = await image.readAsBytes();
+        bytesList.add(bytes);
+        base64List.add(base64Encode(bytes));
+      }
       setState(() {
-        _selectedImageBytes = bytes;
-        _selectedImageBase64 = base64String;
+        _selectedImageBytes = bytesList;
+        _selectedImageBase64 = base64List;
       });
     } catch (e) {
       if (!mounted) return;
@@ -151,10 +183,19 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     }
   }
 
-  void _removeImage() {
+  void _removeImageAt(int index) {
     setState(() {
-      _selectedImageBytes = null;
-      _selectedImageBase64 = null;
+      if (index >= 0 && index < _selectedImageBytes.length) {
+        _selectedImageBytes.removeAt(index);
+        _selectedImageBase64.removeAt(index);
+      }
+    });
+  }
+
+  void _clearImages() {
+    setState(() {
+      _selectedImageBytes = [];
+      _selectedImageBase64 = [];
     });
   }
 
@@ -165,6 +206,14 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     ref.listen<ChatState>(chatControllerProvider, (prev, next) {
       if (prev?.undoToken != next.undoToken && next.undoToken != null) {
         _showUndoSnack(context);
+      }
+      if (_lastMessageCount != next.messages.length) {
+        _lastMessageCount = next.messages.length;
+        if (_shouldAutoScroll) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            _scrollToBottom();
+          });
+        }
       }
     });
 
@@ -188,77 +237,128 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       body: Column(
         children: [
           Expanded(
-            child: ListView(
-              controller: _scrollController,
-              padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
-              children: [
-                for (final message in state.messages)
-                  MessageBubble(message: message),
-                if (state.clarifyQuestion != null)
-                  _ClarifyBlock(text: state.clarifyQuestion!),
-                if (state.cards.isNotEmpty)
-                  ...state.cards.map((card) => _buildCard(card, notifier)),
-                if (state.status != null) _StatusLine(text: state.status!),
-                if (state.hasError && state.lastFailedRequest != null)
-                  ErrorBanner(
-                    message: state.status ?? "请求失败",
-                    onRetry: () => notifier.retry(),
-                  ),
-                if (state.undoToken != null)
-                  Padding(
-                    padding: const EdgeInsets.only(top: 16, bottom: 8),
-                    child: Align(
-                      alignment: Alignment.center,
-                      child: TextButton.icon(
-                        style: TextButton.styleFrom(
-                          foregroundColor: AppColors.danger,
-                          backgroundColor: AppColors.danger.withOpacity(0.1),
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 16, vertical: 8),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(20),
+            child: NotificationListener<ScrollNotification>(
+              onNotification: (notification) {
+                if (notification is ScrollUpdateNotification) {
+                  final metrics = notification.metrics;
+                  final isNearBottom = metrics.extentAfter < 120;
+                  _shouldAutoScroll = isNearBottom;
+                }
+                return false;
+              },
+              child: ListView(
+                controller: _scrollController,
+                padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+                children: [
+                  for (final message in state.messages)
+                    MessageBubble(message: message),
+                  if (state.clarifyQuestion != null)
+                    _ClarifyBlock(text: state.clarifyQuestion!),
+                  if (state.cards.isNotEmpty)
+                    ..._buildCardsSection(state.cards, notifier),
+                  if (state.status != null) _StatusLine(text: state.status!),
+                  if (state.hasError && state.lastFailedRequest != null)
+                    ErrorBanner(
+                      message: state.status ?? "请求失败",
+                      onRetry: () => notifier.retry(),
+                    ),
+                  if (state.undoToken != null)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 16, bottom: 8),
+                      child: Align(
+                        alignment: Alignment.center,
+                        child: Dismissible(
+                          key: ValueKey(state.undoToken),
+                          direction: DismissDirection.horizontal,
+                          onDismissed: (_) => notifier.undo(),
+                          child: TextButton.icon(
+                            style: TextButton.styleFrom(
+                              foregroundColor: AppColors.danger,
+                              backgroundColor: AppColors.danger.withOpacity(0.1),
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 16, vertical: 8),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(20),
+                              ),
+                            ),
+                            onPressed: () {
+                              notifier.undo();
+                            },
+                            icon: const Icon(Icons.undo, size: 18),
+                            label: const Text("撤销刚才的记录"),
                           ),
                         ),
-                        onPressed: () {
-                          notifier.undo();
-                        },
-                        icon: const Icon(Icons.undo, size: 18),
-                        label: const Text("撤销刚才的记录"),
                       ),
                     ),
-                  ),
-              ],
+                ],
+              ),
             ),
           ),
-          ConfirmBar(
-            count: state.drafts.length,
-            onConfirmAll: () => notifier.confirmDrafts(
-              state.drafts.map((d) => d.draftId).toList(),
+          AnimatedSlide(
+            duration: const Duration(milliseconds: 250),
+            offset: state.drafts.length > 1 ? Offset.zero : const Offset(0, 0.2),
+            child: AnimatedOpacity(
+              duration: const Duration(milliseconds: 200),
+              opacity: state.drafts.length > 1 ? 1 : 0,
+              child: ConfirmBar(
+                count: state.drafts.length,
+                onConfirmAll: () => notifier.confirmDrafts(
+                  state.drafts.map((d) => d.draftId).toList(),
+                ),
+              ),
             ),
           ),
           InputBar(
             controller: _controller,
             loading: state.loading,
             isRecording: _isRecording,
-            selectedImage: _selectedImageBytes,
+            selectedImages: _selectedImageBytes,
             onPickImage: _pickImage,
-            onRemoveImage: _removeImage,
+            onRemoveImageAt: _removeImageAt,
             onStartRecord: _startRecording,
             onStopRecord: () => _stopRecording(notifier),
             onSend: () {
               final text = _controller.text.trim();
               final imageBase64 = _selectedImageBase64;
-              if (text.isEmpty && imageBase64 == null) return;
+              if (text.isEmpty && imageBase64.isEmpty) return;
 
               _controller.clear();
-              _removeImage();
+              _clearImages();
               notifier.sendText(
-                  text: text.isEmpty ? null : text, imageBase64: imageBase64);
+                text: text.isEmpty ? null : text,
+                imageBase64: imageBase64.isEmpty ? null : imageBase64,
+              );
             },
           ),
         ],
       ),
     );
+  }
+
+  List<Widget> _buildCardsSection(List<CardDto> cards, ChatController notifier) {
+    final total = cards.length;
+    final visible = _showAllCards || total <= 2 ? cards : cards.take(2).toList();
+    final widgets = <Widget>[];
+    widgets.addAll(visible.map((card) => _buildCard(card, notifier)));
+    if (total > 2) {
+      widgets.add(
+        Padding(
+          padding: const EdgeInsets.only(bottom: 12),
+          child: Align(
+            alignment: Alignment.center,
+            child: TextButton.icon(
+              onPressed: () => setState(() => _showAllCards = !_showAllCards),
+              icon: Icon(
+                _showAllCards ? Icons.expand_less : Icons.expand_more,
+                size: 18,
+              ),
+              label: Text(_showAllCards ? "收起草稿" : "展开更多草稿 ($total)"),
+            ),
+          ),
+        ),
+      );
+    }
+    return widgets;
   }
 
   Widget _buildCard(CardDto card, ChatController notifier) {
@@ -294,9 +394,28 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
 
   void _showUndoSnack(BuildContext context) {
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text("已提交，可在 10 分钟内撤销"),
-        duration: Duration(seconds: 3),
+      SnackBar(
+        duration: const Duration(seconds: 6),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text("已提交，可在 10 分钟内撤销"),
+            const SizedBox(height: 8),
+            TweenAnimationBuilder<double>(
+              tween: Tween(begin: 1, end: 0),
+              duration: const Duration(seconds: 6),
+              builder: (context, value, _) {
+                return LinearProgressIndicator(
+                  value: value,
+                  backgroundColor: AppColors.dangerLight,
+                  valueColor:
+                      const AlwaysStoppedAnimation<Color>(AppColors.danger),
+                );
+              },
+            ),
+          ],
+        ),
       ),
     );
   }

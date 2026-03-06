@@ -20,6 +20,9 @@
 
 字段
 - `text` string: 用户输入文本
+- `image` string: 单张图片 base64（兼容字段）
+- `images` string[]: 多张图片 base64
+- `audio` string: 语音 base64
 - `confirm_draft_ids` string[]: 需要确认的草稿 ID 列表
 - `undo_token` string: 撤销 token
 - `request_id` string: 可选。用于关联一次草稿生成请求
@@ -39,6 +42,14 @@
 ```json
 {
   "text": "我今天花了25元买咖啡"
+}
+```
+
+示例: 多图草稿
+```json
+{
+  "text": "这些是我今天的发票",
+  "images": ["<base64-1>", "<base64-2>"]
 }
 ```
 

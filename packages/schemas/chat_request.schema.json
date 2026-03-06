@@ -6,6 +6,9 @@
   "additionalProperties": false,
   "properties": {
     "text": {"type": "string"},
+    "image": {"type": "string"},
+    "images": {"type": "array", "items": {"type": "string"}, "minItems": 1},
+    "audio": {"type": "string"},
     "confirm_draft_ids": {"type": "array", "items": {"type": "string"}, "minItems": 1},
     "undo_token": {"type": "string"},
     "request_id": {"type": "string"},
@@ -18,6 +21,9 @@
   },
   "anyOf": [
     {"required": ["text"]},
+    {"required": ["image"]},
+    {"required": ["images"]},
+    {"required": ["audio"]},
     {"required": ["confirm_draft_ids"]},
     {"required": ["undo_token"]},
     {"required": ["action", "draft_id", "patch"]},

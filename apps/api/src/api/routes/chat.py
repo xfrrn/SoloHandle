@@ -26,6 +26,7 @@ async def chat(request: Request) -> dict:
         ) from exc
 
     text = body.get("text")
+    images = body.get("images")
     confirm_draft_ids = body.get("confirm_draft_ids")
     undo_token = body.get("undo_token")
     action = body.get("action")
@@ -66,6 +67,18 @@ async def chat(request: Request) -> dict:
 
         image = body.get("image")
         audio = body.get("audio")
+
+        images_list: list[str] = []
+        if isinstance(images, list):
+            for item in images:
+                if not isinstance(item, str) or not item.strip():
+                    raise ToolError("invalid_param", "images must be list of base64 strings")
+                images_list.append(item)
+        elif images is not None:
+            raise ToolError("invalid_param", "images must be list of base64 strings")
+
+        if image and isinstance(image, str):
+            images_list.append(image)
         
         if audio:
             provider = load_provider_from_config()
@@ -80,11 +93,14 @@ async def chat(request: Request) -> dict:
             else:
                 text = f"{text}\n\n[语音附加内容]: {transcription}"
 
-        if not (text and text.strip()) and not image:
-            raise ToolError("invalid_param", "text, image, or audio must be provided")
+        if not (text and text.strip()) and not images_list and not audio:
+            raise ToolError("invalid_param", "text, images, or audio must be provided")
 
         request_id = body.get("request_id") or str(uuid.uuid4())
-        draft_result = service.create_drafts(text.strip() if text else "", image_base64=image)
+        draft_result = service.create_drafts(
+            text.strip() if text else "",
+            image_base64s=images_list if images_list else None,
+        )
         if draft_result.get("need_clarification"):
             return draft_result
 

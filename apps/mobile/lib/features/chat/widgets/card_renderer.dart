@@ -4,7 +4,7 @@ import "../../../core/constants.dart";
 import "../../../core/time.dart";
 import "../../../data/api/dto.dart";
 
-class CardRenderer extends StatelessWidget {
+class CardRenderer extends StatefulWidget {
   const CardRenderer({
     super.key,
     required this.card,
@@ -23,192 +23,236 @@ class CardRenderer extends StatelessWidget {
   final VoidCallback? onDelete;
 
   @override
+  State<CardRenderer> createState() => _CardRendererState();
+}
+
+class _CardRendererState extends State<CardRenderer> {
+  bool _showActions = false;
+  bool _showAllFields = false;
+
+  @override
   Widget build(BuildContext context) {
+    final card = widget.card;
     final subtitle = card.type == "task"
         ? _subtitleFromData(card.data)
         : (card.subtitle.isNotEmpty
             ? card.subtitle
             : _subtitleFromData(card.data));
     final dataEntries = card.data.entries.toList();
+    final isDraft = card.status == "draft";
+    final isCommitted = card.status != "draft";
+    final visibleEntries =
+        _showAllFields || dataEntries.length <= 4 ? dataEntries : dataEntries.take(4).toList();
 
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(16),
+        color: isCommitted ? const Color(0xFFF5F6F8) : AppColors.surface,
+        borderRadius: BorderRadius.circular(20),
         border: Border.all(
-          color: card.status == "draft"
-              ? AppColors.accent.withAlpha(128)
+          color: isDraft
+              ? AppColors.accent.withOpacity(0.45)
               : AppColors.divider,
         ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withAlpha(5),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
+            color: Colors.black.withAlpha(8),
+            blurRadius: 14,
+            offset: const Offset(0, 6),
           ),
         ],
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              _CardAvatar(type: card.type),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      card.title.isEmpty ? "草稿" : card.title,
-                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                            fontWeight: FontWeight.w600,
-                          ),
-                    ),
-                    if (subtitle.isNotEmpty) ...[
-                      const SizedBox(height: 2),
-                      Text(
-                        subtitle,
-                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                              color: AppColors.textSecondary,
-                            ),
-                      ),
-                    ],
-                  ],
-                ),
-              ),
-              _StatusBadge(status: card.status),
-            ],
-          ),
-          if (card.type == "task") ...[
-            const SizedBox(height: 12),
-            Wrap(
-              spacing: 6,
-              runSpacing: 6,
-              children: _taskBadges(card.data)
-                  .map((text) => _Badge(text: text))
-                  .toList(),
-            ),
-          ],
-          if (dataEntries.isNotEmpty) ...[
-            const SizedBox(height: 12),
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: AppColors.background,
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: Wrap(
-                spacing: 12,
-                runSpacing: 10,
-                children: dataEntries.map((entry) {
-                  return Column(
+      child: InkWell(
+        borderRadius: BorderRadius.circular(20),
+        onTap: () => setState(() => _showActions = !_showActions),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                _CardAvatar(type: card.type),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.min,
                     children: [
                       Text(
-                        entry.key.toUpperCase(),
-                        style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                              color: AppColors.textSecondary,
-                              fontSize: 10,
+                        card.title.isEmpty ? "草稿" : card.title,
+                        style: Theme.of(context).textTheme.titleMedium?.copyWith(
                               fontWeight: FontWeight.w600,
                             ),
                       ),
-                      const SizedBox(height: 2),
-                      Text(
-                        entry.value.toString(),
-                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                              color: AppColors.textPrimary,
-                              fontWeight: FontWeight.w500,
-                            ),
-                      ),
+                      if (subtitle.isNotEmpty) ...[
+                        const SizedBox(height: 2),
+                        Text(
+                          subtitle,
+                          style:
+                              Theme.of(context).textTheme.bodySmall?.copyWith(
+                                    color: AppColors.textSecondary,
+                                  ),
+                        ),
+                      ],
                     ],
-                  );
-                }).toList(),
+                  ),
+                ),
+                _StatusBadge(status: card.status),
+              ],
+            ),
+            if (card.type == "task") ...[
+              const SizedBox(height: 12),
+              Wrap(
+                spacing: 6,
+                runSpacing: 6,
+                children: _taskBadges(card.data)
+                    .map((text) => _Badge(text: text))
+                    .toList(),
+              ),
+            ],
+            if (dataEntries.isNotEmpty) ...[
+              const SizedBox(height: 12),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: AppColors.background,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Wrap(
+                  spacing: 12,
+                  runSpacing: 10,
+                  children: visibleEntries.map((entry) {
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          entry.key.toUpperCase(),
+                          style:
+                              Theme.of(context).textTheme.labelSmall?.copyWith(
+                                    color: AppColors.textSecondary,
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          entry.value.toString(),
+                          style:
+                              Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                    color: AppColors.textPrimary,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                        ),
+                      ],
+                    );
+                  }).toList(),
+                ),
+              ),
+              if (dataEntries.length > 4)
+                TextButton(
+                  onPressed: () =>
+                      setState(() => _showAllFields = !_showAllFields),
+                  child: Text(_showAllFields ? "收起字段" : "展开更多字段"),
+                ),
+            ],
+            const SizedBox(height: 12),
+            AnimatedOpacity(
+              duration: const Duration(milliseconds: 180),
+              opacity: _showActions ? 1 : 0,
+              child: AnimatedSize(
+                duration: const Duration(milliseconds: 220),
+                curve: Curves.easeOutCubic,
+                child: _showActions ? _buildActions(card) : const SizedBox.shrink(),
               ),
             ),
           ],
-          const SizedBox(height: 16),
-          if (card.status == "draft")
-            Row(
-              mainAxisAlignment: MainAxisAlignment.end,
-              children: [
-                OutlinedButton(
-                  onPressed: onEdit,
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: AppColors.textSecondary,
-                    side: const BorderSide(color: AppColors.divider),
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8)),
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                  ),
-                  child: const Text("修改"),
-                ),
-                const SizedBox(width: 10),
-                ElevatedButton(
-                  onPressed: onConfirm,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.accent,
-                    foregroundColor: Colors.white,
-                    elevation: 0,
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8)),
-                    padding: const EdgeInsets.symmetric(horizontal: 20),
-                  ),
-                  child: const Text("确认提交"),
-                ),
-              ],
-            )
-          else if (card.type == "task" &&
-              (onComplete != null || onPostpone != null || onDelete != null))
-            Row(
-              mainAxisAlignment: MainAxisAlignment.end,
-              children: [
-                if (onPostpone != null) ...[
-                  OutlinedButton(
-                    onPressed: onPostpone,
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: AppColors.textSecondary,
-                      side: const BorderSide(color: AppColors.divider),
-                      shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8)),
-                    ),
-                    child: const Text("延期"),
-                  ),
-                  const SizedBox(width: 8),
-                ],
-                if (onDelete != null) ...[
-                  OutlinedButton(
-                    onPressed: onDelete,
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: AppColors.danger,
-                      side: const BorderSide(color: AppColors.dangerLight),
-                      shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8)),
-                    ),
-                    child: const Text("删除"),
-                  ),
-                  const SizedBox(width: 8),
-                ],
-                if (onComplete != null)
-                  ElevatedButton(
-                    onPressed: onComplete,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.success,
-                      foregroundColor: Colors.white,
-                      elevation: 0,
-                      shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8)),
-                    ),
-                    child: const Text("完成"),
-                  ),
-              ],
-            ),
-        ],
+        ),
       ),
     );
+  }
+
+  Widget _buildActions(CardDto card) {
+    if (card.status == "draft") {
+      return Row(
+        mainAxisAlignment: MainAxisAlignment.end,
+        children: [
+          OutlinedButton(
+            onPressed: widget.onEdit,
+            style: OutlinedButton.styleFrom(
+              foregroundColor: AppColors.textSecondary,
+              side: const BorderSide(color: AppColors.divider),
+              shape:
+                  RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+            ),
+            child: const Text("修改"),
+          ),
+          const SizedBox(width: 10),
+          ElevatedButton(
+            onPressed: widget.onConfirm,
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.accent,
+              foregroundColor: Colors.white,
+              elevation: 0,
+              shape:
+                  RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+            ),
+            child: const Text("确认提交"),
+          ),
+        ],
+      );
+    }
+
+    if (card.type == "task" &&
+        (widget.onComplete != null ||
+            widget.onPostpone != null ||
+            widget.onDelete != null)) {
+      return Row(
+        mainAxisAlignment: MainAxisAlignment.end,
+        children: [
+          if (widget.onPostpone != null) ...[
+            OutlinedButton(
+              onPressed: widget.onPostpone,
+              style: OutlinedButton.styleFrom(
+                foregroundColor: AppColors.textSecondary,
+                side: const BorderSide(color: AppColors.divider),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10)),
+              ),
+              child: const Text("延期"),
+            ),
+            const SizedBox(width: 8),
+          ],
+          if (widget.onDelete != null) ...[
+            OutlinedButton(
+              onPressed: widget.onDelete,
+              style: OutlinedButton.styleFrom(
+                foregroundColor: AppColors.danger,
+                side: const BorderSide(color: AppColors.dangerLight),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10)),
+              ),
+              child: const Text("删除"),
+            ),
+            const SizedBox(width: 8),
+          ],
+          if (widget.onComplete != null)
+            ElevatedButton(
+              onPressed: widget.onComplete,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.success,
+                foregroundColor: Colors.white,
+                elevation: 0,
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10)),
+              ),
+              child: const Text("完成"),
+            ),
+        ],
+      );
+    }
+    return const SizedBox.shrink();
   }
 
   String _subtitleFromData(Map<String, dynamic> data) {

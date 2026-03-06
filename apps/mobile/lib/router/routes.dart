@@ -81,17 +81,10 @@ class _AppShell extends StatelessWidget {
     final index = _locationToIndex(location);
     return Scaffold(
       body: child,
-      bottomNavigationBar: BottomNavigationBar(
+      bottomNavigationBar: _RoundedTabBar(
         currentIndex: index,
-        items: _tabs
-            .map(
-              (tab) => BottomNavigationBarItem(
-                icon: Icon(tab.icon),
-                label: tab.label,
-              ),
-            )
-            .toList(),
         onTap: (next) => context.go(_tabs[next].path),
+        tabs: _tabs,
       ),
     );
   }
@@ -103,4 +96,99 @@ class _TabItem {
   final String label;
   final IconData icon;
   final String path;
+}
+
+class _RoundedTabBar extends StatelessWidget {
+  const _RoundedTabBar({
+    required this.currentIndex,
+    required this.onTap,
+    required this.tabs,
+  });
+
+  final int currentIndex;
+  final ValueChanged<int> onTap;
+  final List<_TabItem> tabs;
+
+  @override
+  Widget build(BuildContext context) {
+    return SafeArea(
+      child: Container(
+        margin: const EdgeInsets.fromLTRB(16, 8, 16, 12),
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+        decoration: BoxDecoration(
+          color: Theme.of(context).colorScheme.surface,
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.08),
+              blurRadius: 18,
+              offset: const Offset(0, 8),
+            )
+          ],
+        ),
+        child: Row(
+          children: [
+            for (var i = 0; i < tabs.length; i++)
+              Expanded(
+                child: _TabButton(
+                  item: tabs[i],
+                  selected: i == currentIndex,
+                  onTap: () => onTap(i),
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _TabButton extends StatelessWidget {
+  const _TabButton({
+    required this.item,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final _TabItem item;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final color = selected
+        ? Theme.of(context).colorScheme.primary
+        : Theme.of(context).colorScheme.onSurface.withOpacity(0.6);
+    return InkWell(
+      borderRadius: BorderRadius.circular(16),
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 220),
+        curve: Curves.easeOutCubic,
+        padding: const EdgeInsets.symmetric(vertical: 8),
+        decoration: BoxDecoration(
+          color: selected ? color.withOpacity(0.12) : Colors.transparent,
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            AnimatedScale(
+              duration: const Duration(milliseconds: 220),
+              scale: selected ? 1.05 : 1.0,
+              child: Icon(item.icon, color: color, size: 22),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              item.label,
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: color,
+                    fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
+                  ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }

@@ -21,7 +21,12 @@ class LLMConfig:
 
 
 class LLMProvider:
-    def generate(self, prompt: str, user_input: str, image_base64: str | None = None) -> str:
+    def generate(
+        self,
+        prompt: str,
+        user_input: str,
+        image_base64s: list[str] | None = None,
+    ) -> str:
         raise NotImplementedError
 
     def transcribe_audio(self, audio_base64: str) -> str:
@@ -36,14 +41,20 @@ class OpenAICompatibleProvider(LLMProvider):
             base_url=config.base_url
         )
 
-    def generate(self, prompt: str, user_input: str, image_base64: str | None = None) -> str:
+    def generate(
+        self,
+        prompt: str,
+        user_input: str,
+        image_base64s: list[str] | None = None,
+    ) -> str:
         url = self._config.base_url.rstrip("/") + "/chat/completions"
         content = [{"type": "text", "text": user_input}]
-        if image_base64:
-            content.append({
-                "type": "image_url",
-                "image_url": {"url": f"data:image/jpeg;base64,{image_base64}"}
-            })
+        if image_base64s:
+            for image_base64 in image_base64s:
+                content.append({
+                    "type": "image_url",
+                    "image_url": {"url": f"data:image/jpeg;base64,{image_base64}"}
+                })
             
         payload = {
             "model": self._config.model,
