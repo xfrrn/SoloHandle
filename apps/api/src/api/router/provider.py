@@ -1,9 +1,12 @@
 ﻿from __future__ import annotations
 
+import base64
 import json
+import tempfile
 import urllib.request
 from dataclasses import dataclass
 from typing import Any, Optional
+from openai import OpenAI
 
 from api.db.connection import ToolError
 from api.settings import LLMSettings, load_llm_settings
@@ -21,10 +24,17 @@ class LLMProvider:
     def generate(self, prompt: str, user_input: str, image_base64: str | None = None) -> str:
         raise NotImplementedError
 
+    def transcribe_audio(self, audio_base64: str) -> str:
+        raise NotImplementedError
+
 
 class OpenAICompatibleProvider(LLMProvider):
     def __init__(self, config: LLMConfig) -> None:
         self._config = config
+        self._client = OpenAI(
+            api_key=config.api_key,
+            base_url=config.base_url
+        )
 
     def generate(self, prompt: str, user_input: str, image_base64: str | None = None) -> str:
         url = self._config.base_url.rstrip("/") + "/chat/completions"
@@ -60,6 +70,27 @@ class OpenAICompatibleProvider(LLMProvider):
             return parsed["choices"][0]["message"]["content"]
         except Exception as exc:  # noqa: BLE001
             raise ToolError("llm_error", "LLM response parse failed", {"body": body}) from exc
+
+    def transcribe_audio(self, audio_base64: str) -> str:
+        audio_bytes = base64.b64decode(audio_base64)
+        
+        with tempfile.NamedTemporaryFile(suffix=".m4a", delete=True) as temp_audio:
+            temp_audio.write(audio_bytes)
+            temp_audio.flush()
+            temp_audio.seek(0)
+            
+            try:
+                transcript = self._client.audio.transcriptions.create(
+                    model="whisper-large-v3",
+                    file=temp_audio,
+                    language="zh",
+                    prompt="请准确转录中文内容，注意标点符号和语法",
+                    response_format="text",
+                    temperature=0.2
+                )
+                return transcript.strip()
+            except Exception as exc:  # noqa: BLE001
+                raise ToolError("llm_error", "Audio transcription failed", {"error": str(exc)}) from exc
 
 
 def load_provider_from_config() -> Optional[LLMProvider]:

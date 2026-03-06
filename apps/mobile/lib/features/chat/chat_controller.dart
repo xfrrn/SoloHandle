@@ -3,6 +3,7 @@ import "package:flutter_riverpod/flutter_riverpod.dart";
 import "../../data/api/dto.dart";
 import "../../data/repository/chat_repository.dart";
 import "../../data/storage/local_store.dart";
+import "../timeline/timeline_controller.dart";
 
 final chatRepositoryProvider = Provider<ChatRepository>((ref) {
   return ChatRepository(store: LocalStore());
@@ -11,7 +12,7 @@ final chatRepositoryProvider = Provider<ChatRepository>((ref) {
 final chatControllerProvider =
     StateNotifierProvider<ChatController, ChatState>((ref) {
   final repo = ref.watch(chatRepositoryProvider);
-  return ChatController(repo);
+  return ChatController(repo, ref);
 });
 
 class ChatState {
@@ -73,32 +74,36 @@ class ChatState {
 }
 
 class ChatMessage {
-  ChatMessage({required this.role, this.text, this.imageBytes});
+  ChatMessage({required this.role, this.text, this.imageBytes, this.audioBytes});
 
   final MessageRole role;
   final String? text;
   final String? imageBytes;
+  final String? audioBytes;
 }
 
 enum MessageRole { user, assistant }
 
 class ChatController extends StateNotifier<ChatState> {
-  ChatController(this._repo) : super(ChatState.initial());
+  ChatController(this._repo, this._ref) : super(ChatState.initial());
 
   final ChatRepository _repo;
+  final Ref _ref;
 
-  Future<void> sendText({String? text, String? imageBase64}) async {
+  Future<void> sendText({String? text, String? imageBase64, String? audioBase64}) async {
     final hasText = text != null && text.trim().isNotEmpty;
     final hasImage = imageBase64 != null && imageBase64.isNotEmpty;
+    final hasAudio = audioBase64 != null && audioBase64.isNotEmpty;
 
-    if (!hasText && !hasImage) return;
+    if (!hasText && !hasImage && !hasAudio) return;
 
     final newMessages = [
       ...state.messages,
       ChatMessage(
         role: MessageRole.user,
-        text: hasText ? text : null,
+        text: hasText ? text : (hasAudio ? "🔊 [语音识别中...]" : null),
         imageBytes: hasImage ? imageBase64 : null,
+        audioBytes: hasAudio ? audioBase64 : null,
       )
     ];
 
@@ -111,7 +116,7 @@ class ChatController extends StateNotifier<ChatState> {
       clarifyQuestion: null,
     );
     try {
-      final req = ChatRequest(text: text, image: imageBase64);
+      final req = ChatRequest(text: text, image: imageBase64, audio: audioBase64);
       state = state.copyWith(lastFailedRequest: req); // track for retry
 
       final resp = await _repo.send(req);
@@ -156,6 +161,9 @@ class ChatController extends StateNotifier<ChatState> {
         undoToken: resp.undoToken,
         messages: updatedMessages,
       );
+      
+      // Refresh timeline when records are committed
+      _ref.read(timelineControllerProvider.notifier).loadEvents();
     } catch (exc) {
       state = state.copyWith(
         loading: false,
@@ -180,7 +188,11 @@ class ChatController extends StateNotifier<ChatState> {
         loading: false,
         status: "已撤销 ${resp.undone.length} 条记录",
         messages: updatedMessages,
+        undoToken: null, // Clear token after successful undo
       );
+      
+      // Refresh timeline after undoing records
+      _ref.read(timelineControllerProvider.notifier).loadEvents();
     } catch (exc) {
       state = state.copyWith(
         loading: false,
@@ -249,8 +261,8 @@ class ChatController extends StateNotifier<ChatState> {
   Future<void> retry() async {
     final req = state.lastFailedRequest;
     if (req == null) return;
-    if (req.text != null || req.image != null) {
-      await sendText(text: req.text, imageBase64: req.image);
+    if (req.text != null || req.image != null || req.audio != null) {
+      await sendText(text: req.text, imageBase64: req.image, audioBase64: req.audio);
     } else if (req.confirmDraftIds != null) {
       await confirmDrafts(req.confirmDraftIds!);
     } else if (req.undoToken != null) {

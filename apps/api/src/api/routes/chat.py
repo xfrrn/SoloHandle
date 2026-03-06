@@ -8,6 +8,10 @@ from fastapi import APIRouter, HTTPException, Request
 from api.db.connection import ToolError
 from api.services.orchestrator_service import get_orchestrator_service
 
+from api.db.connection import ToolError
+from api.services.orchestrator_service import get_orchestrator_service
+from api.router.provider import load_provider_from_config
+
 router = APIRouter()
 
 
@@ -61,9 +65,23 @@ async def chat(request: Request) -> dict:
             return service.commit_drafts(confirm_draft_ids)
 
         image = body.get("image")
+        audio = body.get("audio")
         
+        if audio:
+            provider = load_provider_from_config()
+            if not provider:
+                raise ToolError("llm_unavailable", "LLM provider not configured for audio transcription")
+            transcription = provider.transcribe_audio(audio)
+            
+            # Use the transcribed text. Prepend or replace as needed. 
+            # We'll just set it as the primary text for intent routing.
+            if not text:
+                text = transcription
+            else:
+                text = f"{text}\n\n[语音附加内容]: {transcription}"
+
         if not (text and text.strip()) and not image:
-            raise ToolError("invalid_param", "text or image must be provided")
+            raise ToolError("invalid_param", "text, image, or audio must be provided")
 
         request_id = body.get("request_id") or str(uuid.uuid4())
         draft_result = service.create_drafts(text.strip() if text else "", image_base64=image)

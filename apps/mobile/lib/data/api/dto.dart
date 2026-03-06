@@ -2,6 +2,7 @@ class ChatRequest {
   ChatRequest({
     this.text,
     this.image,
+    this.audio,
     this.confirmDraftIds,
     this.undoToken,
     this.requestId,
@@ -15,6 +16,7 @@ class ChatRequest {
 
   final String? text;
   final String? image;
+  final String? audio;
   final List<String>? confirmDraftIds;
   final String? undoToken;
   final String? requestId;
@@ -29,6 +31,7 @@ class ChatRequest {
     final data = <String, dynamic>{};
     if (text != null && text!.trim().isNotEmpty) data["text"] = text!.trim();
     if (image != null && image!.isNotEmpty) data["image"] = image;
+    if (audio != null && audio!.isNotEmpty) data["audio"] = audio;
     if (confirmDraftIds != null && confirmDraftIds!.isNotEmpty) {
       data["confirm_draft_ids"] = confirmDraftIds;
     }
