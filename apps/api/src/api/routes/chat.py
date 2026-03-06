@@ -66,10 +66,13 @@ async def chat(request: Request) -> dict:
                 raise ToolError("invalid_param", "undo_token must be string")
             return service.undo(undo_token)
 
-        if confirm_draft_ids:
+        if confirm_draft_ids is not None:
             if not isinstance(confirm_draft_ids, list):
                 raise ToolError("invalid_param", "confirm_draft_ids must be list")
-            return service.commit_drafts(confirm_draft_ids)
+            cleaned = [str(d).strip() for d in confirm_draft_ids if str(d).strip()]
+            if not cleaned:
+                raise ToolError("invalid_param", "confirm_draft_ids must be non-empty list")
+            return service.commit_drafts(cleaned)
 
         image = body.get("image")
         audio = body.get("audio")

@@ -154,10 +154,14 @@ class ChatController extends StateNotifier<ChatState> {
   }
 
   Future<void> confirmDrafts(List<String> draftIds) async {
-    if (draftIds.isEmpty) return;
+    final cleaned = draftIds.map((e) => e.trim()).where((e) => e.isNotEmpty).toSet().toList();
+    if (cleaned.isEmpty) {
+      state = state.copyWith(status: "没有可确认的草稿");
+      return;
+    }
     state = state.copyWith(loading: true, status: "正在确认...");
     try {
-      final resp = await _repo.send(ChatRequest(confirmDraftIds: draftIds));
+      final resp = await _repo.send(ChatRequest(confirmDraftIds: cleaned));
       final committedCards = state.cards
           .map(
             (c) => CardDto(

@@ -1,4 +1,6 @@
-﻿import "../api/api_client.dart";
+﻿import "package:dio/dio.dart";
+
+import "../api/api_client.dart";
 import "../api/chat_api.dart";
 import "../api/dto.dart";
 import "../storage/local_store.dart";
@@ -15,8 +17,12 @@ class ChatRepository {
       final api = ChatApi(dio);
       return await api.send(request);
     } catch (exc) {
-      final message = exc.toString();
-      throw ChatRepositoryException(message);
+      if (exc is DioException) {
+        final detail = exc.response?.data;
+        final message = detail != null ? "${exc.message} | $detail" : exc.message;
+        throw ChatRepositoryException(message ?? exc.toString());
+      }
+      throw ChatRepositoryException(exc.toString());
     }
   }
 }
@@ -29,3 +35,4 @@ class ChatRepositoryException implements Exception {
   @override
   String toString() => message;
 }
+
