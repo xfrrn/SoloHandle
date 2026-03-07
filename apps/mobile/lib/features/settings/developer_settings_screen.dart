@@ -18,7 +18,8 @@ class DeveloperSettingsScreen extends StatefulWidget {
   const DeveloperSettingsScreen({super.key});
 
   @override
-  State<DeveloperSettingsScreen> createState() => _DeveloperSettingsScreenState();
+  State<DeveloperSettingsScreen> createState() =>
+      _DeveloperSettingsScreenState();
 }
 
 class _DeveloperSettingsScreenState extends State<DeveloperSettingsScreen> {
@@ -133,10 +134,30 @@ class _DeveloperSettingsScreenState extends State<DeveloperSettingsScreen> {
       );
       final resp = await dio.get("/router/health");
       final data = resp.data as Map?;
-      final ok = data?["llm_configured"] == true;
+      final ok = (resp.statusCode ?? 0) >= 200 && (resp.statusCode ?? 0) < 300;
+      final llmConfigured = data?["llm_configured"] == true;
       _connectionModel = data?["model"]?.toString();
       _connectionBaseUrl = data?["base_url"]?.toString();
-      setState(() => _connection = ok ? ConnectionStatus.success : ConnectionStatus.failed);
+      setState(() => _connection =
+          ok ? ConnectionStatus.success : ConnectionStatus.failed);
+      if (!mounted) return;
+      if (ok && !llmConfigured) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text("后端已连通，但 LLM 尚未配置"),
+          ),
+        );
+      }
+    } on DioException catch (e) {
+      setState(() => _connection = ConnectionStatus.failed);
+      if (!mounted) return;
+      final code = e.response?.statusCode;
+      final reason = code != null ? "HTTP $code" : e.type.name;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text("连接失败：$reason"),
+        ),
+      );
     } catch (_) {
       setState(() => _connection = ConnectionStatus.failed);
     }
@@ -151,34 +172,38 @@ class _DeveloperSettingsScreenState extends State<DeveloperSettingsScreen> {
       final tasks = await TasksApi(dio).list(limit: 200, offset: 0);
       final payload = {
         "exported_at": DateTime.now().toIso8601String(),
-        "events": events.items.map((e) => {
-              "event_id": e.eventId,
-              "type": e.type,
-              "happened_at": e.happenedAt,
-              "data": e.data,
-              "tags": e.tags,
-              "source": e.source,
-              "confidence": e.confidence,
-              "commit_id": e.commitId,
-              "created_at": e.createdAt,
-              "updated_at": e.updatedAt,
-            }).toList(),
-        "tasks": tasks.items.map((t) => {
-              "task_id": t.taskId,
-              "title": t.title,
-              "status": t.status,
-              "priority": t.priority,
-              "due_at": t.dueAt,
-              "remind_at": t.remindAt,
-              "tags": t.tags,
-              "project": t.project,
-              "note": t.note,
-              "commit_id": t.commitId,
-              "created_at": t.createdAt,
-              "updated_at": t.updatedAt,
-              "completed_at": t.completedAt,
-              "is_deleted": t.isDeleted,
-            }).toList(),
+        "events": events.items
+            .map((e) => {
+                  "event_id": e.eventId,
+                  "type": e.type,
+                  "happened_at": e.happenedAt,
+                  "data": e.data,
+                  "tags": e.tags,
+                  "source": e.source,
+                  "confidence": e.confidence,
+                  "commit_id": e.commitId,
+                  "created_at": e.createdAt,
+                  "updated_at": e.updatedAt,
+                })
+            .toList(),
+        "tasks": tasks.items
+            .map((t) => {
+                  "task_id": t.taskId,
+                  "title": t.title,
+                  "status": t.status,
+                  "priority": t.priority,
+                  "due_at": t.dueAt,
+                  "remind_at": t.remindAt,
+                  "tags": t.tags,
+                  "project": t.project,
+                  "note": t.note,
+                  "commit_id": t.commitId,
+                  "created_at": t.createdAt,
+                  "updated_at": t.updatedAt,
+                  "completed_at": t.completedAt,
+                  "is_deleted": t.isDeleted,
+                })
+            .toList(),
       };
       final jsonText = const JsonEncoder.withIndent("  ").convert(payload);
       await Clipboard.setData(ClipboardData(text: jsonText));
@@ -257,102 +282,102 @@ class _DeveloperSettingsScreenState extends State<DeveloperSettingsScreen> {
                             }
                           },
                         ),
-                      const SizedBox(height: 12),
-                      _Group(
-                        title: "连接",
-                        children: [
-                          _TextFieldItem(
-                            label: "API Base URL",
-                            helperText: "用于连接后端服务",
-                            controller: _baseUrlController,
-                            errorText: _baseUrlError,
-                            suffix: TextButton(
-                              onPressed: () {
-                                _baseUrlController.text =
-                                    "http://127.0.0.1:8000";
-                              },
-                              child: const Text("恢复默认"),
-                            ),
-                          ),
-                          const SizedBox(height: 12),
-                          _TextFieldItem(
-                            label: "Token",
-                            helperText: "用于接口鉴权",
-                            controller: _tokenController,
-                            obscureText: !_showToken,
-                            suffix: IconButton(
-                              onPressed: () =>
-                                  setState(() => _showToken = !_showToken),
-                              icon: Icon(
-                                _showToken
-                                    ? Icons.visibility_off
-                                    : Icons.visibility,
-                                color: AppColors.textSecondary,
+                        const SizedBox(height: 12),
+                        _Group(
+                          title: "连接",
+                          children: [
+                            _TextFieldItem(
+                              label: "API Base URL",
+                              helperText: "用于连接后端服务",
+                              controller: _baseUrlController,
+                              errorText: _baseUrlError,
+                              suffix: TextButton(
+                                onPressed: () {
+                                  _baseUrlController.text =
+                                      "http://127.0.0.1:8000";
+                                },
+                                child: const Text("恢复默认"),
                               ),
                             ),
-                          ),
-                          const SizedBox(height: 12),
-                          _ConnectionRow(
-                            status: _connection,
-                            model: _connectionModel,
-                            baseUrl: _connectionBaseUrl,
-                            onTest: _testConnection,
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 12),
-                      _Group(
-                        title: "行为策略",
-                        children: [
-                          _SettingRow(
-                            title: "Draft policy",
-                            subtitle: "草稿确认策略",
-                            value: _draftPolicy,
-                            onTap: () async {
-                              final value = await _pickDraftPolicy(context);
-                              if (value != null) {
-                                setState(() {
-                                  _draftPolicy = value;
-                                  _dirty = true;
-                                });
-                              }
-                            },
-                          ),
-                          _SettingRow(
-                            title: "默认时区",
-                            subtitle: "记录与提醒使用的时区",
-                            value: _timezone,
-                            onTap: () async {
-                              final value = await _pickTimezone(context);
-                              if (value != null) {
-                                setState(() {
-                                  _timezone = value;
-                                  _dirty = true;
-                                });
-                              }
-                            },
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 12),
-                      _Group(
-                        title: "数据与导出",
-                        children: [
-                          _SettingRow(
-                            title: "导出数据",
-                            subtitle: "导出为 $_exportFormat",
-                            value: _exporting ? "导出中..." : "导出",
-                            onTap: _exporting ? null : _exportData,
-                          ),
-                          _SettingRow(
-                            title: "清除本地缓存",
-                            subtitle: "清空本地数据与缓存",
-                            value: _clearing ? "清除中..." : "清除",
-                            onTap: _clearing ? null : _clearCache,
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 12),
+                            const SizedBox(height: 12),
+                            _TextFieldItem(
+                              label: "Token",
+                              helperText: "用于接口鉴权",
+                              controller: _tokenController,
+                              obscureText: !_showToken,
+                              suffix: IconButton(
+                                onPressed: () =>
+                                    setState(() => _showToken = !_showToken),
+                                icon: Icon(
+                                  _showToken
+                                      ? Icons.visibility_off
+                                      : Icons.visibility,
+                                  color: AppColors.textSecondary,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 12),
+                            _ConnectionRow(
+                              status: _connection,
+                              model: _connectionModel,
+                              baseUrl: _connectionBaseUrl,
+                              onTest: _testConnection,
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+                        _Group(
+                          title: "行为策略",
+                          children: [
+                            _SettingRow(
+                              title: "Draft policy",
+                              subtitle: "草稿确认策略",
+                              value: _draftPolicy,
+                              onTap: () async {
+                                final value = await _pickDraftPolicy(context);
+                                if (value != null) {
+                                  setState(() {
+                                    _draftPolicy = value;
+                                    _dirty = true;
+                                  });
+                                }
+                              },
+                            ),
+                            _SettingRow(
+                              title: "默认时区",
+                              subtitle: "记录与提醒使用的时区",
+                              value: _timezone,
+                              onTap: () async {
+                                final value = await _pickTimezone(context);
+                                if (value != null) {
+                                  setState(() {
+                                    _timezone = value;
+                                    _dirty = true;
+                                  });
+                                }
+                              },
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+                        _Group(
+                          title: "数据与导出",
+                          children: [
+                            _SettingRow(
+                              title: "导出数据",
+                              subtitle: "导出为 $_exportFormat",
+                              value: _exporting ? "导出中..." : "导出",
+                              onTap: _exporting ? null : _exportData,
+                            ),
+                            _SettingRow(
+                              title: "清除本地缓存",
+                              subtitle: "清空本地数据与缓存",
+                              value: _clearing ? "清除中..." : "清除",
+                              onTap: _clearing ? null : _clearCache,
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 12),
                         _Group(
                           title: "调试与诊断",
                           children: [

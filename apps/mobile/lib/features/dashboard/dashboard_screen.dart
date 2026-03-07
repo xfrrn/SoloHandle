@@ -3,6 +3,10 @@ import "package:flutter_riverpod/flutter_riverpod.dart";
 import "package:go_router/go_router.dart";
 
 import "../../core/constants.dart";
+import "../../core/time.dart";
+import "../../data/api/api_client.dart";
+import "../../data/api/events_api.dart";
+import "../../data/api/models.dart";
 import "dashboard_controller.dart";
 import "dashboard_state.dart";
 import "widgets/finance_chart_card.dart";
@@ -21,6 +25,9 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
   late AnimationController _controller;
   late Animation<double> _fadeAnimation;
   late Animation<Offset> _slideAnimation;
+  EventDto? _todayMood;
+  bool _moodLoading = true;
+  bool _moodSaving = false;
 
   @override
   void initState() {
@@ -37,6 +44,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
         .animate(CurvedAnimation(parent: _controller, curve: Curves.easeOut));
 
     _controller.forward();
+    _loadTodayMood();
   }
 
   @override
@@ -57,14 +65,19 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Icon(Icons.error_outline, color: AppColors.danger, size: 48),
+              const Icon(Icons.error_outline,
+                  color: AppColors.danger, size: 48),
               const SizedBox(height: 16),
-              const Text('加载数据失败', style: TextStyle(color: AppColors.textPrimary)),
+              const Text('加载数据失败',
+                  style: TextStyle(color: AppColors.textPrimary)),
               const SizedBox(height: 8),
-              Text(error.toString(), style: const TextStyle(color: AppColors.textSecondary, fontSize: 12)),
+              Text(error.toString(),
+                  style: const TextStyle(
+                      color: AppColors.textSecondary, fontSize: 12)),
               const SizedBox(height: 16),
               ElevatedButton(
-                onPressed: () => ref.read(dashboardControllerProvider.notifier).refresh(),
+                onPressed: () =>
+                    ref.read(dashboardControllerProvider.notifier).refresh(),
                 child: const Text('重试'),
               ),
             ],
@@ -75,15 +88,27 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
           child: SlideTransition(
             position: _slideAnimation,
             child: RefreshIndicator(
-              onRefresh: () => ref.read(dashboardControllerProvider.notifier).refresh(),
+              onRefresh: _refreshAll,
               child: ListView(
-                padding: const EdgeInsets.fromLTRB(AppSpacing.md, 6, AppSpacing.md, 16),
+                padding: const EdgeInsets.fromLTRB(
+                    AppSpacing.md, 6, AppSpacing.md, 16),
                 children: [
                   _DashboardHeader(
-                    onRefresh: () => ref.read(dashboardControllerProvider.notifier).refresh(),
+                    onRefresh: () {
+                      ref.read(dashboardControllerProvider.notifier).refresh();
+                      _loadTodayMood();
+                    },
                   ),
                   const SizedBox(height: 12),
                   _TodayOverview(data: data),
+                  const SizedBox(height: 12),
+                  _TodayMoodCard(
+                    todayMood: _todayMood,
+                    loading: _moodLoading,
+                    saving: _moodSaving,
+                    onPick: _recordMood,
+                    onRepick: () => _setTodayMoodNull(),
+                  ),
                   const SizedBox(height: 16),
                   _TrendSection(
                     title: "支出趋势",
@@ -123,6 +148,177 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
         ),
       ),
     );
+  }
+
+  Future<void> _refreshAll() async {
+    await Future.wait([
+      ref.read(dashboardControllerProvider.notifier).refresh(),
+      _loadTodayMood(),
+    ]);
+  }
+
+  void _setTodayMoodNull() {
+    setState(() => _todayMood = null);
+  }
+
+  Future<void> _loadTodayMood() async {
+    setState(() => _moodLoading = true);
+    try {
+      final dio = await ApiClient().dio;
+      final api = EventsApi(dio);
+      final now = DateTime.now();
+      final start = DateTime(now.year, now.month, now.day);
+      final end = start
+          .add(const Duration(days: 1))
+          .subtract(const Duration(milliseconds: 1));
+      final resp = await api.list(
+        types: const ["mood"],
+        dateFrom: toIsoWithOffset(start),
+        dateTo: toIsoWithOffset(end),
+        limit: 10,
+      );
+      if (!mounted) return;
+      setState(() {
+        _todayMood = resp.items.isNotEmpty ? resp.items.first : null;
+        _moodLoading = false;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _moodLoading = false);
+    }
+  }
+
+  Future<void> _recordMood(_MoodOption option) async {
+    if (_moodSaving) return;
+    setState(() => _moodSaving = true);
+    try {
+      final dio = await ApiClient().dio;
+      final resp = await dio.post(
+        "/chat",
+        data: {
+          "action": "mood_quick",
+          "payload": {
+            "emoji": option.emoji,
+            "score": option.score,
+            "mood": option.label,
+            "happened_at": toIsoWithOffset(DateTime.now()),
+          },
+        },
+      );
+      final body = resp.data as Map<String, dynamic>;
+      final eventMap = (body["event"] as Map?)?.cast<String, dynamic>();
+      if (eventMap == null) return;
+      final event = EventDto.fromJson(eventMap);
+      if (!mounted) return;
+      setState(() => _todayMood = event);
+      await _openMoodSupplementSheet(event.eventId);
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("心情记录失败，请稍后重试")),
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _moodSaving = false);
+      }
+    }
+  }
+
+  Future<void> _openMoodSupplementSheet(int eventId) async {
+    final noteController = TextEditingController();
+    String? topic;
+    final topics = ["工作", "学习", "生活", "身体"];
+    final result = await showModalBottomSheet<bool>(
+      context: context,
+      showDragHandle: true,
+      isScrollControlled: true,
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (context, setInner) {
+            return Padding(
+              padding: EdgeInsets.only(
+                left: 16,
+                right: 16,
+                top: 4,
+                bottom: MediaQuery.of(context).viewInsets.bottom + 16,
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    "补充一下今天心情（可选）",
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.w600,
+                        ),
+                  ),
+                  const SizedBox(height: 10),
+                  TextField(
+                    controller: noteController,
+                    decoration: const InputDecoration(
+                      hintText: "写一句备注",
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  Wrap(
+                    spacing: 8,
+                    children: topics.map((t) {
+                      final selected = topic == t;
+                      return ChoiceChip(
+                        label: Text(t),
+                        selected: selected,
+                        onSelected: (_) =>
+                            setInner(() => topic = selected ? null : t),
+                      );
+                    }).toList(),
+                  ),
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      TextButton(
+                        onPressed: () => Navigator.pop(ctx, false),
+                        child: const Text("跳过"),
+                      ),
+                      const Spacer(),
+                      FilledButton(
+                        onPressed: () => Navigator.pop(ctx, true),
+                        child: const Text("保存补充"),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
+    if (result != true) return;
+    final note = noteController.text.trim();
+    if (note.isEmpty && (topic == null || topic!.isEmpty)) return;
+    try {
+      final dio = await ApiClient().dio;
+      final resp = await dio.post(
+        "/chat",
+        data: {
+          "action": "mood_patch",
+          "payload": {
+            "event_id": eventId,
+            if (note.isNotEmpty) "note": note,
+            if (topic != null && topic!.isNotEmpty) "topic": topic,
+          },
+        },
+      );
+      final body = resp.data as Map<String, dynamic>;
+      final eventMap = (body["event"] as Map?)?.cast<String, dynamic>();
+      if (eventMap == null || !mounted) return;
+      setState(() => _todayMood = EventDto.fromJson(eventMap));
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("补充心情失败")),
+      );
+    }
   }
 }
 
@@ -177,8 +373,7 @@ class _TodayOverview extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final taskText =
-        "${data.todayCompletedTasks}/${data.todayTotalTasks}";
+    final taskText = "${data.todayCompletedTasks}/${data.todayTotalTasks}";
     final moodValue = _buildMoodValue(data.moodTrend);
     final todayExpense = data.expenseTrend.isNotEmpty
         ? "¥${data.expenseTrend.last.amount.toStringAsFixed(0)}"
@@ -313,6 +508,164 @@ class _MiniMetric extends StatelessWidget {
       ),
     );
   }
+}
+
+class _TodayMoodCard extends StatelessWidget {
+  const _TodayMoodCard({
+    required this.todayMood,
+    required this.loading,
+    required this.saving,
+    required this.onPick,
+    required this.onRepick,
+  });
+
+  final EventDto? todayMood;
+  final bool loading;
+  final bool saving;
+  final ValueChanged<_MoodOption> onPick;
+  final VoidCallback onRepick;
+
+  @override
+  Widget build(BuildContext context) {
+    final mood = todayMood;
+    final hasMood = mood != null;
+    final score = hasMood
+        ? (mood.data["score"] is num
+            ? (mood.data["score"] as num).toInt()
+            : null)
+        : null;
+    final emoji = hasMood
+        ? (mood.data["emoji"]?.toString() ?? _emojiByScore(score ?? 3))
+        : null;
+    final label = hasMood ? _labelByScore(score ?? 3) : null;
+    final note = hasMood ? mood.data["note"]?.toString() : null;
+
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: AppColors.divider),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            "今日心情",
+            style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                  fontWeight: FontWeight.w600,
+                ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            hasMood ? "$emoji $label" : "今天感觉怎么样？",
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  color: AppColors.textSecondary,
+                ),
+          ),
+          if (note != null && note.trim().isNotEmpty) ...[
+            const SizedBox(height: 6),
+            Text(
+              note.trim(),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: AppColors.textSecondary,
+                  ),
+            ),
+          ],
+          const SizedBox(height: 10),
+          if (loading)
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: 8),
+              child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
+            )
+          else
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: _MoodOption.options.map((option) {
+                final selected = score == option.score;
+                return GestureDetector(
+                  onTap: saving ? null : () => onPick(option),
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 180),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: selected
+                          ? AppColors.accent.withValues(alpha: 0.10)
+                          : AppColors.background,
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(
+                        color: selected ? AppColors.accent : AppColors.divider,
+                      ),
+                    ),
+                    child: Text(
+                      option.emoji,
+                      style: const TextStyle(fontSize: 20),
+                    ),
+                  ),
+                );
+              }).toList(),
+            ),
+          if (hasMood) ...[
+            const SizedBox(height: 8),
+            Align(
+              alignment: Alignment.centerRight,
+              child: TextButton(
+                onPressed: onRepick,
+                child: const Text("重新记录"),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  static String _emojiByScore(int score) {
+    return switch (score) {
+      1 => "😞",
+      2 => "😐",
+      3 => "🙂",
+      4 => "😄",
+      _ => "🤩",
+    };
+  }
+
+  static String _labelByScore(int score) {
+    return switch (score) {
+      1 => "有点低落",
+      2 => "一般",
+      3 => "还不错",
+      4 => "状态很好",
+      _ => "今天超棒",
+    };
+  }
+}
+
+class _MoodOption {
+  const _MoodOption(this.emoji, this.score, this.label);
+
+  final String emoji;
+  final int score;
+  final String label;
+
+  static const options = [
+    _MoodOption("😞", 1, "有点低落"),
+    _MoodOption("😐", 2, "一般"),
+    _MoodOption("🙂", 3, "还不错"),
+    _MoodOption("😄", 4, "状态很好"),
+    _MoodOption("🤩", 5, "今天超棒"),
+  ];
 }
 
 class _TrendSection extends StatelessWidget {
@@ -541,7 +894,8 @@ class _InsightItem {
   final VoidCallback onTap;
 }
 
-List<_InsightItem> _buildSuggestions(BuildContext context, DashboardSummaryState data) {
+List<_InsightItem> _buildSuggestions(
+    BuildContext context, DashboardSummaryState data) {
   final items = <_InsightItem>[];
   if (data.todayTotalTasks > data.todayCompletedTasks) {
     final remain = data.todayTotalTasks - data.todayCompletedTasks;
@@ -602,8 +956,7 @@ String _buildExpenseInsight(List<ExpenseTrendModel> trend) {
 
 String _buildMoodValue(List<MoodTrendModel> trend) {
   if (trend.isEmpty) return "—";
-  final avg =
-      trend.fold(0.0, (p, e) => p + e.averageValence) / trend.length;
+  final avg = trend.fold(0.0, (p, e) => p + e.averageValence) / trend.length;
   return "平均 ${avg.toStringAsFixed(1)} 分";
 }
 

@@ -13,8 +13,17 @@ class ApiClient {
   String? _cachedBaseUrl;
   String? _cachedToken;
 
+  String _normalizeBaseUrl(String value) {
+    final trimmed = value.trim();
+    if (trimmed.isEmpty) return trimmed;
+    final uri = Uri.tryParse(trimmed);
+    if (uri != null && uri.hasScheme) return trimmed;
+    return "http://$trimmed";
+  }
+
   Future<Dio> get dio async {
-    final baseUrl = await _store.getBaseUrl() ?? "http://127.0.0.1:8000";
+    final rawBaseUrl = await _store.getBaseUrl() ?? "http://127.0.0.1:8000";
+    final baseUrl = _normalizeBaseUrl(rawBaseUrl);
     final token = await _store.getToken();
 
     if (_cachedDio != null &&

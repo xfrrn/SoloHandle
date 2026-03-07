@@ -46,7 +46,7 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
               controller: _searchController,
               decoration: InputDecoration(
                 prefixIcon: const Icon(Icons.search, size: 18),
-                hintText: "搜索记录...",
+                hintText: "鎼滅储璁板綍...",
                 isDense: true,
                 filled: true,
                 fillColor: AppColors.surface,
@@ -87,13 +87,13 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
               child: Row(
                 children: [
                   _FilterChip(
-                    label: "全部",
+                    label: "鍏ㄩ儴",
                     selected: state.selectedTypes.isEmpty,
                     onTap: () => notifier.clearFilters(),
                   ),
                   const SizedBox(width: 8),
                   _FilterChip(
-                    label: "支出",
+                    label: "鏀嚭",
                     icon: Icons.receipt_long,
                     iconColor: AppColors.warning,
                     selected: state.selectedTypes.contains("expense"),
@@ -101,7 +101,7 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
                   ),
                   const SizedBox(width: 8),
                   _FilterChip(
-                    label: "心情",
+                    label: "蹇冩儏",
                     icon: Icons.mood,
                     iconColor: AppColors.success,
                     selected: state.selectedTypes.contains("mood"),
@@ -109,7 +109,7 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
                   ),
                   const SizedBox(width: 8),
                   _FilterChip(
-                    label: "用餐",
+                    label: "鐢ㄩ",
                     icon: Icons.restaurant,
                     iconColor: const Color(0xFFE76F51),
                     selected: state.selectedTypes.contains("meal"),
@@ -117,7 +117,7 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
                   ),
                   const SizedBox(width: 8),
                   _FilterChip(
-                    label: "日志",
+                    label: "鏃ュ織",
                     icon: Icons.event_note,
                     iconColor: AppColors.accent,
                     selected: state.selectedTypes.contains("life_log"),
@@ -148,7 +148,7 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
         action: TextButton.icon(
           onPressed: () => notifier.loadEvents(),
           icon: const Icon(Icons.refresh),
-          label: const Text("重试"),
+          label: const Text("閲嶈瘯"),
         ),
       );
     }
@@ -197,7 +197,8 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
                                 canUndo: event.commitId != null &&
                                     event.commitId!.isNotEmpty,
                                 loading: state.undoLoading,
-                                onUndo: () => notifier.undoCommit(event.commitId!),
+                                onUndo: () =>
+                                    notifier.undoCommit(event.commitId!),
                               )
                             : const SizedBox.shrink(),
                       ),
@@ -213,7 +214,7 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
   }
 }
 
-// ─── Widgets ─────────────────────────────────────────
+// 鈹€鈹€鈹€ Widgets 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
 
 class _FilterChip extends StatelessWidget {
   const _FilterChip({
@@ -238,7 +239,8 @@ class _FilterChip extends StatelessWidget {
         duration: const Duration(milliseconds: 200),
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
         decoration: BoxDecoration(
-          color: selected ? AppColors.accent.withOpacity(0.12) : AppColors.surface,
+          color:
+              selected ? AppColors.accent.withOpacity(0.12) : AppColors.surface,
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
             color: selected ? AppColors.accent : AppColors.divider,
@@ -289,13 +291,17 @@ class _TimelineCard extends StatelessWidget {
         margin: const EdgeInsets.only(bottom: 10),
         padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
-          color: expanded ? AppColors.accentLight.withOpacity(0.5) : AppColors.surface,
+          color: expanded
+              ? AppColors.accentLight.withOpacity(0.5)
+              : AppColors.surface,
           borderRadius: BorderRadius.vertical(
             top: const Radius.circular(14),
             bottom: Radius.circular(expanded ? 0 : 14),
           ),
           border: Border.all(
-            color: expanded ? AppColors.accent.withOpacity(0.4) : AppColors.divider,
+            color: expanded
+                ? AppColors.accent.withOpacity(0.4)
+                : AppColors.divider,
           ),
           boxShadow: [
             BoxShadow(
@@ -348,7 +354,7 @@ class _TimelineCard extends StatelessWidget {
   }
 
   String _formatTime(String iso) {
-    return formatIsoToLocal(iso);
+    return formatIsoToFriendly(iso);
   }
 }
 
@@ -411,13 +417,13 @@ class _TypeLabel extends StatelessWidget {
   String get _label {
     switch (type) {
       case "expense":
-        return "支出";
+        return "鏀嚭";
       case "meal":
-        return "用餐";
+        return "鐢ㄩ";
       case "mood":
-        return "心情";
+        return "蹇冩儏";
       case "life_log":
-        return "日志";
+        return "鏃ュ織";
       default:
         return type;
     }
@@ -556,7 +562,8 @@ class _TimelineSummary {
         final note = event.data["note"]?.toString();
         return _TimelineSummary(
           title: "¥$amount · $catLabel",
-          subtitle: (note != null && note.isNotEmpty) ? note : null,
+          subtitle:
+              (note != null && note.trim().isNotEmpty) ? note.trim() : null,
         );
       case "meal":
         final mealType = _mapMealType(event.data["meal_type"]?.toString());
@@ -567,26 +574,32 @@ class _TimelineSummary {
         final title = items.isNotEmpty
             ? "$mealType · $items"
             : (mealType.isNotEmpty ? "$mealType 记录" : "用餐记录");
-        return _TimelineSummary(title: title, subtitle: null);
+        return _TimelineSummary(title: title);
       case "mood":
-        final mood = event.data["mood"] ?? event.data["emotion"];
-        final moodText = mood?.toString().isNotEmpty == true ? mood.toString() : "心情记录";
+        final score = readMoodScore(event.data);
+        final emoji = moodEmoji(event.data, score);
+        final moodText = moodLabel(score, event.data["mood"]?.toString());
+        final note = event.data["note"]?.toString();
         final topic = event.data["topic"]?.toString();
         return _TimelineSummary(
-          title: _mapMood(moodText),
-          subtitle: (topic != null && topic.isNotEmpty) ? topic : null,
+          title: "$emoji $moodText",
+          subtitle: (note != null && note.trim().isNotEmpty)
+              ? note.trim()
+              : ((topic != null && topic.trim().isNotEmpty)
+                  ? topic.trim()
+                  : null),
         );
       case "life_log":
-        final text = event.data["text"] ?? event.data["description"];
+      case "lifelog":
+        final text = event.data["text"] ??
+            event.data["description"] ??
+            event.data["note"];
         final content = text?.toString().trim();
         return _TimelineSummary(
-          title: (content != null && content.isNotEmpty)
-              ? content
-              : "生活记录",
-          subtitle: null,
+          title: (content != null && content.isNotEmpty) ? content : "生活记录",
         );
       default:
-        return _TimelineSummary(title: event.displayTitle, subtitle: null);
+        return _TimelineSummary(title: event.displayTitle);
     }
   }
 
@@ -607,18 +620,48 @@ class _TimelineSummary {
       case "snack":
         return "加餐";
       default:
-        return "";
+        return "用餐";
     }
   }
 
-  static String _mapMood(String value) {
-    if (value.contains("开心") || value.contains("高兴")) return "🙂 心情不错";
-    if (value.contains("难过") || value.contains("沮丧")) return "😞 有点低落";
-    if (value.contains("焦虑")) return "😣 有些焦虑";
-    if (value.contains("生气")) return "😠 有点生气";
-    return "😐 $value";
+  static int readMoodScore(Map<String, dynamic> data) {
+    final direct = data["score"];
+    if (direct is num) return direct.toInt().clamp(1, 5);
+    final intensity = data["intensity"];
+    if (intensity is num) {
+      final score = (intensity.toDouble() * 4 + 1).round();
+      return score.clamp(1, 5);
+    }
+    return 3;
+  }
+
+  static String moodEmoji(Map<String, dynamic> data, int score) {
+    final emoji = data["emoji"]?.toString();
+    if (emoji != null && emoji.trim().isNotEmpty) return emoji.trim();
+    return switch (score) {
+      1 => "😞",
+      2 => "😐",
+      3 => "🙂",
+      4 => "😄",
+      _ => "🤩",
+    };
+  }
+
+  static String moodLabel(int score, String? fallbackMood) {
+    if (fallbackMood != null && fallbackMood.trim().isNotEmpty) {
+      final raw = fallbackMood.trim();
+      if (raw.length <= 12) return raw;
+    }
+    return switch (score) {
+      1 => "有点低落",
+      2 => "一般",
+      3 => "还不错",
+      4 => "状态很好",
+      _ => "今天超棒",
+    };
   }
 }
+
 class _TimelineDetailCard extends StatefulWidget {
   const _TimelineDetailCard({
     required this.event,
@@ -702,7 +745,7 @@ class _TimelineDetailCardState extends State<_TimelineDetailCard> {
               alignment: Alignment.centerLeft,
               child: TextButton(
                 onPressed: () => setState(() => _showMore = !_showMore),
-                child: Text(_showMore ? "收起更多信息" : "更多信息"),
+                child: Text(_showMore ? "鏀惰捣鏇村淇℃伅" : "鏇村淇℃伅"),
               ),
             ),
           ],
@@ -719,7 +762,7 @@ class _TimelineDetailCardState extends State<_TimelineDetailCard> {
                         child: CircularProgressIndicator(strokeWidth: 2),
                       )
                     : const Icon(Icons.undo),
-                label: const Text("撤销这次提交"),
+                label: const Text("鎾ら攢杩欐鎻愪氦"),
                 style: OutlinedButton.styleFrom(
                   foregroundColor: AppColors.danger,
                   side: BorderSide(color: AppColors.danger.withOpacity(0.5)),
@@ -758,11 +801,12 @@ class _DetailMeta {
         final currency = event.data["currency"] ?? "CNY";
         final note = event.data["note"] ?? "";
         return _DetailMeta(
-          label: "支出记录",
+          label: "鏀嚭璁板綍",
           icon: Icons.receipt_long,
           color: AppColors.warning,
-          primary: "¥$amount",
-          secondary: "$cat · $currency${note.toString().isNotEmpty ? " · $note" : ""}",
+          primary: "楼$amount",
+          secondary:
+              "$cat 路 $currency${note.toString().isNotEmpty ? " 路 $note" : ""}",
           primarySize: 26,
         );
       case "meal":
@@ -776,19 +820,29 @@ class _DetailMeta {
           primarySize: 20,
         );
       case "mood":
-        final mood = event.data["mood"] ?? event.data["emotion"] ?? "心情";
+        final score = _TimelineSummary.readMoodScore(event.data);
+        final emoji = _TimelineSummary.moodEmoji(event.data, score);
+        final mood =
+            _TimelineSummary.moodLabel(score, event.data["mood"]?.toString());
+        final topic = event.data["topic"]?.toString() ?? "";
+        final note = event.data["note"]?.toString() ?? "";
+        final secondaryParts = <String>[
+          if (topic.trim().isNotEmpty) topic.trim(),
+          if (note.trim().isNotEmpty) note.trim(),
+        ];
         return _DetailMeta(
           label: "心情记录",
           icon: Icons.mood,
           color: AppColors.success,
-          primary: mood.toString(),
-          secondary: "强度：${event.data["intensity"] ?? "-"}",
+          primary: "$emoji $mood",
+          secondary: secondaryParts.join(" · "),
           primarySize: 20,
         );
       case "life_log":
-        final text = event.data["text"] ?? event.data["description"] ?? "生活记录";
+        final text =
+            event.data["text"] ?? event.data["description"] ?? "鐢熸椿璁板綍";
         return _DetailMeta(
-          label: "日志记录",
+          label: "鏃ュ織璁板綍",
           icon: Icons.event_note,
           color: AppColors.accent,
           primary: text.toString(),
@@ -869,20 +923,21 @@ class _KeyValueList extends StatelessWidget {
 List<MapEntry<String, String>> _buildDetailItems(EventDto event,
     {required bool showMore}) {
   final items = <MapEntry<String, String>>[];
-  items.add(MapEntry("时间", formatIsoToLocal(event.happenedAt)));
-  if (event.data["topic"] != null && event.data["topic"].toString().isNotEmpty) {
-    items.add(MapEntry("主题", event.data["topic"].toString()));
+  items.add(MapEntry("鏃堕棿", formatIsoToLocal(event.happenedAt)));
+  if (event.data["topic"] != null &&
+      event.data["topic"].toString().isNotEmpty) {
+    items.add(MapEntry("涓婚", event.data["topic"].toString()));
   }
   if (event.tags.isNotEmpty) {
-    items.add(MapEntry("标签", event.tags.join(" · ")));
+    items.add(MapEntry("鏍囩", event.tags.join(" 路 ")));
   }
   if (showMore) {
     if (event.data["currency"] != null &&
         event.data["currency"].toString().isNotEmpty) {
-      items.add(MapEntry("币种", event.data["currency"].toString()));
+      items.add(MapEntry("甯佺", event.data["currency"].toString()));
     }
-    items.add(MapEntry("来源", event.source));
-    items.add(MapEntry("创建", formatIsoToLocal(event.createdAt)));
+    items.add(MapEntry("鏉ユ簮", event.source));
+    items.add(MapEntry("鍒涘缓", formatIsoToLocal(event.createdAt)));
   }
   return items;
 }
@@ -936,7 +991,7 @@ class _ExpandableNote extends StatelessWidget {
                   minimumSize: const Size(0, 0),
                   tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                 ),
-                child: Text(expanded ? "收起" : "展开备注"),
+                child: Text(expanded ? "鏀惰捣" : "灞曞紑澶囨敞"),
               ),
           ],
         );

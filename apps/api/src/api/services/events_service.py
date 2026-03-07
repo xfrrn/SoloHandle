@@ -89,5 +89,18 @@ class EventService:
             raise ToolError("not_found", "event not found", {"event_id": event_id})
         return self._row_to_event(row)
 
+    def patch_event_data(self, event_id: int, patch: dict[str, Any]) -> dict[str, Any]:
+        row = self._repo.get_by_id(event_id)
+        if row is None:
+            raise ToolError("not_found", "event not found", {"event_id": event_id})
+        data = json_loads(row["data_json"])
+        data.update(patch)
+        now = now_iso8601()
+        self._repo.update_data_json(event_id, json_dumps(data), now)
+        updated = self._repo.get_by_id(event_id)
+        if updated is None:
+            raise ToolError("not_found", "event not found", {"event_id": event_id})
+        return self._row_to_event(updated)
+
 
 __all__ = ["EventService"]

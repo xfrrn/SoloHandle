@@ -30,148 +30,174 @@ class InputBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ClipRect(
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 14, sigmaY: 14),
-        child: Container(
-          padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
-          decoration: BoxDecoration(
-            color: AppColors.surface.withValues(alpha: 0.88),
-            border: Border(
-              top: BorderSide(
-                color: Theme.of(context)
-                    .colorScheme
-                    .onSurface
-                    .withValues(alpha: 0.08),
-                width: 0.5,
+    return SafeArea(
+      top: false,
+      minimum: const EdgeInsets.fromLTRB(12, 4, 12, 7),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (selectedImages.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.only(left: 18, bottom: 8),
+              child: SizedBox(
+                height: 66,
+                child: ListView.separated(
+                  scrollDirection: Axis.horizontal,
+                  itemCount: selectedImages.length,
+                  separatorBuilder: (_, __) => const SizedBox(width: 8),
+                  itemBuilder: (context, i) => _ImagePreview(
+                    bytes: selectedImages[i],
+                    onRemove: () => onRemoveImageAt?.call(i),
+                  ),
+                ),
               ),
             ),
-          ),
-          child: SafeArea(
-            top: false,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                if (selectedImages.isNotEmpty)
-                  Padding(
-                    padding: const EdgeInsets.only(left: 44, bottom: 8),
-                    child: SizedBox(
-                      height: 72,
-                      child: ListView.separated(
-                        scrollDirection: Axis.horizontal,
-                        itemCount: selectedImages.length,
-                        separatorBuilder: (_, __) => const SizedBox(width: 8),
-                        itemBuilder: (context, i) => _ImagePreview(
-                          bytes: selectedImages[i],
-                          onRemove: () => onRemoveImageAt?.call(i),
+          ClipRect(
+            child: BackdropFilter(
+              filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+              child: Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF8F8F8).withValues(alpha: 0.92),
+                  borderRadius: BorderRadius.circular(22),
+                  border: Border.all(color: const Color(0xFFF0F0F0)),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.04),
+                      blurRadius: 14,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
+                ),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    PressableScale(
+                      onTap: loading ? null : onPickImage,
+                      child: const SizedBox(
+                        width: 30,
+                        height: 30,
+                        child: Icon(
+                          Icons.add,
+                          size: 26,
+                          color: Color(0xFF111111),
                         ),
                       ),
                     ),
-                  ),
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-                  decoration: BoxDecoration(
-                    color: isRecording
-                        ? AppColors.danger.withValues(alpha: 0.08)
-                        : AppColors.background.withValues(alpha: 0.78),
-                    borderRadius: BorderRadius.circular(24),
-                    border: Border.all(color: AppColors.divider),
-                  ),
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.end,
-                    children: [
-                      _RoundIconButton(
-                        onTap: loading ? null : onPickImage,
-                        icon: Icons.add,
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: isRecording
-                            ? const Padding(
-                                padding: EdgeInsets.symmetric(vertical: 9),
-                                child: Row(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    RecordingWave(),
-                                    SizedBox(width: 8),
-                                    Icon(Icons.mic,
-                                        color: AppColors.danger, size: 18),
-                                    SizedBox(width: 8),
-                                    Text(
-                                      "正在录音...",
-                                      style: TextStyle(
-                                        color: AppColors.danger,
-                                        fontWeight: FontWeight.w500,
-                                      ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: isRecording
+                          ? const SizedBox(
+                              height: 34,
+                              child: Row(
+                                children: [
+                                  RecordingWave(),
+                                  SizedBox(width: 8),
+                                  Icon(
+                                    Icons.mic,
+                                    color: AppColors.danger,
+                                    size: 18,
+                                  ),
+                                  SizedBox(width: 8),
+                                  Text(
+                                    "正在录音...",
+                                    style: TextStyle(
+                                      color: AppColors.danger,
+                                      fontWeight: FontWeight.w500,
                                     ),
-                                  ],
-                                ),
-                              )
-                            : TextField(
+                                  ),
+                                ],
+                              ),
+                            )
+                          : SizedBox(
+                              height: 34,
+                              child: TextField(
                                 controller: controller,
                                 minLines: 1,
-                                maxLines: 4,
+                                maxLines: 2,
                                 textInputAction: TextInputAction.newline,
                                 decoration: const InputDecoration(
-                                  hintText: "和助理说话...",
-                                  hintStyle:
-                                      TextStyle(color: AppColors.textSecondary),
+                                  hintText: "问问助手",
+                                  hintStyle: TextStyle(
+                                    color: Color(0xFF9A9A9A),
+                                    fontSize: 15,
+                                    fontWeight: FontWeight.w400,
+                                  ),
+                                  contentPadding: EdgeInsets.only(top: 7),
                                   border: InputBorder.none,
                                   isDense: true,
                                 ),
                               ),
+                            ),
+                    ),
+                    const SizedBox(width: 8),
+                    PressableScale(
+                      onTap: loading
+                          ? null
+                          : () {
+                              if (isRecording) {
+                                onStopRecord?.call();
+                              } else {
+                                onStartRecord?.call();
+                              }
+                            },
+                      onLongPressStart:
+                          loading ? null : (_) => onStartRecord?.call(),
+                      onLongPressEnd:
+                          loading ? null : (_) => onStopRecord?.call(),
+                      child: Icon(
+                        Icons.mic_none_rounded,
+                        size: 30,
+                        color: isRecording
+                            ? AppColors.danger
+                            : const Color(0xFF8F8F8F),
                       ),
-                      const SizedBox(width: 8),
-                      ValueListenableBuilder<TextEditingValue>(
-                        valueListenable: controller,
-                        builder: (context, value, _) {
-                          final hasText = value.text.trim().isNotEmpty;
-                          final isSendMode =
-                              hasText || selectedImages.isNotEmpty;
-                          return AnimatedSwitcher(
-                            duration: const Duration(milliseconds: 180),
-                            switchInCurve: Curves.easeOutCubic,
-                            switchOutCurve: Curves.easeInCubic,
-                            child: isSendMode
-                                ? _RoundIconButton(
-                                    key: const ValueKey("send"),
-                                    onTap: loading ? null : onSend,
-                                    icon: Icons.arrow_upward_rounded,
-                                    primary: true,
-                                    loading: loading,
-                                  )
-                                : _RoundIconButton(
-                                    key: const ValueKey("mic"),
-                                    onTap: loading
-                                        ? null
-                                        : () {
-                                            if (isRecording) {
-                                              onStopRecord?.call();
-                                            } else {
-                                              onStartRecord?.call();
-                                            }
-                                          },
-                                    onLongPressStart: loading
-                                        ? null
-                                        : (_) => onStartRecord?.call(),
-                                    onLongPressEnd: loading
-                                        ? null
-                                        : (_) => onStopRecord?.call(),
-                                    icon: Icons.mic,
-                                    danger: isRecording,
-                                  ),
-                          );
-                        },
-                      ),
-                    ],
-                  ),
+                    ),
+                    const SizedBox(width: 8),
+                    ValueListenableBuilder<TextEditingValue>(
+                      valueListenable: controller,
+                      builder: (context, value, _) {
+                        final hasText = value.text.trim().isNotEmpty;
+                        final isSendMode = hasText || selectedImages.isNotEmpty;
+                        return AnimatedSwitcher(
+                          duration: const Duration(milliseconds: 180),
+                          switchInCurve: Curves.easeOutCubic,
+                          switchOutCurve: Curves.easeInCubic,
+                          child: _RoundIconButton(
+                            key: ValueKey(isSendMode ? "send" : "voice"),
+                            onTap: loading
+                                ? null
+                                : () {
+                                    if (isSendMode) {
+                                      onSend();
+                                    } else if (isRecording) {
+                                      onStopRecord?.call();
+                                    } else {
+                                      onStartRecord?.call();
+                                    }
+                                  },
+                            onLongPressStart: (!loading && !isSendMode)
+                                ? (_) => onStartRecord?.call()
+                                : null,
+                            onLongPressEnd: (!loading && !isSendMode)
+                                ? (_) => onStopRecord?.call()
+                                : null,
+                            icon: isSendMode
+                                ? Icons.arrow_upward_rounded
+                                : Icons.graphic_eq,
+                            loading: loading && isSendMode,
+                          ),
+                        );
+                      },
+                    ),
+                  ],
                 ),
-              ],
+              ),
             ),
           ),
-        ),
+        ],
       ),
     );
   }
@@ -182,8 +208,6 @@ class _RoundIconButton extends StatelessWidget {
     super.key,
     required this.onTap,
     required this.icon,
-    this.primary = false,
-    this.danger = false,
     this.loading = false,
     this.onLongPressStart,
     this.onLongPressEnd,
@@ -191,38 +215,22 @@ class _RoundIconButton extends StatelessWidget {
 
   final VoidCallback? onTap;
   final IconData icon;
-  final bool primary;
-  final bool danger;
   final bool loading;
   final GestureLongPressStartCallback? onLongPressStart;
   final GestureLongPressEndCallback? onLongPressEnd;
 
   @override
   Widget build(BuildContext context) {
-    Color bg = AppColors.surface;
-    Color fg = AppColors.textPrimary;
-    BorderSide side = const BorderSide(color: AppColors.divider);
-    if (primary) {
-      bg = loading ? AppColors.divider : AppColors.accent;
-      fg = Colors.white;
-      side = BorderSide.none;
-    } else if (danger) {
-      bg = AppColors.danger;
-      fg = Colors.white;
-      side = BorderSide.none;
-    }
-
     return PressableScale(
       onTap: onTap,
       onLongPressStart: onLongPressStart,
       onLongPressEnd: onLongPressEnd,
       child: Container(
-        width: 36,
-        height: 36,
-        decoration: BoxDecoration(
-          color: bg,
+        width: 38,
+        height: 38,
+        decoration: const BoxDecoration(
+          color: Color(0xFF111111),
           shape: BoxShape.circle,
-          border: Border.fromBorderSide(side),
         ),
         child: loading
             ? const Center(
@@ -235,7 +243,7 @@ class _RoundIconButton extends StatelessWidget {
                   ),
                 ),
               )
-            : Icon(icon, size: 18, color: fg),
+            : Icon(icon, size: 18, color: Colors.white),
       ),
     );
   }
@@ -253,8 +261,8 @@ class _ImagePreview extends StatelessWidget {
       clipBehavior: Clip.none,
       children: [
         Container(
-          width: 64,
-          height: 64,
+          width: 60,
+          height: 60,
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(12),
             image: DecorationImage(

@@ -5,10 +5,9 @@ import uuid
 
 from fastapi import APIRouter, HTTPException, Request
 
-from api.db.connection import ToolError
-from api.services.orchestrator_service import get_orchestrator_service
-
-from api.db.connection import ToolError
+from api.db.connection import ToolError, ensure_tables, get_connection, normalize_iso8601
+from api.repositories.events_repo import EventRepository
+from api.services.events_service import EventService
 from api.services.orchestrator_service import get_orchestrator_service
 from api.router.provider import load_provider_from_config
 
@@ -40,6 +39,82 @@ async def chat(request: Request) -> dict:
     service = get_orchestrator_service()
 
     try:
+        if action == "mood_quick":
+            if payload is None or not isinstance(payload, dict):
+                raise ToolError("invalid_param", "payload must be object")
+            emoji = payload.get("emoji")
+            score = payload.get("score")
+            note = payload.get("note")
+            topic = payload.get("topic")
+            happened_at = payload.get("happened_at")
+            mood = payload.get("mood")
+
+            if not isinstance(emoji, str) or not emoji.strip():
+                raise ToolError("invalid_param", "emoji must be non-empty string")
+            if not isinstance(score, int) or score < 1 or score > 5:
+                raise ToolError("invalid_param", "score must be integer in 1..5")
+            if note is not None and not isinstance(note, str):
+                raise ToolError("invalid_param", "note must be string or null")
+            if topic is not None and not isinstance(topic, str):
+                raise ToolError("invalid_param", "topic must be string or null")
+            if mood is not None and not isinstance(mood, str):
+                raise ToolError("invalid_param", "mood must be string or null")
+
+            intensity = (score - 1) / 4.0
+            happened_at_iso = normalize_iso8601(happened_at)
+            data = {
+                "emoji": emoji.strip(),
+                "score": score,
+                "mood": (mood or "").strip() or emoji.strip(),
+                "intensity": intensity,
+                "note": note,
+                "topic": topic,
+            }
+            with get_connection() as conn:
+                ensure_tables(conn)
+                event_service = EventService(EventRepository(conn))
+                event = event_service.create_event(
+                    event_type="mood",
+                    data=data,
+                    happened_at=happened_at_iso,
+                    tags=[],
+                    source="user",
+                    confidence=1.0,
+                    idempotency_key=None,
+                )
+            return {"ok": True, "event": event}
+
+        if action == "mood_patch":
+            if payload is None or not isinstance(payload, dict):
+                raise ToolError("invalid_param", "payload must be object")
+            event_id = payload.get("event_id")
+            note = payload.get("note")
+            topic = payload.get("topic")
+            if not isinstance(event_id, int) or event_id <= 0:
+                raise ToolError("invalid_param", "event_id must be positive integer")
+            if note is not None and not isinstance(note, str):
+                raise ToolError("invalid_param", "note must be string or null")
+            if topic is not None and not isinstance(topic, str):
+                raise ToolError("invalid_param", "topic must be string or null")
+            patch_data = {
+                k: v for k, v in {
+                    "note": note,
+                    "topic": topic,
+                }.items()
+                if v is not None
+            }
+            with get_connection() as conn:
+                ensure_tables(conn)
+                repo = EventRepository(conn)
+                event_service = EventService(repo)
+                row = repo.get_by_id(event_id)
+                if row is None:
+                    raise ToolError("not_found", "event not found", {"event_id": event_id})
+                if row["type"] != "mood":
+                    raise ToolError("invalid_param", "event is not mood")
+                event = event_service.patch_event_data(event_id, patch_data)
+            return {"ok": True, "event": event}
+
         if action == "edit":
             if not isinstance(draft_id, str) or not draft_id.strip():
                 raise ToolError("invalid_param", "draft_id must be non-empty string")

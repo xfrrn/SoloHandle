@@ -93,3 +93,9 @@ class EventRepository:
             "UPDATE events SET is_deleted = ?, updated_at = ? WHERE id = ?",
             (is_deleted, updated_at, event_id),
         )
+
+    def update_data_json(self, event_id: int, data_json: str, updated_at: str) -> None:
+        self._conn.execute(
+            "UPDATE events SET data_json = ?, updated_at = ? WHERE id = ?",
+            (data_json, updated_at, event_id),
+        )
