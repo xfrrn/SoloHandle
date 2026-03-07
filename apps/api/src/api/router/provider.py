@@ -17,6 +17,7 @@ class LLMConfig:
     base_url: str
     api_key: str
     model: str
+    fast_model: str
     timeout_seconds: int = 30
 
 
@@ -26,10 +27,15 @@ class LLMProvider:
         prompt: str,
         user_input: str,
         image_base64s: list[str] | None = None,
+        model: str | None = None,
     ) -> str:
         raise NotImplementedError
 
     def transcribe_audio(self, audio_base64: str) -> str:
+        raise NotImplementedError
+
+    @property
+    def fast_model(self) -> str:
         raise NotImplementedError
 
 
@@ -46,6 +52,7 @@ class OpenAICompatibleProvider(LLMProvider):
         prompt: str,
         user_input: str,
         image_base64s: list[str] | None = None,
+        model: str | None = None,
     ) -> str:
         url = self._config.base_url.rstrip("/") + "/chat/completions"
         content = [{"type": "text", "text": user_input}]
@@ -57,7 +64,7 @@ class OpenAICompatibleProvider(LLMProvider):
                 })
             
         payload = {
-            "model": self._config.model,
+            "model": model or self._config.model,
             "messages": [
                 {"role": "system", "content": prompt},
                 {"role": "user", "content": content},
@@ -103,6 +110,10 @@ class OpenAICompatibleProvider(LLMProvider):
             except Exception as exc:  # noqa: BLE001
                 raise ToolError("llm_error", "Audio transcription failed", {"error": str(exc)}) from exc
 
+    @property
+    def fast_model(self) -> str:
+        return self._config.fast_model
+
 
 def load_provider_from_config() -> Optional[LLMProvider]:
     settings = load_llm_settings()
@@ -112,6 +123,7 @@ def load_provider_from_config() -> Optional[LLMProvider]:
         base_url=settings.base_url,
         api_key=settings.api_key,
         model=settings.model,
+        fast_model=settings.fast_model,
         timeout_seconds=settings.timeout_seconds,
     )
     return OpenAICompatibleProvider(config)

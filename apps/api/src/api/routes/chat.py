@@ -116,6 +116,11 @@ async def chat(request: Request) -> dict:
         drafts = draft_result["drafts"]
         cards = draft_result.get("cards", [])
         items = service.save_drafts(request_id, drafts)
-        return {"drafts": items, "cards": cards, "request_id": request_id}
+        return {
+            "drafts": items,
+            "cards": cards,
+            "request_id": request_id,
+            "reply_to_user": draft_result.get("reply_to_user"),
+        }
     except ToolError as exc:
         raise HTTPException(status_code=400, detail={"code": exc.code, "message": exc.message}) from exc

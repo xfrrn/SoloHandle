@@ -17,6 +17,7 @@ class LLMSettings:
     base_url: str
     api_key: str
     model: str
+    fast_model: str
     timeout_seconds: int = 30
 
 
@@ -33,10 +34,12 @@ def load_llm_settings(config_path: Optional[Path] = None) -> Optional[LLMSetting
     model = llm.get("model")
     if not base_url or not api_key or not model:
         return None
+    fast_model = llm.get("fast_model", model)
     timeout_seconds = int(llm.get("timeout_seconds", 30))
     return LLMSettings(
         base_url=str(base_url),
         api_key=str(api_key),
         model=str(model),
+        fast_model=str(fast_model),
         timeout_seconds=timeout_seconds,
     )

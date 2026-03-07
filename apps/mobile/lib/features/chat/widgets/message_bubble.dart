@@ -6,9 +6,14 @@ import "../../../core/constants.dart";
 import "../chat_controller.dart";
 
 class MessageBubble extends StatelessWidget {
-  const MessageBubble({super.key, required this.message});
+  const MessageBubble({
+    super.key,
+    required this.message,
+    this.bottom,
+  });
 
   final ChatMessage message;
+  final Widget? bottom;
 
   @override
   Widget build(BuildContext context) {
@@ -18,7 +23,7 @@ class MessageBubble extends StatelessWidget {
     final textColor = AppColors.textPrimary;
     final maxWidth = MediaQuery.of(context).size.width * 0.78;
 
-    return Align(
+    final bubble = Align(
       alignment: align,
       child: GestureDetector(
         onLongPress: () => _showMessageMenu(context, message),
@@ -104,6 +109,17 @@ class MessageBubble extends StatelessWidget {
           ),
         ),
       ),
+    );
+
+    if (bottom == null) return bubble;
+    
+    return Column(
+      crossAxisAlignment:
+          isUser ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+      children: [
+        bubble,
+        bottom!,
+      ],
     );
   }
 

@@ -6,7 +6,7 @@ from typing import Any
 
 from pydantic import ValidationError
 
-from api.db.connection import ToolError
+from api.db.connection import ToolError, now_iso8601
 from api.router.provider import LLMProvider, load_provider_from_config
 from api.router.schema import RouterDecision
 
@@ -17,6 +17,20 @@ PROMPT_PATH = (
     / "router_prompt.txt"
 )
 
+CLASSIFY_PROMPT_PATH = (
+    Path(__file__).resolve().parents[5]
+    / "packages"
+    / "prompts"
+    / "classify_prompt.txt"
+)
+
+CHAT_PROMPT_PATH = (
+    Path(__file__).resolve().parents[5]
+    / "packages"
+    / "prompts"
+    / "chat_prompt.txt"
+)
+
 
 def route(
     text: str,
@@ -25,6 +39,7 @@ def route(
     max_retries: int = 2,
 ) -> RouterDecision:
     prompt = PROMPT_PATH.read_text(encoding="utf-8")
+    prompt += f"\n\nCURRENT TIME (Asia/Shanghai): {now_iso8601()}"
     provider = provider or load_provider_from_config()
     if provider is None:
         raise ToolError("llm_unavailable", "LLM provider not configured")
@@ -64,3 +79,37 @@ def _parse_decision(output: str) -> RouterDecision:
         return RouterDecision.model_validate(data)
     except ValidationError as exc:
         raise ToolError("router_invalid_schema", "Router output schema invalid", {"errors": exc.errors()}) from exc
+
+def classify_intent(
+    text: str,
+    image_base64s: list[str] | None = None,
+    provider: LLMProvider | None = None,
+) -> str:
+    prompt = CLASSIFY_PROMPT_PATH.read_text(encoding="utf-8")
+    provider = provider or load_provider_from_config()
+    if provider is None:
+        return "action"
+    try:
+        # Use a fast/cheap model for intent classification
+        output = provider.generate(prompt, text, image_base64s=image_base64s, model=provider.fast_model).strip().lower()
+        if "chat" in output:
+            return "chat"
+        return "action"
+    except Exception:
+        return "action"
+
+def chat_reply(
+    text: str,
+    image_base64s: list[str] | None = None,
+    provider: LLMProvider | None = None,
+) -> str:
+    prompt = CHAT_PROMPT_PATH.read_text(encoding="utf-8")
+    provider = provider or load_provider_from_config()
+    if provider is None:
+        return "你好！有什么我可以帮你的？"
+    try:
+        return provider.generate(prompt, text, image_base64s=image_base64s).strip()
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return "抱歉，我刚刚走神了，能再说一遍吗？"

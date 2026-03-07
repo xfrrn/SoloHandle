@@ -23,8 +23,9 @@ from api.db.connection import (
 from api.repositories.orchestrator_repo import OrchestratorRepository
 from api.repositories.tasks_repo import TaskRepository
 from api.services.tasks_service import TaskService
-from api.router.route import route as llm_route
-from api.tools.events import create_expense, create_lifelog, create_meal, create_mood, undo_event
+from api.router.route import route as llm_route, classify_intent, chat_reply
+from api.router.provider import load_provider_from_config
+from api.tools.events import create_expense, create_lifelog, create_meal, create_mood, undo_event, soft_delete_event
 from api.tools.tasks import create_task, postpone_task, soft_delete_task, undo_task
 
 
@@ -46,8 +47,21 @@ class OrchestratorService:
         text: str,
         image_base64s: list[str] | None = None,
     ) -> dict[str, Any]:
+        provider = load_provider_from_config()
+        
+        # Fast intent classification using gpt-4o-mini
+        intent = classify_intent(text, image_base64s, provider)
+        if intent == "chat":
+            reply = chat_reply(text, image_base64s, provider)
+            return {
+                "need_clarification": False,
+                "reply_to_user": reply,
+                "drafts": [],
+                "cards": []
+            }
+
         try:
-            decision = llm_route(text=text, image_base64s=image_base64s)
+            decision = llm_route(text=text, image_base64s=image_base64s, provider=provider)
             if decision.need_clarification:
                 return {
                     "need_clarification": True,
@@ -113,6 +127,8 @@ class OrchestratorService:
         if not drafts:
             raise ToolError("not_found", "no drafts found", {"draft_ids": list(draft_ids)})
 
+        self._repo._conn.commit()
+
         undo_token = str(uuid4())
         created_at = now_iso8601()
         committed: list[dict[str, Any]] = []
@@ -149,6 +165,8 @@ class OrchestratorService:
         if not commits:
             raise ToolError("not_found", "undo_token not found", {"undo_token": undo_token})
 
+        self._repo._conn.commit()
+
         undone: list[dict[str, Any]] = []
         for row in commits:
             tool_name = row["tool_name"]
@@ -161,6 +179,7 @@ class OrchestratorService:
         row = self._repo.get_commit_by_id(commit_id)
         if row is None:
             raise ToolError("not_found", "commit_id not found", {"commit_id": commit_id})
+        self._repo._conn.commit()
         tool_name = row["tool_name"]
         result = json_loads(row["result_json"]) if row["result_json"] else {}
         undone = _undo_tool(tool_name, result)
@@ -171,14 +190,20 @@ class OrchestratorService:
         if row is None:
             raise ToolError("not_found", "draft not found", {"draft_id": draft_id})
         tool_name = row["tool_name"]
-        if tool_name != "create_task":
-            raise ToolError(
-                "unsupported_edit",
-                "only task drafts support structured edit",
-                {"tool_name": tool_name},
-            )
         payload = json_loads(row["payload_json"]) if row["payload_json"] else {}
-        updated = _apply_task_patch(payload, patch)
+        
+        if tool_name == "create_task":
+            updated = _apply_task_patch(payload, patch)
+            card = _task_card_from_payload(draft_id, updated)
+        else:
+            updated = dict(payload)
+            for k, v in patch.items():
+                if v is None and k in updated:
+                    del updated[k]
+                elif v is not None:
+                    updated[k] = v
+            card = _pick_card([], 0, draft_id, tool_name, updated)
+
         self._repo.update_draft_payload(draft_id, json_dumps(updated))
         consts = get_constants()
         draft_item = {
@@ -188,7 +213,6 @@ class OrchestratorService:
             "confidence": consts.defaults.confidence,
             "status": "draft",
         }
-        card = _task_card_from_payload(draft_id, updated)
         return {"drafts": [draft_item], "cards": [card], "request_id": row["request_id"]}
 
     def task_action(self, task_id: int, op: str, payload: Optional[dict[str, Any]] = None) -> dict[str, Any]:
@@ -313,12 +337,12 @@ def _undo_tool(tool_name: str, result: dict[str, Any]) -> dict[str, Any]:
     if tool_name in {"create_expense", "create_lifelog", "create_meal", "create_mood"}:
         event_id = result.get("event_id")
         if isinstance(event_id, int):
-            return {"event": undo_event(event_id)}
+            return {"event": soft_delete_event(event_id)}
         return {"event": None}
     if tool_name == "create_task":
         task_id = result.get("task_id")
         if isinstance(task_id, int):
-            return {"task": undo_task(task_id)}
+            return {"task": soft_delete_task(task_id)}
         return {"task": None}
     if tool_name == "task_action":
         return _undo_task_action(result)

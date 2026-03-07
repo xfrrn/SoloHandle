@@ -53,9 +53,9 @@ class ChatState {
       drafts: drafts ?? this.drafts,
       cards: cards ?? this.cards,
       loading: loading ?? this.loading,
-      status: status ?? this.status,
-      undoToken: undoToken ?? this.undoToken,
-      clarifyQuestion: clarifyQuestion ?? this.clarifyQuestion,
+      status: status == "" ? null : (status ?? this.status),
+      undoToken: undoToken == "" ? null : (undoToken ?? this.undoToken),
+      clarifyQuestion: clarifyQuestion == "" ? null : (clarifyQuestion ?? this.clarifyQuestion),
       lastFailedRequest: lastFailedRequest,
     );
   }
@@ -74,12 +74,19 @@ class ChatState {
 }
 
 class ChatMessage {
-  ChatMessage({required this.role, this.text, this.imageBytes, this.audioBytes});
+  ChatMessage({
+    required this.role,
+    this.text,
+    this.imageBytes,
+    this.audioBytes,
+    this.cards,
+  });
 
   final MessageRole role;
   final String? text;
   final List<String>? imageBytes;
   final String? audioBytes;
+  final List<CardDto>? cards;
 }
 
 enum MessageRole { user, assistant }
@@ -115,10 +122,10 @@ class ChatController extends StateNotifier<ChatState> {
     state = state.copyWith(
       messages: newMessages,
       loading: true,
-      status: "正在生成草稿...",
-      drafts: [],
-      cards: [],
-      clarifyQuestion: null,
+      status: "",
+      drafts: state.drafts,
+      cards: state.cards,
+      clarifyQuestion: "",
     );
     try {
       final imageForRequest = hasImage ? imageBase64!.first : null;
@@ -131,19 +138,27 @@ class ChatController extends StateNotifier<ChatState> {
       state = state.copyWith(lastFailedRequest: req); // track for retry
 
       final resp = await _repo.send(req);
-      final assistantReply =
-          resp.replyToUser ?? (resp.needClarification ? "需要补充信息" : "草稿已生成");
-      final updatedMessages = [
-        ...newMessages,
-        ChatMessage(role: MessageRole.assistant, text: assistantReply),
-      ];
+      
+      final updatedMessages = List<ChatMessage>.from(newMessages);
+      
+      final hasReply = resp.replyToUser != null && resp.replyToUser!.trim().isNotEmpty;
+      final hasCards = resp.cards.isNotEmpty;
+
+      if (hasReply || hasCards) {
+        updatedMessages.add(ChatMessage(
+          role: MessageRole.assistant,
+          text: hasReply ? resp.replyToUser!.trim() : null,
+          cards: hasCards ? resp.cards : null,
+        ));
+      }
+
       state = state.copyWith(
         messages: updatedMessages,
-        drafts: resp.drafts,
-        cards: resp.cards,
+        drafts: [...state.drafts, ...resp.drafts],
+        cards: [...state.cards, ...resp.cards],
         loading: false,
-        status: resp.needClarification ? "需要补充说明" : "草稿已生成",
-        clarifyQuestion: resp.clarifyQuestion,
+        status: resp.needClarification ? "需要补充说明" : "",
+        clarifyQuestion: resp.clarifyQuestion ?? "",
       );
     } catch (exc) {
       state = state.copyWith(
@@ -162,38 +177,65 @@ class ChatController extends StateNotifier<ChatState> {
     state = state.copyWith(loading: true, status: "正在确认...");
     try {
       final resp = await _repo.send(ChatRequest(confirmDraftIds: cleaned));
-      final committedCards = state.cards
-          .map(
-            (c) => CardDto(
-              cardId: c.cardId,
-              type: c.type,
-              status: "committed",
-              title: c.title,
-              subtitle: c.subtitle,
-              data: c.data,
-            ),
-          )
-          .toList();
-      final updatedMessages = [
-        ...state.messages,
-        ChatMessage(
-            role: MessageRole.assistant,
-            text: "已确认 ${resp.committed.length} 条记录"),
-      ];
+      
+      final committedIds = resp.committed.map((e) => e["draft_id"].toString()).toList();
+      
+      final updatedCards = state.cards.map((c) {
+        if (cleaned.contains(c.cardId) || committedIds.contains(c.cardId)) {
+          return CardDto(
+            cardId: c.cardId,
+            type: c.type,
+            status: "committed",
+            title: c.title,
+            subtitle: c.subtitle,
+            data: c.data,
+          );
+        }
+        return c;
+      }).toList();
+      
+      final updatedDrafts = state.drafts.where((d) {
+        return !cleaned.contains(d.draftId) && !committedIds.contains(d.draftId);
+      }).toList();
+
+      final updatedMessages = state.messages.map((m) {
+        if (m.cards != null) {
+          final mappedCards = m.cards!.map((c) {
+            if (cleaned.contains(c.cardId) || committedIds.contains(c.cardId)) {
+              return CardDto(
+                cardId: c.cardId,
+                type: c.type,
+                status: "committed",
+                title: c.title,
+                subtitle: c.subtitle,
+                data: c.data,
+              );
+            }
+            return c;
+          }).toList();
+          return ChatMessage(
+            role: m.role,
+            text: m.text,
+            imageBytes: m.imageBytes,
+            audioBytes: m.audioBytes,
+            cards: mappedCards,
+          );
+        }
+        return m;
+      }).toList();
+
       state = state.copyWith(
         loading: false,
         status: "已确认 ${resp.committed.length} 条记录",
-        drafts: [],
-        cards: committedCards,
-        undoToken: resp.undoToken,
+        drafts: updatedDrafts,
+        cards: updatedCards,
         messages: updatedMessages,
+        undoToken: resp.undoToken ?? "",
       );
 
       if (resp.undoToken != null && resp.undoToken!.isNotEmpty) {
         await _store.setUndoToken(resp.undoToken!);
       }
-      
-      // Refresh timeline when records are committed
       _ref.read(timelineControllerProvider.notifier).loadEvents();
     } catch (exc) {
       state = state.copyWith(
@@ -210,16 +252,10 @@ class ChatController extends StateNotifier<ChatState> {
     state = state.copyWith(loading: true, status: "正在撤销...");
     try {
       final resp = await _repo.send(ChatRequest(undoToken: token));
-      final updatedMessages = [
-        ...state.messages,
-        ChatMessage(
-            role: MessageRole.assistant, text: "已撤销 ${resp.undone.length} 条记录"),
-      ];
       state = state.copyWith(
         loading: false,
         status: "已撤销 ${resp.undone.length} 条记录",
-        messages: updatedMessages,
-        undoToken: null, // Clear token after successful undo
+        undoToken: "", // Clear token after successful undo
       );
       await _store.clearUndoToken();
       
@@ -239,16 +275,33 @@ class ChatController extends StateNotifier<ChatState> {
       final resp = await _repo.send(
         ChatRequest(action: "edit", draftId: draftId, patch: patch),
       );
-      final updatedMessages = [
-        ...state.messages,
-        ChatMessage(role: MessageRole.assistant, text: "草稿已更新"),
-      ];
+      final newDrafts = state.drafts.map((d) => 
+          d.draftId == draftId && resp.drafts.isNotEmpty ? resp.drafts.first : d).toList();
+      final newCards = state.cards.map((c) => 
+          c.cardId == draftId && resp.cards.isNotEmpty ? resp.cards.first : c).toList();
+
+      // The edited card needs to be updated not just in state.cards, but also inside messages!
+      final newMessages = state.messages.map((m) {
+        if (m.cards != null) {
+          final mappedCards = m.cards!.map((c) => 
+              c.cardId == draftId && resp.cards.isNotEmpty ? resp.cards.first : c).toList();
+          return ChatMessage(
+            role: m.role,
+            text: m.text,
+            imageBytes: m.imageBytes,
+            audioBytes: m.audioBytes,
+            cards: mappedCards,
+          );
+        }
+        return m;
+      }).toList();
+
       state = state.copyWith(
         loading: false,
         status: "草稿已更新",
-        drafts: resp.drafts,
-        cards: resp.cards,
-        messages: updatedMessages,
+        drafts: newDrafts,
+        cards: newCards,
+        messages: newMessages,
       );
     } catch (exc) {
       state = state.copyWith(
@@ -269,14 +322,9 @@ class ChatController extends StateNotifier<ChatState> {
         ChatRequest(
             action: "task_action", taskId: taskId, op: op, payload: payload),
       );
-      final updatedMessages = [
-        ...state.messages,
-        ChatMessage(role: MessageRole.assistant, text: "任务已更新"),
-      ];
       state = state.copyWith(
         loading: false,
         status: "任务已更新",
-        messages: updatedMessages,
       );
       if (resp.undoToken != null) {
         state = state.copyWith(undoToken: resp.undoToken);

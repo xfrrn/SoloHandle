@@ -17,6 +17,7 @@ import "widgets/card_renderer.dart";
 import "widgets/confirm_bar.dart";
 import "widgets/input_bar.dart";
 import "widgets/message_bubble.dart";
+import "widgets/typing_indicator.dart";
 
 class ChatScreen extends ConsumerStatefulWidget {
   const ChatScreen({super.key});
@@ -246,11 +247,23 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                       },
                     ),
                   for (final message in state.messages)
-                    MessageBubble(message: message),
+                    MessageBubble(
+                      message: message,
+                      bottom: (message.cards != null && message.cards!.isNotEmpty)
+                          ? Column(
+                              children: message.cards!
+                                  .map((c) => _buildCard(c, notifier))
+                                  .toList(),
+                            )
+                          : null,
+                    ),
+                  if (state.loading)
+                    const Align(
+                      alignment: Alignment.centerLeft,
+                      child: TypingIndicator(),
+                    ),
                   if (state.clarifyQuestion != null)
                     _ClarifyBlock(text: state.clarifyQuestion!),
-                  if (state.cards.isNotEmpty)
-                    ..._buildCardsSection(state.cards, notifier),
                   if (state.status != null) _StatusLine(text: state.status!),
                   if (state.hasError && state.lastFailedRequest != null)
                     ErrorBanner(
@@ -302,31 +315,6 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     );
   }
 
-  List<Widget> _buildCardsSection(List<CardDto> cards, ChatController notifier) {
-    final total = cards.length;
-    final visible = _showAllCards || total <= 2 ? cards : cards.take(2).toList();
-    final widgets = <Widget>[];
-    widgets.addAll(visible.map((card) => _buildCard(card, notifier)));
-    if (total > 2) {
-      widgets.add(
-        Padding(
-          padding: const EdgeInsets.only(bottom: 12),
-          child: Align(
-            alignment: Alignment.center,
-            child: TextButton.icon(
-              onPressed: () => setState(() => _showAllCards = !_showAllCards),
-              icon: Icon(
-                _showAllCards ? Icons.expand_less : Icons.expand_more,
-                size: 18,
-              ),
-              label: Text(_showAllCards ? "收起草稿" : "展开更多草稿 ($total)"),
-            ),
-          ),
-        ),
-      );
-    }
-    return widgets;
-  }
 
   Widget _buildCard(CardDto card, ChatController notifier) {
     final taskId = _extractTaskId(card);

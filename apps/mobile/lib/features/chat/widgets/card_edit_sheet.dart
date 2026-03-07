@@ -44,7 +44,7 @@ class _CardEditSheetState extends State<CardEditSheet> {
   @override
   Widget build(BuildContext context) {
     if (widget.card.type != "task") {
-      return _FallbackSheet(onSubmit: () => Navigator.of(context).pop());
+      return _GenericEditSheet(card: widget.card, onSubmit: widget.onSubmit);
     }
 
     return Padding(
@@ -218,22 +218,120 @@ class _TimeRow extends StatelessWidget {
   }
 }
 
-class _FallbackSheet extends StatelessWidget {
-  const _FallbackSheet({required this.onSubmit});
+class _GenericEditSheet extends StatefulWidget {
+  const _GenericEditSheet({required this.card, required this.onSubmit});
 
-  final VoidCallback onSubmit;
+  final CardDto card;
+  final ValueChanged<Map<String, dynamic>> onSubmit;
+
+  @override
+  State<_GenericEditSheet> createState() => _GenericEditSheetState();
+}
+
+class _GenericEditSheetState extends State<_GenericEditSheet> {
+  final Map<String, TextEditingController> _controllers = {};
+  final Map<String, DateTime?> _dates = {};
+
+  @override
+  void initState() {
+    super.initState();
+    for (final entry in widget.card.data.entries) {
+      if (entry.key.endsWith("_at")) {
+        _dates[entry.key] = parseIsoToLocal(entry.value as String?);
+      } else {
+        _controllers[entry.key] = TextEditingController(text: entry.value?.toString() ?? "");
+      }
+    }
+  }
+
+  @override
+  void dispose() {
+    for (final c in _controllers.values) c.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.all(16),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const Text("当前卡片暂不支持结构化编辑"),
-          const SizedBox(height: 12),
-          TextButton(onPressed: onSubmit, child: const Text("关闭")),
-        ],
+      child: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text("修改记录", style: Theme.of(context).textTheme.titleMedium),
+            const SizedBox(height: 12),
+            for (final entry in _controllers.entries) ...[
+              TextField(
+                controller: entry.value,
+                decoration: InputDecoration(labelText: entry.key),
+              ),
+              const SizedBox(height: 12),
+            ],
+            for (final entry in _dates.entries) ...[
+              _TimeRow(
+                label: entry.key,
+                value: entry.value == null
+                    ? "未设置"
+                    : formatIsoToLocal(toIsoWithOffset(entry.value!)),
+                onPick: () async {
+                  final now = DateTime.now();
+                  final date = await showDatePicker(
+                    context: context,
+                    initialDate: entry.value ?? now,
+                    firstDate: now.subtract(const Duration(days: 365)),
+                    lastDate: now.add(const Duration(days: 365)),
+                  );
+                  if (date == null) return;
+                  final time = await showTimePicker(
+                    context: context,
+                    initialTime: TimeOfDay.fromDateTime(entry.value ?? now),
+                  );
+                  if (time == null) return;
+                  setState(() {
+                    _dates[entry.key] = DateTime(date.year, date.month, date.day, time.hour, time.minute);
+                  });
+                },
+                onClear: entry.value == null ? null : () => setState(() => _dates[entry.key] = null),
+              ),
+              const SizedBox(height: 12),
+            ],
+            const SizedBox(height: 16),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  child: const Text("取消"),
+                ),
+                const SizedBox(width: 8),
+                TextButton(
+                  onPressed: () {
+                    final patch = <String, dynamic>{};
+                    for (final entry in _controllers.entries) {
+                      final val = entry.value.text.trim();
+                      final original = widget.card.data[entry.key];
+                      if (original is num) {
+                        patch[entry.key] = num.tryParse(val) ?? original;
+                      } else if (original is bool) {
+                        patch[entry.key] = val.toLowerCase() == 'true';
+                      } else {
+                        patch[entry.key] = val;
+                      }
+                    }
+                    for (final entry in _dates.entries) {
+                      patch[entry.key] = entry.value == null ? null : toIsoWithOffset(entry.value!);
+                    }
+                    widget.onSubmit(patch);
+                    Navigator.of(context).pop();
+                  },
+                  style: TextButton.styleFrom(foregroundColor: AppColors.accent),
+                  child: const Text("发送修改"),
+                ),
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }

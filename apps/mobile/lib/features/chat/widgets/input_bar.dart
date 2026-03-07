@@ -1,4 +1,5 @@
 import "dart:typed_data";
+import "dart:ui";
 import "package:flutter/material.dart";
 
 import "../../../core/constants.dart";
@@ -29,18 +30,20 @@ class InputBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.fromLTRB(16, 10, 16, 12),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            offset: const Offset(0, -2),
-            blurRadius: 10,
-          )
-        ],
-      ),
+    return ClipRect(
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
+        child: Container(
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+          decoration: BoxDecoration(
+            color: AppColors.surface.withOpacity(0.75),
+            border: Border(
+              top: BorderSide(
+                color: Theme.of(context).colorScheme.onSurface.withOpacity(0.08),
+                width: 0.5,
+              ),
+            ),
+          ),
       child: SafeArea(
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -70,9 +73,8 @@ class InputBar extends StatelessWidget {
                     decoration: BoxDecoration(
                       color: isRecording
                           ? AppColors.danger.withOpacity(0.08)
-                          : AppColors.background,
-                      borderRadius: BorderRadius.circular(28),
-                      border: Border.all(color: AppColors.divider),
+                          : AppColors.background.withOpacity(0.6),
+                      borderRadius: BorderRadius.circular(18),
                     ),
                     child: Row(
                       crossAxisAlignment: CrossAxisAlignment.center,
@@ -205,7 +207,7 @@ class InputBar extends StatelessWidget {
           ],
         ),
       ),
-    );
+    )));
   }
 }
 
