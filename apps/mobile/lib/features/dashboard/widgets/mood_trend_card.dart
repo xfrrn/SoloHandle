@@ -1,8 +1,9 @@
-import 'package:flutter/material.dart';
-import 'package:fl_chart/fl_chart.dart';
-import '../../../core/constants.dart';
-import '../../../shared/widgets/glass_card.dart';
-import '../dashboard_state.dart';
+import "package:fl_chart/fl_chart.dart";
+import "package:flutter/material.dart";
+
+import "../../../core/constants.dart";
+import "../../../shared/widgets/glass_card.dart";
+import "../dashboard_state.dart";
 
 class MoodTrendCard extends StatelessWidget {
   const MoodTrendCard({super.key, required this.trend});
@@ -14,8 +15,8 @@ class MoodTrendCard extends StatelessWidget {
     final spots = <FlSpot>[];
     double sum = 0;
     for (int i = 0; i < trend.length; i++) {
-        spots.add(FlSpot(i.toDouble(), trend[i].averageValence));
-        sum += trend[i].averageValence;
+      spots.add(FlSpot(i.toDouble(), trend[i].averageValence));
+      sum += trend[i].averageValence;
     }
     final avgMood = trend.isNotEmpty ? sum / trend.length : 0;
 
@@ -28,24 +29,25 @@ class MoodTrendCard extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFFDE68A).withOpacity(0.3), // Light warm yellow
+                  color: const Color(0xFFFDE68A).withValues(alpha: 0.3),
                   borderRadius: BorderRadius.circular(12),
                 ),
-                child: const Icon(Icons.wb_sunny_rounded, color: Color(0xFFF59E0B), size: 20),
+                child: const Icon(Icons.wb_sunny_rounded,
+                    color: Color(0xFFF59E0B), size: 20),
               ),
               const SizedBox(width: 12),
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    '近期情绪趋势',
+                    "\u8fd1\u671f\u60c5\u7eea\u8d8b\u52bf",
                     style: Theme.of(context).textTheme.titleMedium?.copyWith(
                           color: AppColors.textPrimary,
                           fontWeight: FontWeight.w600,
                         ),
                   ),
                   Text(
-                    '过去 7 天平均 ${avgMood.toStringAsFixed(1)} 分',
+                    "\u8fc7\u53bb 7 \u5929\u5e73\u5747 ${avgMood.toStringAsFixed(1)} \u5206",
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
                           color: AppColors.textSecondary,
                         ),
@@ -62,27 +64,31 @@ class MoodTrendCard extends StatelessWidget {
                 gridData: const FlGridData(show: false),
                 titlesData: FlTitlesData(
                   show: true,
-                  rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                  topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                  leftTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                  rightTitles: const AxisTitles(
+                      sideTitles: SideTitles(showTitles: false)),
+                  topTitles: const AxisTitles(
+                      sideTitles: SideTitles(showTitles: false)),
+                  leftTitles: const AxisTitles(
+                      sideTitles: SideTitles(showTitles: false)),
                   bottomTitles: AxisTitles(
                     sideTitles: SideTitles(
                       showTitles: true,
                       reservedSize: 22,
-                      interval: trend.length > 5 ? (trend.length / 5).toDouble() : 1.0,
+                      interval: 1,
                       getTitlesWidget: (value, meta) {
                         const style = TextStyle(
-                          color: AppColors.textSecondary,
-                          fontSize: 10,
-                        );
+                            color: AppColors.textSecondary, fontSize: 10);
                         final index = value.toInt();
-                        if (index >= 0 && index < trend.length) {
-                            final dateStr = trend[index].date;
-                            final displayStr = dateStr.length >= 10 ? dateStr.substring(5) : dateStr;
-                            return SideTitleWidget(
-                                meta: meta,
-                                child: Text(displayStr, style: style),
-                            );
+                        if (index >= 0 &&
+                            index < trend.length &&
+                            _shouldShowDateLabel(index, trend.length)) {
+                          final dateStr = trend[index].date;
+                          final displayStr = dateStr.length >= 10
+                              ? dateStr.substring(5)
+                              : dateStr;
+                          return SideTitleWidget(
+                              meta: meta,
+                              child: Text(displayStr, style: style));
                         }
                         return const SizedBox.shrink();
                       },
@@ -91,7 +97,9 @@ class MoodTrendCard extends StatelessWidget {
                 ),
                 borderData: FlBorderData(show: false),
                 minX: 0,
-                maxX: (trend.length - 1).toDouble() > 0 ? (trend.length - 1).toDouble() : 1,
+                maxX: (trend.length - 1).toDouble() > 0
+                    ? (trend.length - 1).toDouble()
+                    : 1,
                 minY: 0,
                 maxY: 10,
                 lineBarsData: [
@@ -99,7 +107,7 @@ class MoodTrendCard extends StatelessWidget {
                     spots: spots.isEmpty ? const [FlSpot(0, 5)] : spots,
                     isCurved: true,
                     curveSmoothness: 0.35,
-                    color: const Color(0xFFF59E0B), // Warm yellow/orange
+                    color: const Color(0xFFF59E0B),
                     barWidth: 4,
                     isStrokeCapRound: true,
                     dotData: FlDotData(
@@ -119,8 +127,8 @@ class MoodTrendCard extends StatelessWidget {
                         begin: Alignment.topCenter,
                         end: Alignment.bottomCenter,
                         colors: [
-                          const Color(0xFFF59E0B).withOpacity(0.3),
-                          const Color(0xFFF59E0B).withOpacity(0.0),
+                          const Color(0xFFF59E0B).withValues(alpha: 0.3),
+                          const Color(0xFFF59E0B).withValues(alpha: 0.0),
                         ],
                       ),
                     ),
@@ -133,4 +141,12 @@ class MoodTrendCard extends StatelessWidget {
       ),
     );
   }
+}
+
+bool _shouldShowDateLabel(int index, int total) {
+  if (total <= 1) return index == 0;
+  if (index == 0 || index == total - 1) return true;
+  final step = (total / 4).ceil();
+  if (index >= total - step) return false;
+  return index % step == 0;
 }

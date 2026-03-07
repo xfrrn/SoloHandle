@@ -100,7 +100,28 @@ class _AppShell extends StatelessWidget {
     final index = navigationShell.currentIndex;
     final hideTabBar = index == 0;
     return Scaffold(
-      body: navigationShell,
+      body: GestureDetector(
+        behavior: HitTestBehavior.translucent,
+        onHorizontalDragEnd: (details) {
+          final velocity = details.primaryVelocity ?? 0;
+          const threshold = 260.0;
+          if (velocity.abs() < threshold) return;
+
+          if (velocity < 0) {
+            final next = index + 1;
+            if (next < _tabs.length) {
+              navigationShell.goBranch(next);
+            }
+            return;
+          }
+
+          final prev = index - 1;
+          if (prev >= 0) {
+            navigationShell.goBranch(prev);
+          }
+        },
+        child: navigationShell,
+      ),
       bottomNavigationBar: hideTabBar
           ? null
           : _RoundedTabBar(
@@ -142,10 +163,10 @@ class _RoundedTabBar extends StatelessWidget {
         child: Container(
           padding: const EdgeInsets.only(top: 8, bottom: 8),
           decoration: BoxDecoration(
-            color: Theme.of(context).colorScheme.surface.withOpacity(0.65),
+            color: Theme.of(context).colorScheme.surface.withValues(alpha: 0.65),
             border: Border(
               top: BorderSide(
-                color: Theme.of(context).colorScheme.onSurface.withOpacity(0.08),
+                color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.08),
                 width: 0.5,
               ),
             ),
@@ -186,7 +207,7 @@ class _TabButton extends StatelessWidget {
   Widget build(BuildContext context) {
     final color = selected
         ? Theme.of(context).colorScheme.primary
-        : Theme.of(context).colorScheme.onSurface.withOpacity(0.6);
+        : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6);
     return InkWell(
       borderRadius: BorderRadius.circular(16),
       onTap: onTap,
@@ -195,7 +216,7 @@ class _TabButton extends StatelessWidget {
         curve: Curves.easeOutCubic,
         padding: const EdgeInsets.symmetric(vertical: 8),
         decoration: BoxDecoration(
-          color: selected ? color.withOpacity(0.12) : Colors.transparent,
+          color: selected ? color.withValues(alpha: 0.12) : Colors.transparent,
           borderRadius: BorderRadius.circular(16),
         ),
         child: Column(

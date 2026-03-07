@@ -41,7 +41,7 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
     return Scaffold(
       body: Column(
         children: [
-          const _Header(),
+          _Header(onRefresh: notifier.loadEvents),
           _buildSearch(notifier),
           const SizedBox(height: 8),
           _buildFilters(state, notifier),
@@ -211,7 +211,9 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
 }
 
 class _Header extends StatelessWidget {
-  const _Header();
+  const _Header({required this.onRefresh});
+
+  final VoidCallback onRefresh;
 
   @override
   Widget build(BuildContext context) {
@@ -219,11 +221,22 @@ class _Header extends StatelessWidget {
       bottom: false,
       child: Padding(
         padding: const EdgeInsets.fromLTRB(16, 10, 16, 4),
-        child: Text(
-          "Timeline",
-          style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                fontWeight: FontWeight.w700,
+        child: Row(
+          children: [
+            Expanded(
+              child: Text(
+                "Timeline",
+                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                      fontWeight: FontWeight.w700,
+                    ),
               ),
+            ),
+            IconButton(
+              onPressed: onRefresh,
+              icon: const Icon(Icons.refresh, color: AppColors.textSecondary),
+              tooltip: "\u5237\u65b0",
+            ),
+          ],
         ),
       ),
     );

@@ -12,7 +12,7 @@ class FinanceChartCard extends StatelessWidget {
     super.key,
     required this.totalExpense,
     required this.trend,
-    this.title = "Spending",
+    this.title = "\u6d88\u8d39\u8d8b\u52bf",
   });
 
   final double totalExpense;
@@ -23,7 +23,6 @@ class FinanceChartCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final spots = <FlSpot>[];
     double maxAmount = 1000;
-
     final hasTrend = trend.any((e) => e.amount > 0);
 
     if (trend.isNotEmpty) {
@@ -55,7 +54,7 @@ class FinanceChartCard extends StatelessWidget {
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    "¥${totalExpense.toStringAsFixed(2)}",
+                    "\u00a5${totalExpense.toStringAsFixed(2)}",
                     style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                           color: AppColors.textPrimary,
                           fontWeight: FontWeight.bold,
@@ -103,24 +102,21 @@ class FinanceChartCard extends StatelessWidget {
                     sideTitles: SideTitles(
                       showTitles: true,
                       reservedSize: 22,
-                      interval: trend.length > 5
-                          ? (trend.length / 5).toDouble()
-                          : 1.0,
+                      interval: 1,
                       getTitlesWidget: (value, meta) {
                         const style = TextStyle(
-                          color: AppColors.textSecondary,
-                          fontSize: 10,
-                        );
+                            color: AppColors.textSecondary, fontSize: 10);
                         final index = value.toInt();
-                        if (index >= 0 && index < trend.length) {
+                        if (index >= 0 &&
+                            index < trend.length &&
+                            _shouldShowDateLabel(index, trend.length)) {
                           final dateStr = trend[index].date;
                           final displayStr = dateStr.length >= 10
                               ? dateStr.substring(5)
                               : dateStr;
                           return SideTitleWidget(
-                            meta: meta,
-                            child: Text(displayStr, style: style),
-                          );
+                              meta: meta,
+                              child: Text(displayStr, style: style));
                         }
                         return const SizedBox.shrink();
                       },
@@ -164,4 +160,12 @@ class FinanceChartCard extends StatelessWidget {
       ),
     );
   }
+}
+
+bool _shouldShowDateLabel(int index, int total) {
+  if (total <= 1) return index == 0;
+  if (index == 0 || index == total - 1) return true;
+  final step = (total / 4).ceil();
+  if (index >= total - step) return false;
+  return index % step == 0;
 }
