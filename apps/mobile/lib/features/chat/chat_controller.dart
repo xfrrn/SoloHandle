@@ -353,4 +353,16 @@ class ChatController extends StateNotifier<ChatState> {
       await undo();
     }
   }
+
+  void clearSession() {
+    state = const ChatState(
+      messages: [],
+      drafts: [],
+      cards: [],
+      loading: false,
+      status: "",
+      clarifyQuestion: "",
+      undoToken: "",
+    );
+  }
 }

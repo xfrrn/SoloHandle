@@ -193,11 +193,51 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     });
   }
 
-  void _clearImages() {
     setState(() {
       _selectedImageBytes = [];
       _selectedImageBase64 = [];
     });
+  }
+
+  void _showMoreMenu(BuildContext context, ChatController notifier) {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) {
+        return SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const SizedBox(height: 8),
+              Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: AppColors.divider,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              const SizedBox(height: 16),
+              ListTile(
+                leading: const Icon(Icons.clear_all, color: AppColors.danger),
+                title: const Text('清空当前上下文',
+                    style: TextStyle(color: AppColors.danger)),
+                onTap: () {
+                  Navigator.of(ctx).pop();
+                  notifier.clearSession();
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('已清空当前聊天记忆')),
+                  );
+                },
+              ),
+              const SizedBox(height: 16),
+            ],
+          ),
+        );
+      },
+    );
   }
 
   @override
@@ -220,7 +260,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         children: [
           _Header(
             onNotifications: () => _openNotifications(context),
-            onMore: () {},
+            onMore: () => _showMoreMenu(context, notifier),
             showDot: state.drafts.isNotEmpty,
           ),
           Expanded(

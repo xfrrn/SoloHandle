@@ -106,7 +106,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
                   ),
                   const SizedBox(height: 16),
                   _InsightList(
-                    items: _buildSuggestions(data),
+                    items: _buildSuggestions(context, data),
                   ),
                   const SizedBox(height: 16),
                   _CompactHabitOrRecent(
@@ -540,7 +540,7 @@ class _InsightItem {
   final VoidCallback onTap;
 }
 
-List<_InsightItem> _buildSuggestions(DashboardSummaryState data) {
+List<_InsightItem> _buildSuggestions(BuildContext context, DashboardSummaryState data) {
   final items = <_InsightItem>[];
   if (data.todayTotalTasks > data.todayCompletedTasks) {
     final remain = data.todayTotalTasks - data.todayCompletedTasks;
@@ -549,7 +549,7 @@ List<_InsightItem> _buildSuggestions(DashboardSummaryState data) {
         text: "还有 $remain 个任务待完成",
         icon: Icons.checklist,
         color: AppColors.accent,
-        onTap: () {},
+        onTap: () => context.go('/chat'),
       ),
     );
   }
@@ -559,7 +559,7 @@ List<_InsightItem> _buildSuggestions(DashboardSummaryState data) {
         text: "可以记录一下今天的状态",
         icon: Icons.mood,
         color: AppColors.warning,
-        onTap: () {},
+        onTap: () => context.go('/chat'),
       ),
     );
   }
@@ -569,7 +569,7 @@ List<_InsightItem> _buildSuggestions(DashboardSummaryState data) {
         text: "今天还没有记录支出",
         icon: Icons.receipt_long,
         color: AppColors.accent,
-        onTap: () {},
+        onTap: () => context.go('/chat'),
       ),
     );
   }
@@ -579,7 +579,7 @@ List<_InsightItem> _buildSuggestions(DashboardSummaryState data) {
         text: "今天表现不错，保持节奏",
         icon: Icons.auto_awesome,
         color: AppColors.success,
-        onTap: () {},
+        onTap: () => context.go('/chat'),
       ),
     );
   }
