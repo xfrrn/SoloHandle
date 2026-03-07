@@ -2,6 +2,7 @@
 
 from dataclasses import dataclass
 from datetime import timedelta
+import threading
 from typing import Any, Iterable, Optional
 from uuid import uuid4
 
@@ -38,9 +39,15 @@ class Draft:
     card: dict[str, Any]
 
 
+_commit_lock = threading.Lock()
+
+
 class OrchestratorService:
     def __init__(self, repo: OrchestratorRepository) -> None:
         self._repo = repo
+
+    def close(self) -> None:
+        self._repo._conn.close()
 
     def create_drafts(
         self,
@@ -123,41 +130,67 @@ class OrchestratorService:
         return items
 
     def commit_drafts(self, draft_ids: Iterable[str]) -> dict[str, Any]:
-        drafts = self._repo.get_drafts_by_ids(list(draft_ids))
+        unique_ids = list(dict.fromkeys(draft_ids))
+        drafts = self._repo.get_drafts_by_ids(unique_ids)
         if not drafts:
-            raise ToolError("not_found", "no drafts found", {"draft_ids": list(draft_ids)})
+            raise ToolError("not_found", "no drafts found", {"draft_ids": unique_ids})
 
         self._repo._conn.commit()
 
-        undo_token = str(uuid4())
-        created_at = now_iso8601()
         committed: list[dict[str, Any]] = []
+        new_undo_token: Optional[str] = None
+        existing_undo_token: Optional[str] = None
+        created_at = now_iso8601()
 
-        for row in drafts:
-            tool_name = row["tool_name"]
-            payload = json_loads(row["payload_json"])
-            commit_id = str(uuid4())
-            result = _call_tool(tool_name, {**payload, "commit_id": commit_id})
-            self._repo.insert_log(
-                kind="commit",
-                request_id=row["request_id"],
-                draft_id=row["draft_id"],
-                tool_name=tool_name,
-                payload_json=row["payload_json"],
-                result_json=json_dumps(result),
-                undo_token=undo_token,
-                commit_id=commit_id,
-                created_at=created_at,
-            )
-            committed.append(
-                {
-                    "draft_id": row["draft_id"],
-                    "tool_name": tool_name,
-                    "commit_id": commit_id,
-                    "result": result,
-                }
-            )
+        with _commit_lock:
+            for row in drafts:
+                draft_id = row["draft_id"]
+                tool_name = row["tool_name"]
 
+                existed = self._repo.get_commit_by_draft_id(draft_id)
+                if existed is not None:
+                    if existing_undo_token is None and existed["undo_token"]:
+                        existing_undo_token = existed["undo_token"]
+                    existed_result = (
+                        json_loads(existed["result_json"]) if existed["result_json"] else {}
+                    )
+                    committed.append(
+                        {
+                            "draft_id": draft_id,
+                            "tool_name": tool_name,
+                            "commit_id": existed["commit_id"],
+                            "result": existed_result,
+                        }
+                    )
+                    continue
+
+                if new_undo_token is None:
+                    new_undo_token = str(uuid4())
+
+                payload = json_loads(row["payload_json"])
+                commit_id = str(uuid4())
+                result = _call_tool(tool_name, {**payload, "commit_id": commit_id})
+                self._repo.insert_log(
+                    kind="commit",
+                    request_id=row["request_id"],
+                    draft_id=draft_id,
+                    tool_name=tool_name,
+                    payload_json=row["payload_json"],
+                    result_json=json_dumps(result),
+                    undo_token=new_undo_token,
+                    commit_id=commit_id,
+                    created_at=created_at,
+                )
+                committed.append(
+                    {
+                        "draft_id": draft_id,
+                        "tool_name": tool_name,
+                        "commit_id": commit_id,
+                        "result": result,
+                    }
+                )
+
+        undo_token = new_undo_token or existing_undo_token
         return {"committed": committed, "undo_token": undo_token}
 
     def undo(self, undo_token: str) -> dict[str, Any]:

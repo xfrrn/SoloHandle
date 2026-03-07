@@ -4,6 +4,7 @@ import json
 import os
 from pathlib import Path
 import sqlite3
+import threading
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Any, Iterable, Optional
@@ -13,6 +14,8 @@ from api.core.constants_loader import get_constants
 
 DEFAULT_TZ = get_constants().defaults.timezone
 DEFAULT_DB_PATH = str(Path(__file__).resolve().parents[5] / "data" / "app.db")
+_tables_ready = False
+_tables_lock = threading.Lock()
 
 
 @dataclass
@@ -32,122 +35,135 @@ def get_db_path() -> str:
 def get_connection() -> sqlite3.Connection:
     db_path = get_db_path()
     os.makedirs(os.path.dirname(db_path), exist_ok=True)
-    conn = sqlite3.connect(db_path)
+    conn = sqlite3.connect(db_path, timeout=10.0, check_same_thread=False)
     conn.row_factory = sqlite3.Row
+    conn.execute("PRAGMA journal_mode=WAL")
+    conn.execute("PRAGMA busy_timeout=10000")
+    conn.execute("PRAGMA synchronous=NORMAL")
     return conn
 
 
 def ensure_tables(conn: sqlite3.Connection) -> None:
-    cur = conn.cursor()
-
-    cur.execute(
-        """
-        CREATE TABLE IF NOT EXISTS events (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            type TEXT NOT NULL,
-            data_json TEXT NOT NULL,
-            happened_at TEXT NOT NULL,
-            tags_json TEXT NOT NULL,
-            source TEXT NOT NULL,
-            confidence REAL NOT NULL,
-            idempotency_key TEXT,
-            commit_id TEXT,
-            is_deleted INTEGER NOT NULL DEFAULT 0,
-            created_at TEXT NOT NULL,
-            updated_at TEXT NOT NULL
+    global _tables_ready
+    if _tables_ready:
+        return
+    with _tables_lock:
+        if _tables_ready:
+            return
+        cur = conn.cursor()
+        cur.execute(
+            """
+            CREATE TABLE IF NOT EXISTS events (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                type TEXT NOT NULL,
+                data_json TEXT NOT NULL,
+                happened_at TEXT NOT NULL,
+                tags_json TEXT NOT NULL,
+                source TEXT NOT NULL,
+                confidence REAL NOT NULL,
+                idempotency_key TEXT,
+                commit_id TEXT,
+                is_deleted INTEGER NOT NULL DEFAULT 0,
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL
+            )
+            """
         )
-        """
-    )
-    cur.execute(
-        "CREATE INDEX IF NOT EXISTS idx_events_type_happened_at ON events(type, happened_at)"
-    )
-    cur.execute(
-        "CREATE UNIQUE INDEX IF NOT EXISTS idx_events_idempotency_key ON events(idempotency_key)"
-    )
-
-    cur.execute(
-        """
-        CREATE TABLE IF NOT EXISTS tasks (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            title TEXT NOT NULL,
-            status TEXT NOT NULL,
-            priority TEXT NOT NULL,
-            due_at TEXT,
-            remind_at TEXT,
-            reminded_at TEXT,
-            notification_id INTEGER,
-            repeat_rule TEXT,
-            project TEXT,
-            tags_json TEXT NOT NULL,
-            note TEXT,
-            idempotency_key TEXT,
-            commit_id TEXT,
-            is_deleted INTEGER NOT NULL DEFAULT 0,
-            created_at TEXT NOT NULL,
-            updated_at TEXT NOT NULL,
-            completed_at TEXT
+        cur.execute(
+            "CREATE INDEX IF NOT EXISTS idx_events_type_happened_at ON events(type, happened_at)"
         )
-        """
-    )
-    cur.execute(
-        "CREATE INDEX IF NOT EXISTS idx_tasks_status_due_at ON tasks(status, due_at)"
-    )
-    cur.execute("CREATE INDEX IF NOT EXISTS idx_tasks_remind_at ON tasks(remind_at)")
-    cur.execute(
-        "CREATE UNIQUE INDEX IF NOT EXISTS idx_tasks_idempotency_key ON tasks(idempotency_key)"
-    )
-
-    cur.execute(
-        """
-        CREATE TABLE IF NOT EXISTS notifications (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            task_id INTEGER,
-            title TEXT NOT NULL,
-            content TEXT,
-            scheduled_at TEXT NOT NULL,
-            sent_at TEXT,
-            read_at TEXT,
-            is_deleted INTEGER NOT NULL DEFAULT 0,
-            created_at TEXT NOT NULL
+        cur.execute(
+            "CREATE UNIQUE INDEX IF NOT EXISTS idx_events_idempotency_key ON events(idempotency_key)"
         )
-        """
-    )
-    cur.execute("CREATE INDEX IF NOT EXISTS idx_notifications_task_id ON notifications(task_id)")
-    cur.execute(
-        "CREATE INDEX IF NOT EXISTS idx_notifications_scheduled_at ON notifications(scheduled_at)"
-    )
-    cur.execute("CREATE INDEX IF NOT EXISTS idx_notifications_read_at ON notifications(read_at)")
 
-    cur.execute(
-        """
-        CREATE TABLE IF NOT EXISTS orchestrator_logs (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            kind TEXT NOT NULL,
-            request_id TEXT,
-            draft_id TEXT,
-            tool_name TEXT,
-            payload_json TEXT,
-            result_json TEXT,
-            undo_token TEXT,
-            commit_id TEXT,
-            created_at TEXT NOT NULL
+        cur.execute(
+            """
+            CREATE TABLE IF NOT EXISTS tasks (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                title TEXT NOT NULL,
+                status TEXT NOT NULL,
+                priority TEXT NOT NULL,
+                due_at TEXT,
+                remind_at TEXT,
+                reminded_at TEXT,
+                notification_id INTEGER,
+                repeat_rule TEXT,
+                project TEXT,
+                tags_json TEXT NOT NULL,
+                note TEXT,
+                idempotency_key TEXT,
+                commit_id TEXT,
+                is_deleted INTEGER NOT NULL DEFAULT 0,
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL,
+                completed_at TEXT
+            )
+            """
         )
-        """
-    )
-    cur.execute(
-        "CREATE INDEX IF NOT EXISTS idx_orchestrator_draft_id ON orchestrator_logs(draft_id)"
-    )
-    cur.execute(
-        "CREATE INDEX IF NOT EXISTS idx_orchestrator_undo_token ON orchestrator_logs(undo_token)"
-    )
+        cur.execute(
+            "CREATE INDEX IF NOT EXISTS idx_tasks_status_due_at ON tasks(status, due_at)"
+        )
+        cur.execute("CREATE INDEX IF NOT EXISTS idx_tasks_remind_at ON tasks(remind_at)")
+        cur.execute(
+            "CREATE UNIQUE INDEX IF NOT EXISTS idx_tasks_idempotency_key ON tasks(idempotency_key)"
+        )
 
-    _ensure_column(cur, "tasks", "reminded_at", "reminded_at TEXT")
-    _ensure_column(cur, "tasks", "notification_id", "notification_id INTEGER")
-    _ensure_column(cur, "tasks", "commit_id", "commit_id TEXT")
-    _ensure_column(cur, "events", "commit_id", "commit_id TEXT")
-    _ensure_column(cur, "orchestrator_logs", "commit_id", "commit_id TEXT")
+        cur.execute(
+            """
+            CREATE TABLE IF NOT EXISTS notifications (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                task_id INTEGER,
+                title TEXT NOT NULL,
+                content TEXT,
+                scheduled_at TEXT NOT NULL,
+                sent_at TEXT,
+                read_at TEXT,
+                is_deleted INTEGER NOT NULL DEFAULT 0,
+                created_at TEXT NOT NULL
+            )
+            """
+        )
+        cur.execute(
+            "CREATE INDEX IF NOT EXISTS idx_notifications_task_id ON notifications(task_id)"
+        )
+        cur.execute(
+            "CREATE INDEX IF NOT EXISTS idx_notifications_scheduled_at ON notifications(scheduled_at)"
+        )
+        cur.execute(
+            "CREATE INDEX IF NOT EXISTS idx_notifications_read_at ON notifications(read_at)"
+        )
 
-    conn.commit()
+        cur.execute(
+            """
+            CREATE TABLE IF NOT EXISTS orchestrator_logs (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                kind TEXT NOT NULL,
+                request_id TEXT,
+                draft_id TEXT,
+                tool_name TEXT,
+                payload_json TEXT,
+                result_json TEXT,
+                undo_token TEXT,
+                commit_id TEXT,
+                created_at TEXT NOT NULL
+            )
+            """
+        )
+        cur.execute(
+            "CREATE INDEX IF NOT EXISTS idx_orchestrator_draft_id ON orchestrator_logs(draft_id)"
+        )
+        cur.execute(
+            "CREATE INDEX IF NOT EXISTS idx_orchestrator_undo_token ON orchestrator_logs(undo_token)"
+        )
+
+        _ensure_column(cur, "tasks", "reminded_at", "reminded_at TEXT")
+        _ensure_column(cur, "tasks", "notification_id", "notification_id INTEGER")
+        _ensure_column(cur, "tasks", "commit_id", "commit_id TEXT")
+        _ensure_column(cur, "events", "commit_id", "commit_id TEXT")
+        _ensure_column(cur, "orchestrator_logs", "commit_id", "commit_id TEXT")
+
+        conn.commit()
+        _tables_ready = True
 
 
 def _ensure_column(cur: sqlite3.Cursor, table: str, column: str, definition: str) -> None:

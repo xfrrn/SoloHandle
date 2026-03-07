@@ -225,3 +225,5 @@ async def chat(request: Request) -> dict:
         }
     except ToolError as exc:
         raise HTTPException(status_code=400, detail={"code": exc.code, "message": exc.message}) from exc
+    finally:
+        service.close()

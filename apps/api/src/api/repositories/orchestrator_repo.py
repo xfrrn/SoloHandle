@@ -1,6 +1,7 @@
 ﻿from __future__ import annotations
 
 import sqlite3
+import time
 from typing import Any, Optional
 
 
@@ -21,7 +22,7 @@ class OrchestratorRepository:
         commit_id: Optional[str],
         created_at: str,
     ) -> int:
-        cur = self._conn.execute(
+        cur = self._execute_write(
             """
             INSERT INTO orchestrator_logs (
                 kind, request_id, draft_id, tool_name, payload_json, result_json, undo_token, commit_id, created_at
@@ -39,7 +40,6 @@ class OrchestratorRepository:
                 created_at,
             ),
         )
-        self._conn.commit()
         return int(cur.lastrowid)
 
     def get_drafts_by_ids(self, draft_ids: list[str]) -> list[sqlite3.Row]:
@@ -60,11 +60,10 @@ class OrchestratorRepository:
         return row
 
     def update_draft_payload(self, draft_id: str, payload_json: str) -> None:
-        self._conn.execute(
+        self._execute_write(
             "UPDATE orchestrator_logs SET payload_json = ? WHERE kind = 'draft' AND draft_id = ?",
             (payload_json, draft_id),
         )
-        self._conn.commit()
 
     def get_commits_by_undo_token(self, undo_token: str) -> list[sqlite3.Row]:
         rows = self._conn.execute(
@@ -79,3 +78,28 @@ class OrchestratorRepository:
             (commit_id,),
         ).fetchone()
         return row
+
+    def get_commit_by_draft_id(self, draft_id: str) -> Optional[sqlite3.Row]:
+        row = self._conn.execute(
+            "SELECT * FROM orchestrator_logs WHERE kind = 'commit' AND draft_id = ? ORDER BY id DESC LIMIT 1",
+            (draft_id,),
+        ).fetchone()
+        return row
+
+    def _execute_write(
+        self, sql: str, params: tuple[Any, ...], retries: int = 4, base_sleep: float = 0.05
+    ) -> sqlite3.Cursor:
+        last_error: Optional[Exception] = None
+        for attempt in range(retries + 1):
+            try:
+                cur = self._conn.execute(sql, params)
+                self._conn.commit()
+                return cur
+            except sqlite3.OperationalError as exc:
+                last_error = exc
+                msg = str(exc).lower()
+                if "database is locked" not in msg or attempt >= retries:
+                    raise
+                time.sleep(base_sleep * (attempt + 1))
+        assert last_error is not None
+        raise last_error
