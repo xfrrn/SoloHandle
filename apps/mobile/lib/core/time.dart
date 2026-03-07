@@ -21,13 +21,15 @@ String formatIsoToFriendly(String? value) {
     final today = DateTime(now.year, now.month, now.day);
     final date = DateTime(dt.year, dt.month, dt.day);
     final diffDays = date.difference(today).inDays;
+
     final h = dt.hour.toString().padLeft(2, "0");
     final min = dt.minute.toString().padLeft(2, "0");
     final time = "$h:$min";
-    if (diffDays == 0) return "今天 $time";
-    if (diffDays == -1) return "昨天 $time";
-    if (diffDays == 1) return "明天 $time";
-    return "${dt.month}月${dt.day}日 $time";
+
+    if (diffDays == 0) return "\u4ECA\u5929 $time";
+    if (diffDays == -1) return "\u6628\u5929 $time";
+    if (diffDays == 1) return "\u660E\u5929 $time";
+    return "${dt.month}\u6708${dt.day}\u65E5 $time";
   } catch (_) {
     return value;
   }

@@ -41,100 +41,97 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
     return Scaffold(
       body: Column(
         children: [
-          _TimelineHeader(),
-          // Search bar
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 6, 16, 0),
-            child: TextField(
-              controller: _searchController,
-              decoration: InputDecoration(
-                prefixIcon: const Icon(Icons.search, size: 18),
-                hintText: "鎼滅储璁板綍...",
-                isDense: true,
-                filled: true,
-                fillColor: AppColors.surface,
-                contentPadding:
-                    const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                enabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(16),
-                  borderSide: const BorderSide(color: AppColors.divider),
-                ),
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(16),
-                  borderSide: const BorderSide(color: AppColors.accent),
-                ),
-                suffixIcon: _searchController.text.isNotEmpty
-                    ? IconButton(
-                        icon: const Icon(Icons.clear, size: 16),
-                        onPressed: () {
-                          _searchController.clear();
-                          notifier.setSearchQuery("");
-                          notifier.loadEvents();
-                        },
-                      )
-                    : null,
-              ),
-              onSubmitted: (value) {
-                notifier.setSearchQuery(value);
-                notifier.loadEvents();
-              },
-            ),
-          ),
+          const _Header(),
+          _buildSearch(notifier),
           const SizedBox(height: 8),
-
-          // Type filter chips
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: Row(
-                children: [
-                  _FilterChip(
-                    label: "鍏ㄩ儴",
-                    selected: state.selectedTypes.isEmpty,
-                    onTap: () => notifier.clearFilters(),
-                  ),
-                  const SizedBox(width: 8),
-                  _FilterChip(
-                    label: "鏀嚭",
-                    icon: Icons.receipt_long,
-                    iconColor: AppColors.warning,
-                    selected: state.selectedTypes.contains("expense"),
-                    onTap: () => notifier.toggleType("expense"),
-                  ),
-                  const SizedBox(width: 8),
-                  _FilterChip(
-                    label: "蹇冩儏",
-                    icon: Icons.mood,
-                    iconColor: AppColors.success,
-                    selected: state.selectedTypes.contains("mood"),
-                    onTap: () => notifier.toggleType("mood"),
-                  ),
-                  const SizedBox(width: 8),
-                  _FilterChip(
-                    label: "鐢ㄩ",
-                    icon: Icons.restaurant,
-                    iconColor: const Color(0xFFE76F51),
-                    selected: state.selectedTypes.contains("meal"),
-                    onTap: () => notifier.toggleType("meal"),
-                  ),
-                  const SizedBox(width: 8),
-                  _FilterChip(
-                    label: "鏃ュ織",
-                    icon: Icons.event_note,
-                    iconColor: AppColors.accent,
-                    selected: state.selectedTypes.contains("life_log"),
-                    onTap: () => notifier.toggleType("life_log"),
-                  ),
-                ],
-              ),
-            ),
-          ),
-          const SizedBox(height: 6),
-
-          // Content
+          _buildFilters(state, notifier),
+          const SizedBox(height: 8),
           Expanded(child: _buildBody(state, notifier)),
         ],
+      ),
+    );
+  }
+
+  Widget _buildSearch(TimelineController notifier) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 6, 16, 0),
+      child: TextField(
+        controller: _searchController,
+        onChanged: (_) => setState(() {}),
+        onSubmitted: (v) {
+          notifier.setSearchQuery(v);
+          notifier.loadEvents();
+        },
+        decoration: InputDecoration(
+          prefixIcon: const Icon(Icons.search, size: 18),
+          hintText: "\u641C\u7D22\u8BB0\u5F55...",
+          isDense: true,
+          filled: true,
+          fillColor: AppColors.surface,
+          contentPadding:
+              const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(16),
+            borderSide: const BorderSide(color: AppColors.divider),
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(16),
+            borderSide: const BorderSide(color: AppColors.accent),
+          ),
+          suffixIcon: _searchController.text.isNotEmpty
+              ? IconButton(
+                  icon: const Icon(Icons.clear, size: 16),
+                  onPressed: () {
+                    _searchController.clear();
+                    notifier.setSearchQuery("");
+                    notifier.loadEvents();
+                    setState(() {});
+                  },
+                )
+              : null,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildFilters(TimelineState state, TimelineController notifier) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: Row(
+          children: [
+            _FilterChip(
+              label: "\u5168\u90E8",
+              selected: state.selectedTypes.isEmpty,
+              onTap: notifier.clearFilters,
+            ),
+            const SizedBox(width: 8),
+            _FilterChip(
+              label: "\u652F\u51FA",
+              selected: state.selectedTypes.contains("expense"),
+              onTap: () => notifier.toggleType("expense"),
+            ),
+            const SizedBox(width: 8),
+            _FilterChip(
+              label: "\u5FC3\u60C5",
+              selected: state.selectedTypes.contains("mood"),
+              onTap: () => notifier.toggleType("mood"),
+            ),
+            const SizedBox(width: 8),
+            _FilterChip(
+              label: "\u7528\u9910",
+              selected: state.selectedTypes.contains("meal"),
+              onTap: () => notifier.toggleType("meal"),
+            ),
+            const SizedBox(width: 8),
+            _FilterChip(
+              label: "\u65E5\u5FD7",
+              selected: state.selectedTypes.contains("life_log"),
+              onTap: () => notifier.toggleType("life_log"),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -149,9 +146,9 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
         icon: Icons.error_outline,
         message: state.error!,
         action: TextButton.icon(
-          onPressed: () => notifier.loadEvents(),
+          onPressed: notifier.loadEvents,
           icon: const Icon(Icons.refresh),
-          label: const Text("閲嶈瘯"),
+          label: const Text("\u91CD\u8BD5"),
         ),
       );
     }
@@ -160,15 +157,15 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
     if (grouped.isEmpty) {
       return _EmptyState(
         icon: Icons.timeline,
-        message:
-            state.searchQuery.isNotEmpty ? "没有找到匹配的记录" : "暂无记录，去 Chat 页面记录吧",
+        message: state.searchQuery.isNotEmpty
+            ? "\u6CA1\u6709\u5339\u914D\u7684\u8BB0\u5F55"
+            : "\u8FD8\u6CA1\u6709\u8BB0\u5F55\uFF0C\u5148\u53BB Chat \u8BB0\u4E00\u6761\u5427",
       );
     }
 
     final dateKeys = grouped.keys.toList();
-
     return RefreshIndicator(
-      onRefresh: () => notifier.loadEvents(),
+      onRefresh: notifier.loadEvents,
       child: ListView.builder(
         padding: const EdgeInsets.fromLTRB(16, 6, 16, 24),
         itemCount: dateKeys.length,
@@ -183,28 +180,24 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
                 final expanded = state.expandedEventId == event.eventId;
                 return Column(
                   children: [
-                    _TimelineCard(
+                    _EventCard(
                       event: event,
                       expanded: expanded,
                       onTap: () => notifier.toggleExpanded(event.eventId),
                     ),
                     AnimatedSize(
-                      duration: const Duration(milliseconds: 240),
+                      duration: const Duration(milliseconds: 220),
                       curve: Curves.easeOutCubic,
-                      child: AnimatedOpacity(
-                        duration: const Duration(milliseconds: 200),
-                        opacity: expanded ? 1 : 0,
-                        child: expanded
-                            ? _TimelineDetailCard(
-                                event: event,
-                                canUndo: event.commitId != null &&
-                                    event.commitId!.isNotEmpty,
-                                loading: state.undoLoading,
-                                onUndo: () =>
-                                    notifier.undoCommit(event.commitId!),
-                              )
-                            : const SizedBox.shrink(),
-                      ),
+                      child: expanded
+                          ? _DetailCard(
+                              event: event,
+                              loading: state.undoLoading,
+                              onUndo: (event.commitId != null &&
+                                      event.commitId!.isNotEmpty)
+                                  ? () => notifier.undoCommit(event.commitId!)
+                                  : null,
+                            )
+                          : const SizedBox.shrink(),
                     ),
                   ],
                 );
@@ -217,102 +210,126 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
   }
 }
 
-// 鈹€鈹€鈹€ Widgets 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
-
-class _FilterChip extends StatelessWidget {
-  const _FilterChip({
-    required this.label,
-    required this.selected,
-    required this.onTap,
-    this.icon,
-    this.iconColor,
-  });
-
-  final String label;
-  final bool selected;
-  final VoidCallback onTap;
-  final IconData? icon;
-  final Color? iconColor;
+class _Header extends StatelessWidget {
+  const _Header();
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-        decoration: BoxDecoration(
-          color:
-              selected ? AppColors.accent.withOpacity(0.12) : AppColors.surface,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(
-            color: selected ? AppColors.accent : AppColors.divider,
-          ),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            if (icon != null) ...[
-              Icon(icon,
-                  size: 16, color: selected ? AppColors.accent : iconColor),
-              const SizedBox(width: 4),
-            ],
-            Text(
-              label,
-              style: TextStyle(
-                fontSize: 13,
-                fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
-                color: selected ? AppColors.accent : AppColors.textPrimary,
+    return SafeArea(
+      bottom: false,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 10, 16, 4),
+        child: Text(
+          "Timeline",
+          style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                fontWeight: FontWeight.w700,
               ),
-            ),
-          ],
         ),
       ),
     );
   }
 }
 
-class _TimelineCard extends StatelessWidget {
-  const _TimelineCard({
-    required this.event,
+class _FilterChip extends StatelessWidget {
+  const _FilterChip({
+    required this.label,
+    required this.selected,
     required this.onTap,
-    required this.expanded,
   });
 
-  final EventDto event;
+  final String label;
+  final bool selected;
   final VoidCallback onTap;
-  final bool expanded;
 
   @override
   Widget build(BuildContext context) {
-    final summary = _TimelineSummary.fromEvent(event);
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        decoration: BoxDecoration(
+          color: selected
+              ? AppColors.accent.withValues(alpha: 0.12)
+              : Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+              color: selected ? AppColors.accent : AppColors.divider),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            fontSize: 13,
+            fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
+            color: selected ? AppColors.accent : AppColors.textPrimary,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _DateHeader extends StatelessWidget {
+  const _DateHeader({required this.label});
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(top: 10, bottom: 6),
+      child: Row(
+        children: [
+          Container(
+            width: 6,
+            height: 6,
+            decoration: const BoxDecoration(
+                color: AppColors.accent, shape: BoxShape.circle),
+          ),
+          const SizedBox(width: 8),
+          Text(
+            label,
+            style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.w700,
+                ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _EventCard extends StatelessWidget {
+  const _EventCard({
+    required this.event,
+    required this.expanded,
+    required this.onTap,
+  });
+
+  final EventDto event;
+  final bool expanded;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final summary = _buildSummary(event);
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(14),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
+      child: Container(
         margin: const EdgeInsets.only(bottom: 10),
         padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
           color: expanded
-              ? AppColors.accentLight.withOpacity(0.5)
-              : AppColors.surface,
+              ? AppColors.accentLight.withValues(alpha: 0.45)
+              : Colors.white,
           borderRadius: BorderRadius.vertical(
             top: const Radius.circular(14),
             bottom: Radius.circular(expanded ? 0 : 14),
           ),
           border: Border.all(
             color: expanded
-                ? AppColors.accent.withOpacity(0.4)
+                ? AppColors.accent.withValues(alpha: 0.4)
                 : AppColors.divider,
           ),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(expanded ? 0.10 : 0.04),
-              blurRadius: expanded ? 14 : 8,
-              offset: Offset(0, expanded ? 6 : 2),
-            ),
-          ],
         ),
         child: Row(
           children: [
@@ -325,12 +342,12 @@ class _TimelineCard extends StatelessWidget {
                   Text(
                     summary.title,
                     style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                          fontWeight: FontWeight.w500,
+                          fontWeight: FontWeight.w600,
                         ),
                   ),
                   const SizedBox(height: 2),
                   Text(
-                    _formatTime(event.happenedAt),
+                    formatIsoToFriendly(event.happenedAt),
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
                           color: AppColors.textSecondary,
                         ),
@@ -349,126 +366,407 @@ class _TimelineCard extends StatelessWidget {
                 ],
               ),
             ),
-            _TypeLabel(type: event.type),
+            _TypeBadge(type: event.type),
           ],
         ),
       ),
     );
   }
-
-  String _formatTime(String iso) {
-    return formatIsoToFriendly(iso);
-  }
 }
 
 class _TypeAvatar extends StatelessWidget {
   const _TypeAvatar({required this.type});
-
   final String type;
 
   @override
   Widget build(BuildContext context) {
-    IconData iconData;
-    Color bgColor;
-    Color iconColor;
-
+    IconData icon;
+    Color bg;
+    Color fg;
     switch (type) {
       case "expense":
-        iconData = Icons.receipt_long;
-        bgColor = AppColors.warningLight;
-        iconColor = AppColors.warning;
+        icon = Icons.receipt_long;
+        bg = AppColors.warningLight;
+        fg = AppColors.warning;
         break;
       case "meal":
-        iconData = Icons.restaurant;
-        bgColor = const Color(0xFFFFF0EB);
-        iconColor = const Color(0xFFE76F51);
+        icon = Icons.restaurant;
+        bg = const Color(0xFFFFF0EB);
+        fg = const Color(0xFFE76F51);
         break;
       case "mood":
-        iconData = Icons.mood;
-        bgColor = AppColors.successLight;
-        iconColor = AppColors.success;
-        break;
-      case "life_log":
-        iconData = Icons.event_note;
-        bgColor = AppColors.accentLight;
-        iconColor = AppColors.accent;
+        icon = Icons.mood;
+        bg = AppColors.successLight;
+        fg = AppColors.success;
         break;
       default:
-        iconData = Icons.circle;
-        bgColor = const Color(0xFFF1F5F9);
-        iconColor = const Color(0xFF64748B);
+        icon = Icons.event_note;
+        bg = AppColors.accentLight;
+        fg = AppColors.accent;
         break;
     }
 
     return Container(
       width: 40,
       height: 40,
-      decoration: BoxDecoration(
-        color: bgColor,
-        shape: BoxShape.circle,
-      ),
-      child: Icon(iconData, color: iconColor, size: 20),
+      decoration: BoxDecoration(color: bg, shape: BoxShape.circle),
+      child: Icon(icon, size: 20, color: fg),
     );
   }
 }
 
-class _TypeLabel extends StatelessWidget {
-  const _TypeLabel({required this.type});
-
+class _TypeBadge extends StatelessWidget {
+  const _TypeBadge({required this.type});
   final String type;
-
-  String get _label {
-    switch (type) {
-      case "expense":
-        return "鏀嚭";
-      case "meal":
-        return "鐢ㄩ";
-      case "mood":
-        return "蹇冩儏";
-      case "life_log":
-        return "鏃ュ織";
-      default:
-        return type;
-    }
-  }
-
-  Color get _color {
-    switch (type) {
-      case "expense":
-        return AppColors.warning;
-      case "meal":
-        return const Color(0xFFE76F51);
-      case "mood":
-        return AppColors.success;
-      case "life_log":
-        return AppColors.accent;
-      default:
-        return AppColors.textSecondary;
-    }
-  }
 
   @override
   Widget build(BuildContext context) {
+    String label;
+    Color color;
+    switch (type) {
+      case "expense":
+        label = "\u652F\u51FA";
+        color = AppColors.warning;
+        break;
+      case "meal":
+        label = "\u7528\u9910";
+        color = const Color(0xFFE76F51);
+        break;
+      case "mood":
+        label = "\u5FC3\u60C5";
+        color = AppColors.success;
+        break;
+      default:
+        label = "\u65E5\u5FD7";
+        color = AppColors.accent;
+        break;
+    }
+
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
-        color: _color.withAlpha(20),
+        color: color.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(10),
       ),
       child: Text(
-        _label,
-        style: TextStyle(
-          fontSize: 11,
-          fontWeight: FontWeight.w600,
-          color: _color,
-        ),
+        label,
+        style:
+            TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: color),
       ),
+    );
+  }
+}
+
+class _DetailCard extends StatefulWidget {
+  const _DetailCard({
+    required this.event,
+    required this.loading,
+    required this.onUndo,
+  });
+
+  final EventDto event;
+  final bool loading;
+  final VoidCallback? onUndo;
+
+  @override
+  State<_DetailCard> createState() => _DetailCardState();
+}
+
+class _DetailCardState extends State<_DetailCard> {
+  bool showMore = false;
+  bool noteExpanded = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final event = widget.event;
+    final note = (event.data["note"]?.toString() ?? "").trim();
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.fromLTRB(14, 10, 14, 12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: const BorderRadius.vertical(bottom: Radius.circular(14)),
+        border: Border.all(color: AppColors.divider),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(height: 1, color: AppColors.divider),
+          const SizedBox(height: 10),
+          _DetailTop(event: event),
+          if (note.isNotEmpty) ...[
+            const SizedBox(height: 10),
+            _ExpandableNote(
+              text: note,
+              expanded: noteExpanded,
+              onToggle: () => setState(() => noteExpanded = !noteExpanded),
+            ),
+          ],
+          const SizedBox(height: 10),
+          _DetailFields(event: event, showMore: showMore),
+          if (_hasMore(event))
+            Align(
+              alignment: Alignment.centerLeft,
+              child: TextButton(
+                onPressed: () => setState(() => showMore = !showMore),
+                child: Text(showMore
+                    ? "\u6536\u8D77\u66F4\u591A\u4FE1\u606F"
+                    : "\u66F4\u591A\u4FE1\u606F"),
+              ),
+            ),
+          if (widget.onUndo != null)
+            Align(
+              alignment: Alignment.centerRight,
+              child: OutlinedButton.icon(
+                onPressed: widget.loading ? null : widget.onUndo,
+                icon: widget.loading
+                    ? const SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.undo),
+                label: const Text("\u64A4\u9500\u8FD9\u6B21\u63D0\u4EA4"),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: AppColors.danger,
+                  side: BorderSide(
+                      color: AppColors.danger.withValues(alpha: 0.5)),
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+class _DetailTop extends StatelessWidget {
+  const _DetailTop({required this.event});
+  final EventDto event;
+
+  @override
+  Widget build(BuildContext context) {
+    String label;
+    String primary;
+    String secondary = "";
+    IconData icon;
+    Color color;
+    double size = 20;
+
+    switch (event.type) {
+      case "expense":
+        label = "\u652F\u51FA\u8BB0\u5F55";
+        final amount = event.data["amount"]?.toString() ?? "0";
+        final category =
+            _mapCategory((event.data["category"] ?? "unknown").toString());
+        final currency = event.data["currency"]?.toString() ?? "CNY";
+        primary = "\u00A5$amount";
+        secondary = "$category \u00B7 $currency";
+        icon = Icons.receipt_long;
+        color = AppColors.warning;
+        size = 26;
+        break;
+      case "meal":
+        label = "\u7528\u9910\u8BB0\u5F55";
+        final mealType = _mapMealType(event.data["meal_type"]?.toString());
+        final items = ((event.data["items"] as List?) ?? [])
+            .map((e) => e.toString().trim())
+            .where((e) => e.isNotEmpty)
+            .join("\u3001");
+        primary = items.isNotEmpty ? items : "\u7528\u9910\u8BB0\u5F55";
+        secondary = mealType;
+        icon = Icons.restaurant;
+        color = const Color(0xFFE76F51);
+        break;
+      case "mood":
+        label = "\u5FC3\u60C5\u8BB0\u5F55";
+        final score = _readMoodScore(event.data);
+        primary =
+            "${_moodEmoji(event.data, score)} ${_moodLabel(score, event.data["mood"]?.toString())}";
+        secondary = (event.data["topic"]?.toString() ?? "").trim();
+        icon = Icons.mood;
+        color = AppColors.success;
+        break;
+      default:
+        label = "\u751F\u6D3B\u8BB0\u5F55";
+        final text = ((event.data["title"] ??
+                        event.data["text"] ??
+                        event.data["description"] ??
+                        event.data["note"])
+                    ?.toString() ??
+                "")
+            .trim();
+        primary = text.isNotEmpty ? text : "\u751F\u6D3B\u8BB0\u5F55";
+        icon = Icons.event_note;
+        color = AppColors.accent;
+        break;
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Icon(icon, size: 16, color: color),
+            const SizedBox(width: 6),
+            Text(
+              label,
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: color,
+                    fontWeight: FontWeight.w600,
+                  ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        Text(
+          primary,
+          style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                fontWeight: FontWeight.w700,
+                fontSize: size,
+              ),
+        ),
+        if (secondary.isNotEmpty) ...[
+          const SizedBox(height: 6),
+          Text(
+            secondary,
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: AppColors.textSecondary,
+                ),
+          ),
+        ],
+      ],
+    );
+  }
+}
+
+class _DetailFields extends StatelessWidget {
+  const _DetailFields({
+    required this.event,
+    required this.showMore,
+  });
+
+  final EventDto event;
+  final bool showMore;
+
+  @override
+  Widget build(BuildContext context) {
+    final fields = <MapEntry<String, String>>[
+      MapEntry("\u65F6\u95F4", formatIsoToLocal(event.happenedAt)),
+    ];
+
+    final topic = (event.data["topic"]?.toString() ?? "").trim();
+    if (topic.isNotEmpty) {
+      fields.add(MapEntry("\u4E3B\u9898", topic));
+    }
+    if (event.tags.isNotEmpty) {
+      fields.add(MapEntry("\u6807\u7B7E", event.tags.join(" \u00B7 ")));
+    }
+
+    if (showMore) {
+      final currency = (event.data["currency"]?.toString() ?? "").trim();
+      if (currency.isNotEmpty) {
+        fields.add(MapEntry("\u5E01\u79CD", currency));
+      }
+      if (event.source.isNotEmpty) {
+        fields.add(MapEntry("\u6765\u6E90", event.source));
+      }
+      if (event.createdAt.isNotEmpty) {
+        fields.add(
+            MapEntry("\u521B\u5EFA\u4E8E", formatIsoToLocal(event.createdAt)));
+      }
+    }
+
+    return Column(
+      children: fields
+          .map(
+            (item) => Padding(
+              padding: const EdgeInsets.only(bottom: 6),
+              child: Row(
+                children: [
+                  Expanded(
+                    flex: 3,
+                    child: Text(
+                      item.key,
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            color: AppColors.textSecondary,
+                          ),
+                    ),
+                  ),
+                  Expanded(
+                    flex: 7,
+                    child: Text(
+                      item.value,
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                            fontWeight: FontWeight.w500,
+                          ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          )
+          .toList(),
+    );
+  }
+}
+
+class _ExpandableNote extends StatelessWidget {
+  const _ExpandableNote({
+    required this.text,
+    required this.expanded,
+    required this.onToggle,
+  });
+
+  final String text;
+  final bool expanded;
+  final VoidCallback onToggle;
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final painter = TextPainter(
+          text: TextSpan(
+              text: text, style: Theme.of(context).textTheme.bodyMedium),
+          maxLines: 2,
+          textDirection: TextDirection.ltr,
+        )..layout(maxWidth: constraints.maxWidth);
+        final overflow = painter.didExceedMaxLines;
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              text,
+              maxLines: expanded ? null : 2,
+              overflow: expanded ? TextOverflow.visible : TextOverflow.ellipsis,
+            ),
+            if (overflow)
+              TextButton(
+                onPressed: onToggle,
+                style: TextButton.styleFrom(
+                  padding: EdgeInsets.zero,
+                  minimumSize: const Size(0, 0),
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                ),
+                child: Text(
+                    expanded ? "\u6536\u8D77" : "\u5C55\u5F00\u5907\u6CE8"),
+              ),
+          ],
+        );
+      },
     );
   }
 }
 
 class _EmptyState extends StatelessWidget {
-  const _EmptyState({required this.icon, required this.message, this.action});
+  const _EmptyState({
+    required this.icon,
+    required this.message,
+    this.action,
+  });
 
   final IconData icon;
   final String message;
@@ -499,506 +797,128 @@ class _EmptyState extends StatelessWidget {
   }
 }
 
-class _TimelineHeader extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    return SafeArea(
-      bottom: false,
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(16, 10, 16, 4),
-        child: Text(
-          "Timeline",
-          style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                fontWeight: FontWeight.w700,
-              ),
-        ),
-      ),
-    );
-  }
-}
-
-class _DateHeader extends StatelessWidget {
-  const _DateHeader({required this.label});
-
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(top: 10, bottom: 6),
-      child: Row(
-        children: [
-          Container(
-            width: 6,
-            height: 6,
-            decoration: const BoxDecoration(
-              color: AppColors.accent,
-              shape: BoxShape.circle,
-            ),
-          ),
-          const SizedBox(width: 8),
-          Text(
-            label,
-            style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.w700,
-                  color: AppColors.textPrimary,
-                ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _TimelineSummary {
-  _TimelineSummary({required this.title, this.subtitle});
-
+class _Summary {
+  _Summary({required this.title, this.subtitle});
   final String title;
   final String? subtitle;
+}
 
-  static _TimelineSummary fromEvent(EventDto event) {
-    switch (event.type) {
-      case "expense":
-        final amount = event.data["amount"];
-        final cat = event.data["category"] ?? "unknown";
-        final catLabel = _mapCategory(cat.toString());
-        final note = event.data["note"]?.toString();
-        return _TimelineSummary(
-          title: "¥$amount · $catLabel",
-          subtitle:
-              (note != null && note.trim().isNotEmpty) ? note.trim() : null,
-        );
-      case "meal":
-        final mealType = _mapMealType(event.data["meal_type"]?.toString());
-        final items = (event.data["items"] as List?)
-                ?.map((e) => e.toString())
-                .join("、") ??
-            "";
-        final title = items.isNotEmpty
-            ? "$mealType · $items"
-            : (mealType.isNotEmpty ? "$mealType 记录" : "用餐记录");
-        return _TimelineSummary(title: title);
-      case "mood":
-        final score = readMoodScore(event.data);
-        final emoji = moodEmoji(event.data, score);
-        final moodText = moodLabel(score, event.data["mood"]?.toString());
-        final note = event.data["note"]?.toString();
-        final topic = event.data["topic"]?.toString();
-        return _TimelineSummary(
-          title: "$emoji $moodText",
-          subtitle: (note != null && note.trim().isNotEmpty)
-              ? note.trim()
-              : ((topic != null && topic.trim().isNotEmpty)
-                  ? topic.trim()
-                  : null),
-        );
-      case "life_log":
-      case "lifelog":
-        final text = event.data["text"] ??
-            event.data["description"] ??
-            event.data["note"];
-        final content = text?.toString().trim();
-        return _TimelineSummary(
-          title: (content != null && content.isNotEmpty) ? content : "生活记录",
-        );
-      default:
-        return _TimelineSummary(title: event.displayTitle);
-    }
-  }
-
-  static String _mapCategory(String value) {
-    if (value == "unknown") return "未分类";
-    if (value == "other") return "其他";
-    return value;
-  }
-
-  static String _mapMealType(String? value) {
-    switch (value) {
-      case "breakfast":
-        return "早餐";
-      case "lunch":
-        return "午餐";
-      case "dinner":
-        return "晚餐";
-      case "snack":
-        return "加餐";
-      default:
-        return "用餐";
-    }
-  }
-
-  static int readMoodScore(Map<String, dynamic> data) {
-    final direct = data["score"];
-    if (direct is num) return direct.toInt().clamp(1, 5);
-    final intensity = data["intensity"];
-    if (intensity is num) {
-      final score = (intensity.toDouble() * 4 + 1).round();
-      return score.clamp(1, 5);
-    }
-    return 3;
-  }
-
-  static String moodEmoji(Map<String, dynamic> data, int score) {
-    final emoji = data["emoji"]?.toString();
-    if (emoji != null && emoji.trim().isNotEmpty) return emoji.trim();
-    return switch (score) {
-      1 => "😞",
-      2 => "😐",
-      3 => "🙂",
-      4 => "😄",
-      _ => "🤩",
-    };
-  }
-
-  static String moodLabel(int score, String? fallbackMood) {
-    if (fallbackMood != null && fallbackMood.trim().isNotEmpty) {
-      final raw = fallbackMood.trim();
-      if (raw.length <= 12) return raw;
-    }
-    return switch (score) {
-      1 => "有点低落",
-      2 => "一般",
-      3 => "还不错",
-      4 => "状态很好",
-      _ => "今天超棒",
-    };
+_Summary _buildSummary(EventDto event) {
+  switch (event.type) {
+    case "expense":
+      final amount = event.data["amount"]?.toString() ?? "0";
+      final category =
+          _mapCategory((event.data["category"] ?? "unknown").toString());
+      final note = (event.data["note"]?.toString() ?? "").trim();
+      return _Summary(
+        title: "\u00A5$amount \u00B7 $category",
+        subtitle: note.isNotEmpty ? note : null,
+      );
+    case "meal":
+      final mealType = _mapMealType(event.data["meal_type"]?.toString());
+      final items = ((event.data["items"] as List?) ?? [])
+          .map((e) => e.toString().trim())
+          .where((e) => e.isNotEmpty)
+          .join("\u3001");
+      final note = (event.data["note"]?.toString() ?? "").trim();
+      return _Summary(
+        title: items.isNotEmpty
+            ? "$mealType \u00B7 $items"
+            : "$mealType\u8BB0\u5F55",
+        subtitle: note.isNotEmpty ? note : null,
+      );
+    case "mood":
+      final score = _readMoodScore(event.data);
+      final emoji = _moodEmoji(event.data, score);
+      final label = _moodLabel(score, event.data["mood"]?.toString());
+      final note = (event.data["note"]?.toString() ?? "").trim();
+      return _Summary(
+        title: "$emoji $label",
+        subtitle: note.isNotEmpty ? note : null,
+      );
+    default:
+      final text = ((event.data["title"] ??
+                      event.data["text"] ??
+                      event.data["description"] ??
+                      event.data["note"])
+                  ?.toString() ??
+              "")
+          .trim();
+      return _Summary(
+          title: text.isNotEmpty ? text : "\u751F\u6D3B\u8BB0\u5F55");
   }
 }
 
-class _TimelineDetailCard extends StatefulWidget {
-  const _TimelineDetailCard({
-    required this.event,
-    required this.canUndo,
-    required this.loading,
-    required this.onUndo,
-  });
-
-  final EventDto event;
-  final bool canUndo;
-  final bool loading;
-  final VoidCallback onUndo;
-
-  @override
-  State<_TimelineDetailCard> createState() => _TimelineDetailCardState();
+String _mapCategory(String value) {
+  if (value == "unknown") return "\u672A\u5206\u7C7B";
+  if (value == "other") return "\u5176\u4ED6";
+  return value;
 }
 
-class _TimelineDetailCardState extends State<_TimelineDetailCard> {
-  bool _showMore = false;
-  bool _noteExpanded = false;
-
-  @override
-  Widget build(BuildContext context) {
-    final event = widget.event;
-    final typeMeta = _DetailMeta.fromEvent(event);
-    final note = event.data["note"]?.toString() ?? "";
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.fromLTRB(14, 10, 14, 12),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: const BorderRadius.vertical(
-          bottom: Radius.circular(14),
-        ),
-        border: Border.all(color: AppColors.divider),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            width: double.infinity,
-            height: 1,
-            color: AppColors.divider,
-          ),
-          const SizedBox(height: 10),
-          Row(
-            children: [
-              Icon(typeMeta.icon, size: 16, color: typeMeta.color),
-              const SizedBox(width: 6),
-              Text(
-                typeMeta.label,
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: typeMeta.color,
-                      fontWeight: FontWeight.w600,
-                    ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          _DetailPrimary(event: event, meta: typeMeta),
-          const SizedBox(height: 10),
-          if (typeMeta.secondary.isNotEmpty)
-            Text(
-              typeMeta.secondary,
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: AppColors.textSecondary,
-                  ),
-            ),
-          if (note.isNotEmpty) ...[
-            const SizedBox(height: 10),
-            _ExpandableNote(
-              text: note,
-              expanded: _noteExpanded,
-              onToggle: () => setState(() => _noteExpanded = !_noteExpanded),
-            ),
-          ],
-          const SizedBox(height: 10),
-          _KeyValueList(items: _buildDetailItems(event, showMore: _showMore)),
-          if (_hasMoreFields(event)) ...[
-            Align(
-              alignment: Alignment.centerLeft,
-              child: TextButton(
-                onPressed: () => setState(() => _showMore = !_showMore),
-                child: Text(_showMore ? "鏀惰捣鏇村淇℃伅" : "鏇村淇℃伅"),
-              ),
-            ),
-          ],
-          if (widget.canUndo) ...[
-            const SizedBox(height: 12),
-            Align(
-              alignment: Alignment.centerRight,
-              child: OutlinedButton.icon(
-                onPressed: widget.loading ? null : widget.onUndo,
-                icon: widget.loading
-                    ? const SizedBox(
-                        width: 16,
-                        height: 16,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : const Icon(Icons.undo),
-                label: const Text("鎾ら攢杩欐鎻愪氦"),
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: AppColors.danger,
-                  side: BorderSide(color: AppColors.danger.withOpacity(0.5)),
-                ),
-              ),
-            ),
-          ],
-        ],
-      ),
-    );
+String _mapMealType(String? value) {
+  switch (value) {
+    case "breakfast":
+      return "\u65E9\u9910";
+    case "lunch":
+      return "\u5348\u9910";
+    case "dinner":
+      return "\u665A\u9910";
+    case "snack":
+      return "\u52A0\u9910";
+    default:
+      return "\u7528\u9910";
   }
 }
 
-class _DetailMeta {
-  const _DetailMeta({
-    required this.label,
-    required this.icon,
-    required this.color,
-    required this.primary,
-    required this.secondary,
-    required this.primarySize,
-  });
+int _readMoodScore(Map<String, dynamic> data) {
+  final direct = data["score"];
+  if (direct is num) {
+    return direct.toInt().clamp(1, 5);
+  }
+  final intensity = data["intensity"];
+  if (intensity is num) {
+    return (intensity.toDouble() * 4 + 1).round().clamp(1, 5);
+  }
+  return 3;
+}
 
-  final String label;
-  final IconData icon;
-  final Color color;
-  final String primary;
-  final String secondary;
-  final double primarySize;
-
-  static _DetailMeta fromEvent(EventDto event) {
-    switch (event.type) {
-      case "expense":
-        final amount = event.data["amount"];
-        final cat = event.data["category"] ?? "unknown";
-        final currency = event.data["currency"] ?? "CNY";
-        final note = event.data["note"] ?? "";
-        return _DetailMeta(
-          label: "鏀嚭璁板綍",
-          icon: Icons.receipt_long,
-          color: AppColors.warning,
-          primary: "楼$amount",
-          secondary:
-              "$cat 路 $currency${note.toString().isNotEmpty ? " 路 $note" : ""}",
-          primarySize: 26,
-        );
-      case "meal":
-        final items = (event.data["items"] as List?)?.join("、") ?? "用餐记录";
-        return _DetailMeta(
-          label: "用餐记录",
-          icon: Icons.restaurant,
-          color: const Color(0xFFE76F51),
-          primary: items,
-          secondary: "餐别：${event.data["meal_type"] ?? "unknown"}",
-          primarySize: 20,
-        );
-      case "mood":
-        final score = _TimelineSummary.readMoodScore(event.data);
-        final emoji = _TimelineSummary.moodEmoji(event.data, score);
-        final mood =
-            _TimelineSummary.moodLabel(score, event.data["mood"]?.toString());
-        final topic = event.data["topic"]?.toString() ?? "";
-        final note = event.data["note"]?.toString() ?? "";
-        final secondaryParts = <String>[
-          if (topic.trim().isNotEmpty) topic.trim(),
-          if (note.trim().isNotEmpty) note.trim(),
-        ];
-        return _DetailMeta(
-          label: "心情记录",
-          icon: Icons.mood,
-          color: AppColors.success,
-          primary: "$emoji $mood",
-          secondary: secondaryParts.join(" · "),
-          primarySize: 20,
-        );
-      case "life_log":
-        final text =
-            event.data["text"] ?? event.data["description"] ?? "鐢熸椿璁板綍";
-        return _DetailMeta(
-          label: "鏃ュ織璁板綍",
-          icon: Icons.event_note,
-          color: AppColors.accent,
-          primary: text.toString(),
-          secondary: "",
-          primarySize: 18,
-        );
-      default:
-        return _DetailMeta(
-          label: event.type,
-          icon: Icons.circle,
-          color: AppColors.textSecondary,
-          primary: event.displayTitle,
-          secondary: "",
-          primarySize: 18,
-        );
-    }
+String _moodEmoji(Map<String, dynamic> data, int score) {
+  final emoji = (data["emoji"]?.toString() ?? "").trim();
+  if (emoji.isNotEmpty) return emoji;
+  switch (score) {
+    case 1:
+      return "\uD83D\uDE1E";
+    case 2:
+      return "\uD83D\uDE10";
+    case 3:
+      return "\uD83D\uDE42";
+    case 4:
+      return "\uD83D\uDE04";
+    default:
+      return "\uD83E\uDD29";
   }
 }
 
-class _DetailPrimary extends StatelessWidget {
-  const _DetailPrimary({required this.event, required this.meta});
-
-  final EventDto event;
-  final _DetailMeta meta;
-
-  @override
-  Widget build(BuildContext context) {
-    return Text(
-      meta.primary,
-      style: Theme.of(context).textTheme.titleLarge?.copyWith(
-            fontWeight: FontWeight.w700,
-            fontSize: meta.primarySize,
-            color: AppColors.textPrimary,
-          ),
-    );
+String _moodLabel(int score, String? fallbackMood) {
+  final fallback = (fallbackMood ?? "").trim();
+  if (fallback.isNotEmpty && fallback.length <= 12) return fallback;
+  switch (score) {
+    case 1:
+      return "\u6709\u70B9\u4F4E\u843D";
+    case 2:
+      return "\u4E00\u822C";
+    case 3:
+      return "\u8FD8\u4E0D\u9519";
+    case 4:
+      return "\u72B6\u6001\u5F88\u597D";
+    default:
+      return "\u4ECA\u5929\u8D85\u68D2";
   }
 }
 
-class _KeyValueList extends StatelessWidget {
-  const _KeyValueList({required this.items});
-
-  final List<MapEntry<String, String>> items;
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      children: items.map((item) {
-        return Padding(
-          padding: const EdgeInsets.only(bottom: 6),
-          child: Row(
-            children: [
-              Expanded(
-                flex: 3,
-                child: Text(
-                  item.key,
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: AppColors.textSecondary,
-                      ),
-                ),
-              ),
-              Expanded(
-                flex: 7,
-                child: Text(
-                  item.value,
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        fontWeight: FontWeight.w500,
-                      ),
-                ),
-              ),
-            ],
-          ),
-        );
-      }).toList(),
-    );
-  }
-}
-
-List<MapEntry<String, String>> _buildDetailItems(EventDto event,
-    {required bool showMore}) {
-  final items = <MapEntry<String, String>>[];
-  items.add(MapEntry("鏃堕棿", formatIsoToLocal(event.happenedAt)));
-  if (event.data["topic"] != null &&
-      event.data["topic"].toString().isNotEmpty) {
-    items.add(MapEntry("涓婚", event.data["topic"].toString()));
-  }
-  if (event.tags.isNotEmpty) {
-    items.add(MapEntry("鏍囩", event.tags.join(" 路 ")));
-  }
-  if (showMore) {
-    if (event.data["currency"] != null &&
-        event.data["currency"].toString().isNotEmpty) {
-      items.add(MapEntry("甯佺", event.data["currency"].toString()));
-    }
-    items.add(MapEntry("鏉ユ簮", event.source));
-    items.add(MapEntry("鍒涘缓", formatIsoToLocal(event.createdAt)));
-  }
-  return items;
-}
-
-bool _hasMoreFields(EventDto event) {
-  return (event.data["currency"] != null &&
-          event.data["currency"].toString().isNotEmpty) ||
+bool _hasMore(EventDto event) {
+  final currency = (event.data["currency"]?.toString() ?? "").trim();
+  return currency.isNotEmpty ||
       event.source.isNotEmpty ||
       event.createdAt.isNotEmpty;
-}
-
-class _ExpandableNote extends StatelessWidget {
-  const _ExpandableNote({
-    required this.text,
-    required this.expanded,
-    required this.onToggle,
-  });
-
-  final String text;
-  final bool expanded;
-  final VoidCallback onToggle;
-
-  @override
-  Widget build(BuildContext context) {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final painter = TextPainter(
-          text: TextSpan(
-            text: text,
-            style: Theme.of(context).textTheme.bodyMedium,
-          ),
-          maxLines: 2,
-          textDirection: TextDirection.ltr,
-        )..layout(maxWidth: constraints.maxWidth);
-        final overflow = painter.didExceedMaxLines;
-
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              text,
-              maxLines: expanded ? null : 2,
-              overflow: expanded ? TextOverflow.visible : TextOverflow.ellipsis,
-              style: Theme.of(context).textTheme.bodyMedium,
-            ),
-            if (overflow)
-              TextButton(
-                onPressed: onToggle,
-                style: TextButton.styleFrom(
-                  padding: EdgeInsets.zero,
-                  minimumSize: const Size(0, 0),
-                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                ),
-                child: Text(expanded ? "鏀惰捣" : "灞曞紑澶囨敞"),
-              ),
-          ],
-        );
-      },
-    );
-  }
 }

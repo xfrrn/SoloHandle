@@ -2,10 +2,10 @@ import "package:dio/dio.dart";
 import "package:flutter_riverpod/flutter_riverpod.dart";
 
 import "../../data/api/api_client.dart";
-import "../../data/api/events_api.dart";
-import "../../data/api/models.dart";
 import "../../data/api/chat_api.dart";
 import "../../data/api/dto.dart";
+import "../../data/api/events_api.dart";
+import "../../data/api/models.dart";
 import "../../data/storage/local_store.dart";
 
 final timelineControllerProvider =
@@ -68,35 +68,35 @@ class TimelineState {
     );
   }
 
-  /// Group events by date for section headers.
-  Map<String, List<EventDto>> get groupedByDate {
-    final map = <String, List<EventDto>>{};
-    for (final event in filteredEvents) {
-      final dateKey = _extractDate(event.happenedAt);
-      map.putIfAbsent(dateKey, () => []).add(event);
-    }
-    return map;
-  }
-
   List<EventDto> get filteredEvents {
     if (selectedTypes.isEmpty) return events;
     return events.where((e) => selectedTypes.contains(e.type)).toList();
   }
 
+  Map<String, List<EventDto>> get groupedByDate {
+    final map = <String, List<EventDto>>{};
+    for (final event in filteredEvents) {
+      final k = _extractDate(event.happenedAt);
+      map.putIfAbsent(k, () => []).add(event);
+    }
+    return map;
+  }
+
   static String _extractDate(String isoDate) {
-    final dt = DateTime.tryParse(isoDate);
+    final dt = DateTime.tryParse(isoDate)?.toLocal();
     if (dt == null) return isoDate;
+
     final now = DateTime.now();
-    if (dt.year == now.year && dt.month == now.month && dt.day == now.day) {
-      return "今天";
+    final today = DateTime(now.year, now.month, now.day);
+    final target = DateTime(dt.year, dt.month, dt.day);
+
+    if (target == today) {
+      return "\u4ECA\u5929";
     }
-    final yesterday = now.subtract(const Duration(days: 1));
-    if (dt.year == yesterday.year &&
-        dt.month == yesterday.month &&
-        dt.day == yesterday.day) {
-      return "昨天";
+    if (target == today.subtract(const Duration(days: 1))) {
+      return "\u6628\u5929";
     }
-    return "${dt.month}月${dt.day}日";
+    return "${dt.month}\u6708${dt.day}\u65E5";
   }
 }
 
@@ -104,8 +104,10 @@ class TimelineController extends StateNotifier<TimelineState> {
   TimelineController() : super(TimelineState.initial());
 
   final _apiClient = ApiClient(store: LocalStore());
+
   Future<void> undoCommit(String commitId) async {
     if (commitId.isEmpty) return;
+
     state = state.copyWith(undoLoading: true, error: null);
     try {
       final dio = await _apiClient.dio;
@@ -116,10 +118,13 @@ class TimelineController extends StateNotifier<TimelineState> {
     } on DioException catch (exc) {
       state = state.copyWith(
         undoLoading: false,
-        error: exc.response?.data?.toString() ?? exc.message ?? "撤销失败",
+        error: exc.response?.data?.toString() ??
+            exc.message ??
+            "\u64A4\u9500\u5931\u8D25",
       );
     } catch (exc) {
-      state = state.copyWith(undoLoading: false, error: "撤销失败：$exc");
+      state = state.copyWith(
+          undoLoading: false, error: "\u64A4\u9500\u5931\u8D25\uFF1A$exc");
     }
   }
 
@@ -135,10 +140,13 @@ class TimelineController extends StateNotifier<TimelineState> {
     } on DioException catch (exc) {
       state = state.copyWith(
         loading: false,
-        error: exc.response?.data?.toString() ?? exc.message ?? "加载失败",
+        error: exc.response?.data?.toString() ??
+            exc.message ??
+            "\u52A0\u8F7D\u5931\u8D25",
       );
     } catch (exc) {
-      state = state.copyWith(loading: false, error: "加载失败：$exc");
+      state = state.copyWith(
+          loading: false, error: "\u52A0\u8F7D\u5931\u8D25\uFF1A$exc");
     }
   }
 
@@ -162,8 +170,7 @@ class TimelineController extends StateNotifier<TimelineState> {
 
   void toggleExpanded(int eventId) {
     state = state.copyWith(
-      expandedEventId:
-          state.expandedEventId == eventId ? null : eventId,
+      expandedEventId: state.expandedEventId == eventId ? null : eventId,
     );
   }
 }
