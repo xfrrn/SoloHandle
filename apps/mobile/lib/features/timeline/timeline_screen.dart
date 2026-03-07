@@ -20,7 +20,10 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
   void initState() {
     super.initState();
     Future.microtask(() {
-      ref.read(timelineControllerProvider.notifier).loadEvents();
+      final state = ref.read(timelineControllerProvider);
+      if (state.events.isEmpty && !state.loading) {
+        ref.read(timelineControllerProvider.notifier).loadEvents();
+      }
     });
   }
 

@@ -15,35 +15,55 @@ final routerProvider = Provider<GoRouter>((ref) {
   return GoRouter(
     initialLocation: "/chat",
     routes: [
-      ShellRoute(
-        builder: (context, state, child) {
-          return _AppShell(child: child);
+      StatefulShellRoute.indexedStack(
+        builder: (context, state, navigationShell) {
+          return _AppShell(navigationShell: navigationShell);
         },
-        routes: [
-          GoRoute(
-            path: "/chat",
-            pageBuilder: (context, state) =>
-                const NoTransitionPage(child: ChatScreen()),
+        branches: [
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: "/chat",
+                pageBuilder: (context, state) =>
+                    const NoTransitionPage(child: ChatScreen()),
+              ),
+            ],
           ),
-          GoRoute(
-            path: "/dashboard",
-            pageBuilder: (context, state) =>
-                const NoTransitionPage(child: DashboardScreen()),
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: "/dashboard",
+                pageBuilder: (context, state) =>
+                    const NoTransitionPage(child: DashboardScreen()),
+              ),
+            ],
           ),
-          GoRoute(
-            path: "/timeline",
-            pageBuilder: (context, state) =>
-                const NoTransitionPage(child: TimelineScreen()),
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: "/timeline",
+                pageBuilder: (context, state) =>
+                    const NoTransitionPage(child: TimelineScreen()),
+              ),
+            ],
           ),
-          GoRoute(
-            path: "/tasks",
-            pageBuilder: (context, state) =>
-                const NoTransitionPage(child: TasksScreen()),
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: "/tasks",
+                pageBuilder: (context, state) =>
+                    const NoTransitionPage(child: TasksScreen()),
+              ),
+            ],
           ),
-          GoRoute(
-            path: "/me",
-            pageBuilder: (context, state) =>
-                const NoTransitionPage(child: SettingsScreen()),
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: "/me",
+                pageBuilder: (context, state) =>
+                    const NoTransitionPage(child: SettingsScreen()),
+              ),
+            ],
           ),
         ],
       ),
@@ -62,9 +82,9 @@ final routerProvider = Provider<GoRouter>((ref) {
 });
 
 class _AppShell extends StatelessWidget {
-  const _AppShell({required this.child});
+  const _AppShell({required this.navigationShell});
 
-  final Widget child;
+  final StatefulNavigationShell navigationShell;
 
   static const _tabs = [
     _TabItem(label: "Chat", icon: Icons.chat_bubble_outline, path: "/chat"),
@@ -75,25 +95,20 @@ class _AppShell extends StatelessWidget {
     _TabItem(label: "Me", icon: Icons.person_outline, path: "/me"),
   ];
 
-  int _locationToIndex(String location) {
-    for (var i = 0; i < _tabs.length; i += 1) {
-      if (location.startsWith(_tabs[i].path)) return i;
-    }
-    return 0;
-  }
-
   @override
   Widget build(BuildContext context) {
-    final location = GoRouterState.of(context).uri.toString();
-    final index = _locationToIndex(location);
-    final hideTabBar = location.startsWith("/chat");
+    final index = navigationShell.currentIndex;
+    final hideTabBar = index == 0;
     return Scaffold(
-      body: child,
+      body: navigationShell,
       bottomNavigationBar: hideTabBar
           ? null
           : _RoundedTabBar(
               currentIndex: index,
-              onTap: (next) => context.go(_tabs[next].path),
+              onTap: (next) => navigationShell.goBranch(
+                next,
+                initialLocation: next == navigationShell.currentIndex,
+              ),
               tabs: _tabs,
             ),
     );

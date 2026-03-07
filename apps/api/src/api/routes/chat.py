@@ -44,6 +44,7 @@ async def chat(request: Request) -> dict:
                 raise ToolError("invalid_param", "payload must be object")
             emoji = payload.get("emoji")
             score = payload.get("score")
+            score_percent = payload.get("score_percent")
             note = payload.get("note")
             topic = payload.get("topic")
             happened_at = payload.get("happened_at")
@@ -51,8 +52,32 @@ async def chat(request: Request) -> dict:
 
             if not isinstance(emoji, str) or not emoji.strip():
                 raise ToolError("invalid_param", "emoji must be non-empty string")
+            if score_percent is not None:
+                if not isinstance(score_percent, (int, float)):
+                    raise ToolError("invalid_param", "score_percent must be number in 0..100")
+                score_percent = int(round(float(score_percent)))
+                if score_percent < 0 or score_percent > 100:
+                    raise ToolError("invalid_param", "score_percent must be number in 0..100")
+            if score is None:
+                if score_percent is None:
+                    raise ToolError(
+                        "invalid_param",
+                        "score or score_percent must be provided",
+                    )
+                if score_percent < 20:
+                    score = 1
+                elif score_percent < 40:
+                    score = 2
+                elif score_percent < 60:
+                    score = 3
+                elif score_percent < 80:
+                    score = 4
+                else:
+                    score = 5
             if not isinstance(score, int) or score < 1 or score > 5:
                 raise ToolError("invalid_param", "score must be integer in 1..5")
+            if score_percent is None:
+                score_percent = int(round(((score - 1) / 4.0) * 100))
             if note is not None and not isinstance(note, str):
                 raise ToolError("invalid_param", "note must be string or null")
             if topic is not None and not isinstance(topic, str):
@@ -60,11 +85,12 @@ async def chat(request: Request) -> dict:
             if mood is not None and not isinstance(mood, str):
                 raise ToolError("invalid_param", "mood must be string or null")
 
-            intensity = (score - 1) / 4.0
+            intensity = score_percent / 100.0
             happened_at_iso = normalize_iso8601(happened_at)
             data = {
                 "emoji": emoji.strip(),
                 "score": score,
+                "score_percent": score_percent,
                 "mood": (mood or "").strip() or emoji.strip(),
                 "intensity": intensity,
                 "note": note,

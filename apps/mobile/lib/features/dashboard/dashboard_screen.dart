@@ -28,6 +28,11 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
   EventDto? _todayMood;
   bool _moodLoading = true;
   bool _moodSaving = false;
+  int _moodDraftPercent = 50;
+  bool _moodDraftDirty = false;
+  final TextEditingController _moodPercentController =
+      TextEditingController(text: "50");
+  int _expenseWindowDays = 7;
 
   @override
   void initState() {
@@ -50,6 +55,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
   @override
   void dispose() {
     _controller.dispose();
+    _moodPercentController.dispose();
     super.dispose();
   }
 
@@ -100,25 +106,50 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
                     },
                   ),
                   const SizedBox(height: 12),
-                  _TodayOverview(data: data),
+                  _TodayOverview(
+                    data: data,
+                    moodSummary: _todayMoodSummary(),
+                  ),
                   const SizedBox(height: 12),
                   _TodayMoodCard(
                     todayMood: _todayMood,
                     loading: _moodLoading,
                     saving: _moodSaving,
-                    onPick: _recordMood,
-                    onRepick: () => _setTodayMoodNull(),
+                    draftPercent: _moodDraftPercent,
+                    draftDirty: _moodDraftDirty,
+                    onPick: _onPickMoodOption,
+                    onEditPercent: _openMoodPercentDialog,
+                    onConfirm: _saveMoodDraft,
+                    onReset: _resetMoodDraftFromSaved,
                   ),
                   const SizedBox(height: 16),
                   _TrendSection(
-                    title: "支出趋势",
-                    subtitle: "最近30天",
-                    value: "¥${data.totalExpense30d.toStringAsFixed(2)}",
-                    insight: _buildExpenseInsight(data.expenseTrend),
+                    title: "Expense Trend",
+                    subtitle: "Last $_expenseWindowDays days",
+                    value:
+                        "¥${_sumExpense(_expenseTrendByWindow(data.expenseTrend)).toStringAsFixed(2)}",
+                    insight: _buildExpenseInsight(
+                      _expenseTrendByWindow(data.expenseTrend),
+                    ),
                     accent: AppColors.accent,
-                    child: FinanceChartCard(
-                      totalExpense: data.totalExpense30d,
-                      trend: data.expenseTrend,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _ExpenseWindowSwitch(
+                          selectedDays: _expenseWindowDays,
+                          onChanged: (days) {
+                            if (_expenseWindowDays == days) return;
+                            setState(() => _expenseWindowDays = days);
+                          },
+                        ),
+                        const SizedBox(height: 10),
+                        FinanceChartCard(
+                          title: "Last $_expenseWindowDays days spending",
+                          totalExpense: _sumExpense(
+                              _expenseTrendByWindow(data.expenseTrend)),
+                          trend: _expenseTrendByWindow(data.expenseTrend),
+                        ),
+                      ],
                     ),
                   ),
                   const SizedBox(height: 16),
@@ -157,8 +188,98 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
     ]);
   }
 
-  void _setTodayMoodNull() {
-    setState(() => _todayMood = null);
+  int? _todayMoodPercent() {
+    final mood = _todayMood;
+    if (mood == null) return null;
+    return _extractMoodPercent(mood);
+  }
+
+  String _todayMoodSummary() {
+    final percent = _todayMoodPercent();
+    if (percent == null) return "还未记录";
+    final option = _MoodOption.fromPercent(percent);
+    return "${option.emoji} ${option.label}";
+  }
+
+  int _extractMoodPercent(EventDto mood) {
+    final rawPercent = mood.data["score_percent"];
+    if (rawPercent is num) return rawPercent.toInt().clamp(0, 100);
+    final rawScore = mood.data["score"];
+    if (rawScore is num) {
+      final score = rawScore.toInt().clamp(1, 5);
+      return (((score - 1) / 4) * 100).round();
+    }
+    final rawIntensity = mood.data["intensity"];
+    if (rawIntensity is num) {
+      return (rawIntensity.toDouble().clamp(0, 1) * 100).round();
+    }
+    return 50;
+  }
+
+  void _resetMoodDraftFromSaved() {
+    final percent = _todayMood == null ? 50 : _extractMoodPercent(_todayMood!);
+    setState(() {
+      _moodDraftPercent = percent;
+      _moodDraftDirty = false;
+    });
+    _moodPercentController.text = "$percent";
+  }
+
+  Future<void> _openMoodPercentDialog() async {
+    _moodPercentController.text = "$_moodDraftPercent";
+    final value = await showDialog<int>(
+      context: context,
+      builder: (ctx) {
+        return AlertDialog(
+          title: const Text("输入心情分数"),
+          content: TextField(
+            controller: _moodPercentController,
+            keyboardType: TextInputType.number,
+            decoration: const InputDecoration(
+              hintText: "0-100",
+              suffixText: "分",
+            ),
+            onSubmitted: (_) {
+              final parsed = int.tryParse(_moodPercentController.text.trim());
+              Navigator.of(ctx).pop(parsed);
+            },
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(),
+              child: const Text("取消"),
+            ),
+            FilledButton(
+              onPressed: () {
+                final parsed = int.tryParse(_moodPercentController.text.trim());
+                Navigator.of(ctx).pop(parsed);
+              },
+              child: const Text("确定"),
+            ),
+          ],
+        );
+      },
+    );
+    if (value == null) return;
+    _updateMoodDraftPercent(value);
+  }
+
+  void _onPickMoodOption(_MoodOption option) {
+    _updateMoodDraftPercent(option.percent);
+  }
+
+  void _updateMoodDraftPercent(int value) {
+    final next = value.clamp(0, 100);
+    setState(() {
+      _moodDraftPercent = next;
+      _moodDraftDirty = true;
+    });
+    if (_moodPercentController.text != "$next") {
+      _moodPercentController.value = TextEditingValue(
+        text: "$next",
+        selection: TextSelection.collapsed(offset: "$next".length),
+      );
+    }
   }
 
   Future<void> _loadTodayMood() async {
@@ -182,16 +303,20 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
         _todayMood = resp.items.isNotEmpty ? resp.items.first : null;
         _moodLoading = false;
       });
+      _resetMoodDraftFromSaved();
     } catch (_) {
       if (!mounted) return;
       setState(() => _moodLoading = false);
     }
   }
 
-  Future<void> _recordMood(_MoodOption option) async {
-    if (_moodSaving) return;
+  Future<void> _saveMoodDraft() async {
+    if (_moodSaving || !_moodDraftDirty) return;
     setState(() => _moodSaving = true);
     try {
+      final percent = _moodDraftPercent.clamp(0, 100);
+      final option = _MoodOption.fromPercent(percent);
+      final score = _scoreFromPercent(percent);
       final dio = await ApiClient().dio;
       final resp = await dio.post(
         "/chat",
@@ -199,7 +324,8 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
           "action": "mood_quick",
           "payload": {
             "emoji": option.emoji,
-            "score": option.score,
+            "score": score,
+            "score_percent": percent,
             "mood": option.label,
             "happened_at": toIsoWithOffset(DateTime.now()),
           },
@@ -207,15 +333,18 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
       );
       final body = resp.data as Map<String, dynamic>;
       final eventMap = (body["event"] as Map?)?.cast<String, dynamic>();
-      if (eventMap == null) return;
-      final event = EventDto.fromJson(eventMap);
-      if (!mounted) return;
-      setState(() => _todayMood = event);
-      await _openMoodSupplementSheet(event.eventId);
+      if (eventMap == null || !mounted) return;
+      setState(() {
+        _todayMood = EventDto.fromJson(eventMap);
+        _moodDraftDirty = false;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("心情已保存")),
+      );
     } catch (_) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("心情记录失败，请稍后重试")),
+        const SnackBar(content: Text("保存失败，请稍后重试")),
       );
     } finally {
       if (mounted) {
@@ -224,101 +353,20 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
     }
   }
 
-  Future<void> _openMoodSupplementSheet(int eventId) async {
-    final noteController = TextEditingController();
-    String? topic;
-    final topics = ["工作", "学习", "生活", "身体"];
-    final result = await showModalBottomSheet<bool>(
-      context: context,
-      showDragHandle: true,
-      isScrollControlled: true,
-      builder: (ctx) {
-        return StatefulBuilder(
-          builder: (context, setInner) {
-            return Padding(
-              padding: EdgeInsets.only(
-                left: 16,
-                right: 16,
-                top: 4,
-                bottom: MediaQuery.of(context).viewInsets.bottom + 16,
-              ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    "补充一下今天心情（可选）",
-                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.w600,
-                        ),
-                  ),
-                  const SizedBox(height: 10),
-                  TextField(
-                    controller: noteController,
-                    decoration: const InputDecoration(
-                      hintText: "写一句备注",
-                    ),
-                  ),
-                  const SizedBox(height: 10),
-                  Wrap(
-                    spacing: 8,
-                    children: topics.map((t) {
-                      final selected = topic == t;
-                      return ChoiceChip(
-                        label: Text(t),
-                        selected: selected,
-                        onSelected: (_) =>
-                            setInner(() => topic = selected ? null : t),
-                      );
-                    }).toList(),
-                  ),
-                  const SizedBox(height: 12),
-                  Row(
-                    children: [
-                      TextButton(
-                        onPressed: () => Navigator.pop(ctx, false),
-                        child: const Text("跳过"),
-                      ),
-                      const Spacer(),
-                      FilledButton(
-                        onPressed: () => Navigator.pop(ctx, true),
-                        child: const Text("保存补充"),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            );
-          },
-        );
-      },
-    );
-    if (result != true) return;
-    final note = noteController.text.trim();
-    if (note.isEmpty && (topic == null || topic!.isEmpty)) return;
-    try {
-      final dio = await ApiClient().dio;
-      final resp = await dio.post(
-        "/chat",
-        data: {
-          "action": "mood_patch",
-          "payload": {
-            "event_id": eventId,
-            if (note.isNotEmpty) "note": note,
-            if (topic != null && topic!.isNotEmpty) "topic": topic,
-          },
-        },
-      );
-      final body = resp.data as Map<String, dynamic>;
-      final eventMap = (body["event"] as Map?)?.cast<String, dynamic>();
-      if (eventMap == null || !mounted) return;
-      setState(() => _todayMood = EventDto.fromJson(eventMap));
-    } catch (_) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("补充心情失败")),
-      );
-    }
+  int _scoreFromPercent(int percent) {
+    if (percent < 20) return 1;
+    if (percent < 40) return 2;
+    if (percent < 60) return 3;
+    if (percent < 80) return 4;
+    return 5;
+  }
+
+  List<ExpenseTrendModel> _expenseTrendByWindow(List<ExpenseTrendModel> trend) {
+    return trend.takeLast(_expenseWindowDays);
+  }
+
+  double _sumExpense(List<ExpenseTrendModel> trend) {
+    return trend.fold(0.0, (sum, item) => sum + item.amount);
   }
 }
 
@@ -367,17 +415,20 @@ class _DashboardHeader extends StatelessWidget {
 }
 
 class _TodayOverview extends StatelessWidget {
-  const _TodayOverview({required this.data});
+  const _TodayOverview({
+    required this.data,
+    required this.moodSummary,
+  });
 
   final DashboardSummaryState data;
+  final String moodSummary;
 
   @override
   Widget build(BuildContext context) {
     final taskText = "${data.todayCompletedTasks}/${data.todayTotalTasks}";
-    final moodValue = _buildMoodValue(data.moodTrend);
     final todayExpense = data.expenseTrend.isNotEmpty
         ? "¥${data.expenseTrend.last.amount.toStringAsFixed(0)}"
-        : "—";
+        : "--";
 
     return Container(
       padding: const EdgeInsets.all(14),
@@ -430,7 +481,7 @@ class _TodayOverview extends StatelessWidget {
               Expanded(
                 child: _MiniMetric(
                   title: "今日心情",
-                  value: moodValue,
+                  value: moodSummary,
                   icon: Icons.mood,
                   color: AppColors.warning,
                 ),
@@ -439,7 +490,7 @@ class _TodayOverview extends StatelessWidget {
               Expanded(
                 child: _MiniMetric(
                   title: "今日记录",
-                  value: "—",
+                  value: "--",
                   icon: Icons.event_note,
                   color: AppColors.textSecondary,
                 ),
@@ -515,30 +566,29 @@ class _TodayMoodCard extends StatelessWidget {
     required this.todayMood,
     required this.loading,
     required this.saving,
+    required this.draftPercent,
+    required this.draftDirty,
     required this.onPick,
-    required this.onRepick,
+    required this.onEditPercent,
+    required this.onConfirm,
+    required this.onReset,
   });
 
   final EventDto? todayMood;
   final bool loading;
   final bool saving;
+  final int draftPercent;
+  final bool draftDirty;
   final ValueChanged<_MoodOption> onPick;
-  final VoidCallback onRepick;
+  final VoidCallback onEditPercent;
+  final VoidCallback onConfirm;
+  final VoidCallback onReset;
 
   @override
   Widget build(BuildContext context) {
-    final mood = todayMood;
-    final hasMood = mood != null;
-    final score = hasMood
-        ? (mood.data["score"] is num
-            ? (mood.data["score"] as num).toInt()
-            : null)
-        : null;
-    final emoji = hasMood
-        ? (mood.data["emoji"]?.toString() ?? _emojiByScore(score ?? 3))
-        : null;
-    final label = hasMood ? _labelByScore(score ?? 3) : null;
-    final note = hasMood ? mood.data["note"]?.toString() : null;
+    final selectedOption = _MoodOption.fromPercent(draftPercent);
+    final savedPercent = todayMood == null ? null : _extractPercent(todayMood!);
+    final savedOption = _MoodOption.fromPercent(savedPercent ?? 50);
 
     return Container(
       padding: const EdgeInsets.all(14),
@@ -565,22 +615,13 @@ class _TodayMoodCard extends StatelessWidget {
           ),
           const SizedBox(height: 4),
           Text(
-            hasMood ? "$emoji $label" : "今天感觉怎么样？",
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+            savedPercent == null
+                ? "今天感觉怎么样？"
+                : "已记录：${savedOption.emoji} ${savedOption.label}",
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
                   color: AppColors.textSecondary,
                 ),
           ),
-          if (note != null && note.trim().isNotEmpty) ...[
-            const SizedBox(height: 6),
-            Text(
-              note.trim(),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: AppColors.textSecondary,
-                  ),
-            ),
-          ],
           const SizedBox(height: 10),
           if (loading)
             const Padding(
@@ -592,7 +633,7 @@ class _TodayMoodCard extends StatelessWidget {
               spacing: 8,
               runSpacing: 8,
               children: _MoodOption.options.map((option) {
-                final selected = score == option.score;
+                final selected = selectedOption.emoji == option.emoji;
                 return GestureDetector(
                   onTap: saving ? null : () => onPick(option),
                   child: AnimatedContainer(
@@ -616,56 +657,83 @@ class _TodayMoodCard extends StatelessWidget {
                 );
               }).toList(),
             ),
-          if (hasMood) ...[
-            const SizedBox(height: 8),
-            Align(
-              alignment: Alignment.centerRight,
-              child: TextButton(
-                onPressed: onRepick,
-                child: const Text("重新记录"),
+          const SizedBox(height: 10),
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  "当前匹配：${selectedOption.emoji} ${selectedOption.label}",
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: AppColors.textSecondary,
+                      ),
+                ),
               ),
-            ),
-          ],
+              TextButton(
+                onPressed: (saving || loading) ? null : onEditPercent,
+                child: const Text("输入分数"),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          Row(
+            children: [
+              TextButton(
+                onPressed: (!draftDirty || saving || loading) ? null : onReset,
+                child: const Text("重置"),
+              ),
+              const Spacer(),
+              FilledButton(
+                onPressed:
+                    (!draftDirty || saving || loading) ? null : onConfirm,
+                child: Text(saving
+                    ? "保存中..."
+                    : (savedPercent == null ? "确认保存" : "更新心情")),
+              ),
+            ],
+          ),
         ],
       ),
     );
   }
 
-  static String _emojiByScore(int score) {
-    return switch (score) {
-      1 => "😞",
-      2 => "😐",
-      3 => "🙂",
-      4 => "😄",
-      _ => "🤩",
-    };
-  }
-
-  static String _labelByScore(int score) {
-    return switch (score) {
-      1 => "有点低落",
-      2 => "一般",
-      3 => "还不错",
-      4 => "状态很好",
-      _ => "今天超棒",
-    };
+  static int _extractPercent(EventDto mood) {
+    final rawPercent = mood.data["score_percent"];
+    if (rawPercent is num) return rawPercent.toInt().clamp(0, 100);
+    final rawScore = mood.data["score"];
+    if (rawScore is num) {
+      final score = rawScore.toInt().clamp(1, 5);
+      return (((score - 1) / 4) * 100).round();
+    }
+    final rawIntensity = mood.data["intensity"];
+    if (rawIntensity is num) {
+      return (rawIntensity.toDouble().clamp(0, 1) * 100).round();
+    }
+    return 50;
   }
 }
 
 class _MoodOption {
-  const _MoodOption(this.emoji, this.score, this.label);
+  const _MoodOption(this.emoji, this.label, this.percent);
 
   final String emoji;
-  final int score;
   final String label;
+  final int percent;
 
   static const options = [
-    _MoodOption("😞", 1, "有点低落"),
-    _MoodOption("😐", 2, "一般"),
-    _MoodOption("🙂", 3, "还不错"),
-    _MoodOption("😄", 4, "状态很好"),
-    _MoodOption("🤩", 5, "今天超棒"),
+    _MoodOption("😞", "有点低落", 10),
+    _MoodOption("😐", "一般", 30),
+    _MoodOption("🙂", "还不错", 50),
+    _MoodOption("😄", "状态很好", 75),
+    _MoodOption("🤩", "今天超棒", 95),
   ];
+
+  static _MoodOption fromPercent(int percent) {
+    if (percent < 20) return options[0];
+    if (percent < 40) return options[1];
+    if (percent < 60) return options[2];
+    if (percent < 80) return options[3];
+    return options[4];
+  }
 }
 
 class _TrendSection extends StatelessWidget {
@@ -745,6 +813,75 @@ class _TrendSection extends StatelessWidget {
           const SizedBox(height: 10),
           child,
         ],
+      ),
+    );
+  }
+}
+
+class _ExpenseWindowSwitch extends StatelessWidget {
+  const _ExpenseWindowSwitch({
+    required this.selectedDays,
+    required this.onChanged,
+  });
+
+  final int selectedDays;
+  final ValueChanged<int> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        _WindowChip(
+          label: "7天",
+          selected: selectedDays == 7,
+          onTap: () => onChanged(7),
+        ),
+        const SizedBox(width: 8),
+        _WindowChip(
+          label: "30天",
+          selected: selectedDays == 30,
+          onTap: () => onChanged(30),
+        ),
+      ],
+    );
+  }
+}
+
+class _WindowChip extends StatelessWidget {
+  const _WindowChip({
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      borderRadius: BorderRadius.circular(999),
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+        decoration: BoxDecoration(
+          color: selected
+              ? AppColors.accent.withValues(alpha: 0.12)
+              : AppColors.background,
+          borderRadius: BorderRadius.circular(999),
+          border: Border.all(
+            color: selected ? AppColors.accent : AppColors.divider,
+          ),
+        ),
+        child: Text(
+          label,
+          style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                fontWeight: FontWeight.w600,
+                color: selected ? AppColors.accent : AppColors.textSecondary,
+              ),
+        ),
       ),
     );
   }
