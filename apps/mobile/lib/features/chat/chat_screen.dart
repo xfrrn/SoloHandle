@@ -193,6 +193,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     });
   }
 
+  void _clearImages() {
     setState(() {
       _selectedImageBytes = [];
       _selectedImageBase64 = [];

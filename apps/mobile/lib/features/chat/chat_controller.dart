@@ -355,10 +355,10 @@ class ChatController extends StateNotifier<ChatState> {
   }
 
   void clearSession() {
-    state = const ChatState(
-      messages: [],
-      drafts: [],
-      cards: [],
+    state = ChatState(
+      messages: const [],
+      drafts: const [],
+      cards: const [],
       loading: false,
       status: "",
       clarifyQuestion: "",
