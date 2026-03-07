@@ -38,6 +38,7 @@ class TaskRepository:
             """
             INSERT INTO tasks (title, status, priority, due_at, remind_at, reminded_at, notification_id, repeat_rule, project, tags_json, note, idempotency_key, commit_id, is_deleted, created_at, updated_at, completed_at)
             VALUES (?, ?, ?, ?, ?, NULL, NULL, NULL, ?, ?, ?, ?, ?, 0, ?, ?, NULL)
+            RETURNING id
             """,
             (
                 title,
@@ -54,7 +55,8 @@ class TaskRepository:
                 updated_at,
             ),
         )
-        return int(cur.lastrowid)
+        row = cur.fetchone()
+        return int(row["id"])
 
     def update_fields(self, task_id: int, fields: dict[str, Any]) -> None:
         assignments = ", ".join(f"{k} = ?" for k in fields)

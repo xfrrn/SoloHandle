@@ -21,6 +21,11 @@ class LLMSettings:
     timeout_seconds: int = 30
 
 
+@dataclass
+class DBSettings:
+    url: str
+
+
 def load_llm_settings(config_path: Optional[Path] = None) -> Optional[LLMSettings]:
     path = config_path or DEFAULT_CONFIG_PATH
     if not path.exists():
@@ -43,3 +48,17 @@ def load_llm_settings(config_path: Optional[Path] = None) -> Optional[LLMSetting
         fast_model=str(fast_model),
         timeout_seconds=timeout_seconds,
     )
+
+
+def load_db_settings(config_path: Optional[Path] = None) -> Optional[DBSettings]:
+    path = config_path or DEFAULT_CONFIG_PATH
+    if not path.exists():
+        return None
+    data = tomllib.loads(path.read_text(encoding="utf-8"))
+    db = data.get("db")
+    if not isinstance(db, dict):
+        return None
+    url = db.get("url")
+    if not isinstance(url, str) or not url.strip():
+        return None
+    return DBSettings(url=url.strip())

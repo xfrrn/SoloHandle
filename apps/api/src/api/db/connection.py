@@ -1,19 +1,22 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 
 import json
 import os
-from pathlib import Path
-import sqlite3
 import threading
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import datetime
 from typing import Any, Iterable, Optional
 from zoneinfo import ZoneInfo
 
+import psycopg
+from psycopg.rows import dict_row
+
 from api.core.constants_loader import get_constants
+from api.settings import load_db_settings
 
 DEFAULT_TZ = get_constants().defaults.timezone
-DEFAULT_DB_PATH = str(Path(__file__).resolve().parents[5] / "data" / "app.db")
+DEFAULT_DB_URL = "postgresql://postgres:postgres@localhost:5432/solohandle"
+
 _tables_ready = False
 _tables_lock = threading.Lock()
 
@@ -28,39 +31,102 @@ class ToolError(Exception):
         return f"{self.code}: {self.message}"
 
 
-def get_db_path() -> str:
-    return os.environ.get("APP_DB_PATH", DEFAULT_DB_PATH)
+class DBCursor:
+    def __init__(self, cursor: psycopg.Cursor) -> None:
+        self._cursor = cursor
+
+    def execute(self, sql: str, params: Iterable[Any] | None = None) -> DBCursor:
+        self._cursor.execute(_adapt_sql(sql), tuple(params or ()))
+        return self
+
+    def fetchone(self) -> Optional[dict[str, Any]]:
+        return self._cursor.fetchone()
+
+    def fetchall(self) -> list[dict[str, Any]]:
+        rows = self._cursor.fetchall()
+        return list(rows)
+
+    @property
+    def lastrowid(self) -> Optional[int]:
+        return None
 
 
-def get_connection() -> sqlite3.Connection:
-    db_path = get_db_path()
-    os.makedirs(os.path.dirname(db_path), exist_ok=True)
-    conn = sqlite3.connect(db_path, timeout=10.0, check_same_thread=False)
-    conn.row_factory = sqlite3.Row
-    conn.execute("PRAGMA journal_mode=WAL")
-    conn.execute("PRAGMA busy_timeout=10000")
-    conn.execute("PRAGMA synchronous=NORMAL")
-    return conn
+class DBConnection:
+    def __init__(self, conn: psycopg.Connection) -> None:
+        self._conn = conn
+
+    def execute(self, sql: str, params: Iterable[Any] | None = None) -> DBCursor:
+        cur = self._conn.cursor()
+        cur.execute(_adapt_sql(sql), tuple(params or ()))
+        return DBCursor(cur)
+
+    def cursor(self) -> DBCursor:
+        return DBCursor(self._conn.cursor())
+
+    def commit(self) -> None:
+        self._conn.commit()
+
+    def rollback(self) -> None:
+        self._conn.rollback()
+
+    def close(self) -> None:
+        self._conn.close()
+
+    def __enter__(self) -> DBConnection:
+        return self
+
+    def __exit__(self, exc_type, exc, tb) -> None:
+        try:
+            if exc is None:
+                self._conn.commit()
+            else:
+                self._conn.rollback()
+        finally:
+            self._conn.close()
 
 
-def ensure_tables(conn: sqlite3.Connection) -> None:
+def _adapt_sql(sql: str) -> str:
+    return sql.replace("?", "%s")
+
+
+def get_db_url() -> str:
+    from_env = os.environ.get("APP_DB_URL")
+    if from_env and from_env.strip():
+        return from_env.strip()
+    from_config = load_db_settings()
+    if from_config is not None and from_config.url.strip():
+        return from_config.url.strip()
+    return DEFAULT_DB_URL
+
+
+def get_connection() -> DBConnection:
+    conn = psycopg.connect(
+        get_db_url(),
+        row_factory=dict_row,
+        autocommit=False,
+    )
+    return DBConnection(conn)
+
+
+def ensure_tables(conn: DBConnection) -> None:
     global _tables_ready
     if _tables_ready:
         return
     with _tables_lock:
         if _tables_ready:
             return
+
         cur = conn.cursor()
         cur.execute(
             """
             CREATE TABLE IF NOT EXISTS events (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                id BIGSERIAL PRIMARY KEY,
                 type TEXT NOT NULL,
                 data_json TEXT NOT NULL,
                 happened_at TEXT NOT NULL,
                 tags_json TEXT NOT NULL,
                 source TEXT NOT NULL,
-                confidence REAL NOT NULL,
+                confidence DOUBLE PRECISION NOT NULL,
                 idempotency_key TEXT,
                 commit_id TEXT,
                 is_deleted INTEGER NOT NULL DEFAULT 0,
@@ -79,14 +145,14 @@ def ensure_tables(conn: sqlite3.Connection) -> None:
         cur.execute(
             """
             CREATE TABLE IF NOT EXISTS tasks (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                id BIGSERIAL PRIMARY KEY,
                 title TEXT NOT NULL,
                 status TEXT NOT NULL,
                 priority TEXT NOT NULL,
                 due_at TEXT,
                 remind_at TEXT,
                 reminded_at TEXT,
-                notification_id INTEGER,
+                notification_id BIGINT,
                 repeat_rule TEXT,
                 project TEXT,
                 tags_json TEXT NOT NULL,
@@ -111,8 +177,8 @@ def ensure_tables(conn: sqlite3.Connection) -> None:
         cur.execute(
             """
             CREATE TABLE IF NOT EXISTS notifications (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                task_id INTEGER,
+                id BIGSERIAL PRIMARY KEY,
+                task_id BIGINT,
                 title TEXT NOT NULL,
                 content TEXT,
                 scheduled_at TEXT NOT NULL,
@@ -123,20 +189,16 @@ def ensure_tables(conn: sqlite3.Connection) -> None:
             )
             """
         )
-        cur.execute(
-            "CREATE INDEX IF NOT EXISTS idx_notifications_task_id ON notifications(task_id)"
-        )
+        cur.execute("CREATE INDEX IF NOT EXISTS idx_notifications_task_id ON notifications(task_id)")
         cur.execute(
             "CREATE INDEX IF NOT EXISTS idx_notifications_scheduled_at ON notifications(scheduled_at)"
         )
-        cur.execute(
-            "CREATE INDEX IF NOT EXISTS idx_notifications_read_at ON notifications(read_at)"
-        )
+        cur.execute("CREATE INDEX IF NOT EXISTS idx_notifications_read_at ON notifications(read_at)")
 
         cur.execute(
             """
             CREATE TABLE IF NOT EXISTS orchestrator_logs (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                id BIGSERIAL PRIMARY KEY,
                 kind TEXT NOT NULL,
                 request_id TEXT,
                 draft_id TEXT,
@@ -156,22 +218,14 @@ def ensure_tables(conn: sqlite3.Connection) -> None:
             "CREATE INDEX IF NOT EXISTS idx_orchestrator_undo_token ON orchestrator_logs(undo_token)"
         )
 
-        _ensure_column(cur, "tasks", "reminded_at", "reminded_at TEXT")
-        _ensure_column(cur, "tasks", "notification_id", "notification_id INTEGER")
-        _ensure_column(cur, "tasks", "commit_id", "commit_id TEXT")
-        _ensure_column(cur, "events", "commit_id", "commit_id TEXT")
-        _ensure_column(cur, "orchestrator_logs", "commit_id", "commit_id TEXT")
+        cur.execute("ALTER TABLE tasks ADD COLUMN IF NOT EXISTS reminded_at TEXT")
+        cur.execute("ALTER TABLE tasks ADD COLUMN IF NOT EXISTS notification_id BIGINT")
+        cur.execute("ALTER TABLE tasks ADD COLUMN IF NOT EXISTS commit_id TEXT")
+        cur.execute("ALTER TABLE events ADD COLUMN IF NOT EXISTS commit_id TEXT")
+        cur.execute("ALTER TABLE orchestrator_logs ADD COLUMN IF NOT EXISTS commit_id TEXT")
 
         conn.commit()
         _tables_ready = True
-
-
-def _ensure_column(cur: sqlite3.Cursor, table: str, column: str, definition: str) -> None:
-    rows = cur.execute(f"PRAGMA table_info({table})").fetchall()
-    columns = {row["name"] for row in rows}
-    if column in columns:
-        return
-    cur.execute(f"ALTER TABLE {table} ADD COLUMN {definition}")
 
 
 def now_iso8601(tz: str = DEFAULT_TZ) -> str:
@@ -239,32 +293,35 @@ def require_non_empty_str(value: Any, field: str) -> str:
     return value.strip()
 
 
-def require_positive_number(value: Any, field: str) -> float:
-    try:
-        num = float(value)
-    except Exception as exc:  # noqa: BLE001
-        raise ToolError("invalid_param", f"{field} must be a number") from exc
-    if num <= 0:
-        raise ToolError("invalid_param", f"{field} must be > 0")
-    return num
-
-
 def require_enum(value: Any, field: str, allowed: Iterable[str]) -> str:
-    if not isinstance(value, str):
-        raise ToolError("invalid_param", f"{field} must be string")
-    if value not in allowed:
-        raise ToolError("invalid_param", f"{field} must be one of {sorted(set(allowed))}")
-    return value
+    s = require_non_empty_str(value, field)
+    allowed_list = list(allowed)
+    if s not in allowed_list:
+        raise ToolError("invalid_param", f"{field} must be one of {allowed_list}")
+    return s
 
 
-def require_number_in_range(value: Any, field: str, min_value: float, max_value: float) -> float:
-    try:
-        num = float(value)
-    except Exception as exc:  # noqa: BLE001
-        raise ToolError("invalid_param", f"{field} must be a number") from exc
-    if num < min_value or num > max_value:
+def require_number_in_range(
+    value: Any,
+    field: str,
+    min_value: float,
+    max_value: float,
+) -> float:
+    if not isinstance(value, (int, float)):
+        raise ToolError("invalid_param", f"{field} must be number")
+    val = float(value)
+    if val < min_value or val > max_value:
         raise ToolError(
             "invalid_param",
-            f"{field} must be in range [{min_value}, {max_value}]",
+            f"{field} must be in [{min_value}, {max_value}]",
         )
-    return num
+    return val
+
+
+def require_positive_number(value: Any, field: str) -> float:
+    if not isinstance(value, (int, float)):
+        raise ToolError("invalid_param", f"{field} must be number")
+    val = float(value)
+    if val <= 0:
+        raise ToolError("invalid_param", f"{field} must be > 0")
+    return val

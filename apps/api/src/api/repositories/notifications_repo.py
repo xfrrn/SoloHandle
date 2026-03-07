@@ -27,10 +27,12 @@ class NotificationRepository:
             """
             INSERT INTO notifications (task_id, title, content, scheduled_at, sent_at, read_at, is_deleted, created_at)
             VALUES (?, ?, ?, ?, ?, NULL, 0, ?)
+            RETURNING id
             """,
             (task_id, title, content, scheduled_at, sent_at, created_at),
         )
-        return int(cur.lastrowid)
+        row = cur.fetchone()
+        return int(row["id"])
 
     def list(self, unread_only: bool, limit: int) -> list[sqlite3.Row]:
         clauses = ["is_deleted = 0"]

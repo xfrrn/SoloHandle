@@ -1,12 +1,23 @@
 from __future__ import annotations
 
-from fastapi import APIRouter, HTTPException, Query
+from typing import Optional
 
-from api.db.connection import ToolError, ensure_tables, get_connection
+from fastapi import APIRouter, HTTPException, Query
+from pydantic import BaseModel
+
+from api.db.connection import ToolError, ensure_tables, get_connection, now_iso8601
 from api.repositories.tasks_repo import TaskRepository
 from api.services.tasks_service import TaskService
 
 router = APIRouter()
+
+
+class TaskPatchBody(BaseModel):
+    title: Optional[str] = None
+    note: Optional[str] = None
+    priority: Optional[str] = None
+    due_at: Optional[str] = None
+    status: Optional[str] = None
 
 
 def _get_task_service() -> TaskService:
@@ -48,5 +59,42 @@ def complete_task(task_id: int) -> dict:
     svc = _get_task_service()
     try:
         return svc.complete_task(task_id)
+    except ToolError as exc:
+        raise HTTPException(status_code=404, detail={"code": exc.code, "message": exc.message}) from exc
+
+
+@router.post("/tasks/{task_id}/waiting")
+def mark_task_waiting(task_id: int) -> dict:
+    svc = _get_task_service()
+    try:
+        return svc.update_task(
+            task_id,
+            {
+                "status": "pending",
+                "completed_at": None,
+                "updated_at": now_iso8601(),
+            },
+        )
+    except ToolError as exc:
+        raise HTTPException(status_code=404, detail={"code": exc.code, "message": exc.message}) from exc
+
+
+@router.patch("/tasks/{task_id}")
+def patch_task(task_id: int, body: TaskPatchBody) -> dict:
+    svc = _get_task_service()
+    fields = body.model_dump(exclude_unset=True)
+    if not fields:
+        raise HTTPException(status_code=400, detail={"code": "invalid_param", "message": "No fields to update"})
+    try:
+        return svc.update_task(task_id, fields)
+    except ToolError as exc:
+        raise HTTPException(status_code=404, detail={"code": exc.code, "message": exc.message}) from exc
+
+
+@router.delete("/tasks/{task_id}")
+def delete_task(task_id: int) -> dict:
+    svc = _get_task_service()
+    try:
+        return svc.set_deleted(task_id, 1)
     except ToolError as exc:
         raise HTTPException(status_code=404, detail={"code": exc.code, "message": exc.message}) from exc

@@ -36,6 +36,7 @@ class EventRepository:
             """
             INSERT INTO events (type, data_json, happened_at, tags_json, source, confidence, idempotency_key, commit_id, is_deleted, created_at, updated_at)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?)
+            RETURNING id
             """,
             (
                 event_type,
@@ -50,7 +51,8 @@ class EventRepository:
                 updated_at,
             ),
         )
-        return int(cur.lastrowid)
+        row = cur.fetchone()
+        return int(row["id"])
 
     def search(
         self,

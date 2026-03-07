@@ -32,9 +32,9 @@ class TasksState {
 
   factory TasksState.initial() {
     return TasksState(
-      todayTasks: [],
-      overdueTasks: [],
-      allTasks: [],
+      todayTasks: const [],
+      overdueTasks: const [],
+      allTasks: const [],
       loading: false,
       error: null,
       activeScope: TaskScope.today,
@@ -98,7 +98,7 @@ class TasksController extends StateNotifier<TasksState> {
         error: exc.response?.data?.toString() ?? exc.message ?? "加载失败",
       );
     } catch (exc) {
-      state = state.copyWith(loading: false, error: "加载失败：$exc");
+      state = state.copyWith(loading: false, error: "加载失败: $exc");
     }
   }
 
@@ -113,7 +113,54 @@ class TasksController extends StateNotifier<TasksState> {
       await api.complete(taskId);
       await loadAll();
     } catch (exc) {
-      state = state.copyWith(error: "完成任务失败：$exc");
+      state = state.copyWith(error: "完成任务失败: $exc");
+    }
+  }
+
+  Future<void> waitingTask(int taskId) async {
+    try {
+      final dio = await _apiClient.dio;
+      final api = TasksApi(dio);
+      await api.waiting(taskId);
+      await loadAll();
+    } catch (exc) {
+      state = state.copyWith(error: "标记等待失败: $exc");
+    }
+  }
+
+  Future<void> deleteTask(int taskId) async {
+    try {
+      final dio = await _apiClient.dio;
+      final api = TasksApi(dio);
+      await api.delete(taskId);
+      await loadAll();
+    } catch (exc) {
+      state = state.copyWith(error: "删除任务失败: $exc");
+    }
+  }
+
+  Future<void> updateTask(
+    int taskId, {
+    required String title,
+    required String note,
+    String? priority,
+    String? dueAt,
+    bool clearDueAt = false,
+  }) async {
+    try {
+      final dio = await _apiClient.dio;
+      final api = TasksApi(dio);
+      await api.update(
+        taskId,
+        title: title,
+        note: note,
+        priority: priority,
+        dueAt: dueAt,
+        clearDueAt: clearDueAt,
+      );
+      await loadAll();
+    } catch (exc) {
+      state = state.copyWith(error: "修改任务失败: $exc");
     }
   }
 }

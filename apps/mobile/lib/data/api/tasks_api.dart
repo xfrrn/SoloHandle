@@ -41,4 +41,35 @@ class TasksApi {
     final resp = await _dio.post("/tasks/$taskId/complete");
     return TaskDto.fromJson(resp.data as Map<String, dynamic>);
   }
+
+  Future<TaskDto> waiting(int taskId) async {
+    final resp = await _dio.post("/tasks/$taskId/waiting");
+    return TaskDto.fromJson(resp.data as Map<String, dynamic>);
+  }
+
+  Future<TaskDto> update(
+    int taskId, {
+    String? title,
+    String? note,
+    String? priority,
+    String? dueAt,
+    bool clearDueAt = false,
+    String? status,
+  }) async {
+    final body = <String, dynamic>{};
+    if (title != null) body["title"] = title;
+    if (note != null) body["note"] = note;
+    if (priority != null) body["priority"] = priority;
+    if (dueAt != null) body["due_at"] = dueAt;
+    if (clearDueAt) body["due_at"] = null;
+    if (status != null) body["status"] = status;
+
+    final resp = await _dio.patch("/tasks/$taskId", data: body);
+    return TaskDto.fromJson(resp.data as Map<String, dynamic>);
+  }
+
+  Future<TaskDto> delete(int taskId) async {
+    final resp = await _dio.delete("/tasks/$taskId");
+    return TaskDto.fromJson(resp.data as Map<String, dynamic>);
+  }
 }

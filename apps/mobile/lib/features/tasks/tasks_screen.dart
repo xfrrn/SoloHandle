@@ -34,22 +34,21 @@ class _TasksScreenState extends ConsumerState<TasksScreen> {
     return Scaffold(
       body: Column(
         children: [
-          _TasksHeader(onRefresh: () => notifier.loadAll()),
+          _TasksHeader(onRefresh: notifier.loadAll),
           const SizedBox(height: 6),
-          // Scope tabs
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 6, 16, 4),
             child: Row(
               children: [
                 _ScopeTab(
-                  label: "今天",
+                  label: "\u4eca\u5929",
                   count: state.todayTasks.length,
                   selected: state.activeScope == TaskScope.today,
                   onTap: () => notifier.setScope(TaskScope.today),
                 ),
                 const SizedBox(width: 8),
                 _ScopeTab(
-                  label: "逾期",
+                  label: "\u903e\u671f",
                   count: state.overdueTasks.length,
                   selected: state.activeScope == TaskScope.overdue,
                   onTap: () => notifier.setScope(TaskScope.overdue),
@@ -58,7 +57,7 @@ class _TasksScreenState extends ConsumerState<TasksScreen> {
                 ),
                 const SizedBox(width: 8),
                 _ScopeTab(
-                  label: "全部",
+                  label: "\u5168\u90e8",
                   count: state.allTasks.length,
                   selected: state.activeScope == TaskScope.all,
                   onTap: () => notifier.setScope(TaskScope.all),
@@ -66,15 +65,12 @@ class _TasksScreenState extends ConsumerState<TasksScreen> {
               ],
             ),
           ),
-          const SizedBox(height: 4),
-
-          // Task list
           Expanded(child: _buildBody(state, notifier)),
         ],
       ),
-      // Quick-add via chat
       floatingActionButton: FloatingActionButton(
-        onPressed: () => context.go("/chat", extra: {"prefill": "新建任务："}),
+        onPressed: () => context
+            .go("/chat", extra: {"prefill": "\u65b0\u5efa\u4efb\u52a1\uff1a"}),
         backgroundColor: AppColors.accent,
         foregroundColor: Colors.white,
         child: const Icon(Icons.add),
@@ -92,9 +88,9 @@ class _TasksScreenState extends ConsumerState<TasksScreen> {
         icon: Icons.error_outline,
         message: state.error!,
         action: TextButton.icon(
-          onPressed: () => notifier.loadAll(),
+          onPressed: notifier.loadAll,
           icon: const Icon(Icons.refresh),
-          label: const Text("重试"),
+          label: const Text("\u91cd\u8bd5"),
         ),
       );
     }
@@ -108,14 +104,15 @@ class _TasksScreenState extends ConsumerState<TasksScreen> {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             TextButton.icon(
-              onPressed: () => context.go("/chat", extra: {"prefill": "新建任务："}),
+              onPressed: () => context.go("/chat",
+                  extra: {"prefill": "\u65b0\u5efa\u4efb\u52a1\uff1a"}),
               icon: const Icon(Icons.add),
-              label: const Text("新建任务"),
+              label: const Text("\u65b0\u5efa\u4efb\u52a1"),
             ),
             const SizedBox(width: 8),
             TextButton(
               onPressed: () => context.go("/chat"),
-              child: const Text("去聊天添加"),
+              child: const Text("\u53bb\u804a\u5929\u6dfb\u52a0"),
             ),
           ],
         ),
@@ -123,7 +120,7 @@ class _TasksScreenState extends ConsumerState<TasksScreen> {
     }
 
     return RefreshIndicator(
-      onRefresh: () => notifier.loadAll(),
+      onRefresh: notifier.loadAll,
       child: ListView.builder(
         padding: const EdgeInsets.fromLTRB(16, 8, 16, 80),
         itemCount: tasks.length,
@@ -131,34 +128,229 @@ class _TasksScreenState extends ConsumerState<TasksScreen> {
           final task = tasks[index];
           return _TaskCard(
             task: task,
-            onComplete: () => notifier.completeTask(task.taskId),
+            onToggleDone: () {
+              if (task.isDone) {
+                notifier.waitingTask(task.taskId);
+              } else {
+                notifier.completeTask(task.taskId);
+              }
+            },
             onPostpone: () => context.go(
               "/chat",
-              extra: {"prefill": "延期任务：${task.title}"},
+              extra: {"prefill": "\u5ef6\u671f\u4efb\u52a1\uff1a${task.title}"},
             ),
+            onDelete: () =>
+                _confirmDelete(context, () => notifier.deleteTask(task.taskId)),
+            onEdit: () => _showEditTaskSheet(context, task, notifier),
+            onMarkWaiting:
+                task.isDone ? () => notifier.waitingTask(task.taskId) : null,
           );
         },
       ),
     );
   }
 
+  Future<void> _confirmDelete(
+      BuildContext context, VoidCallback onConfirm) async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text("\u5220\u9664\u4efb\u52a1"),
+        content: const Text(
+            "\u786e\u8ba4\u5220\u9664\u8fd9\u6761\u4efb\u52a1\u5417\uff1f"),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.of(ctx).pop(false),
+              child: const Text("\u53d6\u6d88")),
+          TextButton(
+              onPressed: () => Navigator.of(ctx).pop(true),
+              child: const Text("\u5220\u9664")),
+        ],
+      ),
+    );
+    if (ok == true) onConfirm();
+  }
+
+  Future<void> _showEditTaskSheet(
+    BuildContext context,
+    TaskDto task,
+    TasksController notifier,
+  ) async {
+    final titleCtl = TextEditingController(text: task.title);
+    final noteCtl = TextEditingController(text: task.note ?? "");
+    String selectedPriority =
+        _priorityValues.contains(task.priority) ? task.priority : "medium";
+    DateTime? selectedDueAt =
+        task.dueAt != null ? DateTime.tryParse(task.dueAt!)?.toLocal() : null;
+    final formKey = GlobalKey<FormState>();
+
+    final ok = await showModalBottomSheet<bool>(
+      context: context,
+      isScrollControlled: true,
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (ctx, setModalState) {
+            return Padding(
+              padding: EdgeInsets.only(
+                left: 16,
+                right: 16,
+                top: 16,
+                bottom: 16 + MediaQuery.of(ctx).viewInsets.bottom,
+              ),
+              child: Form(
+                key: formKey,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text("\u7f16\u8f91\u4efb\u52a1",
+                        style: Theme.of(ctx).textTheme.titleMedium),
+                    const SizedBox(height: 12),
+                    TextFormField(
+                      controller: titleCtl,
+                      decoration:
+                          const InputDecoration(labelText: "\u6807\u9898"),
+                      validator: (v) => (v == null || v.trim().isEmpty)
+                          ? "\u6807\u9898\u4e0d\u80fd\u4e3a\u7a7a"
+                          : null,
+                    ),
+                    const SizedBox(height: 10),
+                    TextFormField(
+                      controller: noteCtl,
+                      maxLines: 3,
+                      decoration:
+                          const InputDecoration(labelText: "\u5907\u6ce8"),
+                    ),
+                    const SizedBox(height: 10),
+                    DropdownButtonFormField<String>(
+                      initialValue: selectedPriority,
+                      decoration: const InputDecoration(
+                          labelText: "\u4f18\u5148\u7ea7"),
+                      items: const [
+                        DropdownMenuItem(
+                            value: "high",
+                            child: Text("\u9ad8\u4f18\u5148\u7ea7")),
+                        DropdownMenuItem(
+                            value: "medium",
+                            child: Text("\u4e2d\u4f18\u5148\u7ea7")),
+                        DropdownMenuItem(
+                            value: "low",
+                            child: Text("\u4f4e\u4f18\u5148\u7ea7")),
+                      ],
+                      onChanged: (v) {
+                        if (v == null) {
+                          return;
+                        }
+                        setModalState(() => selectedPriority = v);
+                      },
+                    ),
+                    const SizedBox(height: 10),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            selectedDueAt == null
+                                ? "\u672a\u8bbe\u7f6e\u5230\u671f\u65f6\u95f4"
+                                : "\u5230\u671f\uff1a${formatIsoToLocal(toIsoWithOffset(selectedDueAt!))}",
+                            style: Theme.of(ctx).textTheme.bodySmall?.copyWith(
+                                  color: AppColors.textSecondary,
+                                ),
+                          ),
+                        ),
+                        TextButton(
+                          onPressed: () async {
+                            final pickedDate = await showDatePicker(
+                              context: ctx,
+                              initialDate: selectedDueAt ?? DateTime.now(),
+                              firstDate: DateTime(2020),
+                              lastDate: DateTime(2100),
+                            );
+                            if (!ctx.mounted) return;
+                            if (pickedDate == null) return;
+                            final pickedTime = await showTimePicker(
+                              context: ctx,
+                              initialTime: TimeOfDay.fromDateTime(
+                                selectedDueAt ?? DateTime.now(),
+                              ),
+                            );
+                            if (!ctx.mounted) return;
+                            if (pickedTime == null) return;
+                            setModalState(() {
+                              selectedDueAt = DateTime(
+                                pickedDate.year,
+                                pickedDate.month,
+                                pickedDate.day,
+                                pickedTime.hour,
+                                pickedTime.minute,
+                              );
+                            });
+                          },
+                          child: const Text("\u8bbe\u7f6e\u65f6\u95f4"),
+                        ),
+                        if (selectedDueAt != null)
+                          TextButton(
+                            onPressed: () =>
+                                setModalState(() => selectedDueAt = null),
+                            child: const Text("\u6e05\u9664"),
+                          ),
+                      ],
+                    ),
+                    const SizedBox(height: 14),
+                    Row(
+                      children: [
+                        TextButton(
+                          onPressed: () => Navigator.of(ctx).pop(false),
+                          child: const Text("\u53d6\u6d88"),
+                        ),
+                        const Spacer(),
+                        FilledButton(
+                          onPressed: () {
+                            if (formKey.currentState?.validate() != true) {
+                              return;
+                            }
+                            Navigator.of(ctx).pop(true);
+                          },
+                          child: const Text("\u4fdd\u5b58"),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+
+    if (ok == true) {
+      await notifier.updateTask(
+        task.taskId,
+        title: titleCtl.text.trim(),
+        note: noteCtl.text.trim(),
+        priority: selectedPriority,
+        dueAt: selectedDueAt == null ? null : toIsoWithOffset(selectedDueAt!),
+        clearDueAt: selectedDueAt == null && task.dueAt != null,
+      );
+    }
+  }
+
   String _emptyMessage(TaskScope scope) {
     switch (scope) {
       case TaskScope.today:
-        return "今天没有待办任务 🎉";
+        return "\u4eca\u5929\u6ca1\u6709\u5f85\u529e\u4efb\u52a1";
       case TaskScope.overdue:
-        return "没有逾期任务，做得好！";
+        return "\u6ca1\u6709\u903e\u671f\u4efb\u52a1\uff0c\u505a\u5f97\u5f88\u597d";
       case TaskScope.all:
-        return "暂无任务，去 Chat 页面创建吧";
+        return "\u6682\u65e0\u4efb\u52a1\uff0c\u53bb Chat \u9875\u9762\u521b\u5efa\u5427";
     }
   }
 }
 
-// ─── Widgets ─────────────────────────────────────────
+const _priorityValues = {"high", "medium", "low"};
 
 class _TasksHeader extends StatelessWidget {
   const _TasksHeader({required this.onRefresh});
-
   final VoidCallback onRefresh;
 
   @override
@@ -181,7 +373,7 @@ class _TasksHeader extends StatelessWidget {
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    "把待办一件件完成",
+                    "\u628a\u5f85\u529e\u4e00\u4ef6\u4ef6\u5b8c\u6210",
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
                           color: AppColors.textSecondary,
                         ),
@@ -224,11 +416,12 @@ class _ScopeTab extends StatelessWidget {
           duration: const Duration(milliseconds: 200),
           padding: const EdgeInsets.symmetric(vertical: 8),
           decoration: BoxDecoration(
-            color: selected ? AppColors.accent.withOpacity(0.12) : AppColors.surface,
+            color: selected
+                ? AppColors.accent.withValues(alpha: 0.12)
+                : AppColors.surface,
             borderRadius: BorderRadius.circular(14),
             border: Border.all(
-              color: selected ? AppColors.accent : AppColors.divider,
-            ),
+                color: selected ? AppColors.accent : AppColors.divider),
           ),
           child: Column(
             children: [
@@ -260,18 +453,23 @@ class _ScopeTab extends StatelessWidget {
 class _TaskCard extends StatelessWidget {
   const _TaskCard({
     required this.task,
-    required this.onComplete,
+    required this.onToggleDone,
     required this.onPostpone,
+    required this.onDelete,
+    required this.onEdit,
+    this.onMarkWaiting,
   });
 
   final TaskDto task;
-  final VoidCallback onComplete;
+  final VoidCallback onToggleDone;
   final VoidCallback onPostpone;
+  final VoidCallback onDelete;
+  final VoidCallback onEdit;
+  final VoidCallback? onMarkWaiting;
 
   @override
   Widget build(BuildContext context) {
     final isOverdue = task.isOverdue;
-
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
       padding: const EdgeInsets.all(14),
@@ -279,26 +477,21 @@ class _TaskCard extends StatelessWidget {
         color: AppColors.surface,
         borderRadius: BorderRadius.circular(14),
         border: Border.all(
-          color: isOverdue ? AppColors.danger.withAlpha(80) : AppColors.divider,
+          color: isOverdue
+              ? AppColors.danger.withValues(alpha: 0.35)
+              : AppColors.divider,
         ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withAlpha(4),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              // Checkbox
-              GestureDetector(
-                onTap: onComplete,
+              InkWell(
+                onTap: onToggleDone,
+                borderRadius: BorderRadius.circular(20),
                 child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 200),
+                  duration: const Duration(milliseconds: 180),
                   width: 24,
                   height: 24,
                   decoration: BoxDecoration(
@@ -307,9 +500,7 @@ class _TaskCard extends StatelessWidget {
                     border: Border.all(
                       color: task.isDone
                           ? AppColors.success
-                          : isOverdue
-                              ? AppColors.danger
-                              : AppColors.divider,
+                          : (isOverdue ? AppColors.danger : AppColors.divider),
                       width: 2,
                     ),
                   ),
@@ -331,13 +522,30 @@ class _TaskCard extends StatelessWidget {
                 ),
               ),
               _PriorityBadge(priority: task.priority),
+              PopupMenuButton<String>(
+                onSelected: (v) {
+                  if (v == "edit") onEdit();
+                  if (v == "delete") onDelete();
+                  if (v == "waiting" && onMarkWaiting != null) onMarkWaiting!();
+                },
+                itemBuilder: (ctx) => [
+                  const PopupMenuItem(
+                      value: "edit", child: Text("\u4fee\u6539")),
+                  if (onMarkWaiting != null)
+                    const PopupMenuItem(
+                        value: "waiting",
+                        child: Text("\u6807\u8bb0\u7b49\u5f85")),
+                  const PopupMenuItem(
+                      value: "delete", child: Text("\u5220\u9664")),
+                ],
+              ),
             ],
           ),
           if (task.dueAt != null) ...[
             const SizedBox(height: 8),
             Row(
               children: [
-                const SizedBox(width: 36), // align with title
+                const SizedBox(width: 36),
                 Icon(
                   Icons.schedule,
                   size: 14,
@@ -354,8 +562,9 @@ class _TaskCard extends StatelessWidget {
                 ),
                 const Spacer(),
                 if (!task.isDone)
-                  GestureDetector(
+                  InkWell(
                     onTap: onPostpone,
+                    borderRadius: BorderRadius.circular(8),
                     child: Container(
                       padding: const EdgeInsets.symmetric(
                           horizontal: 10, vertical: 4),
@@ -363,9 +572,9 @@ class _TaskCard extends StatelessWidget {
                         color: AppColors.background,
                         borderRadius: BorderRadius.circular(8),
                       ),
-                      child: Text(
-                        "延期",
-                        style: const TextStyle(
+                      child: const Text(
+                        "\u5ef6\u671f",
+                        style: TextStyle(
                           fontSize: 11,
                           color: AppColors.textSecondary,
                           fontWeight: FontWeight.w500,
@@ -390,31 +599,6 @@ class _TaskCard extends StatelessWidget {
               ),
             ),
           ],
-          if (task.tags.isNotEmpty) ...[
-            const SizedBox(height: 8),
-            Padding(
-              padding: const EdgeInsets.only(left: 36),
-              child: Wrap(
-                spacing: 6,
-                runSpacing: 4,
-                children: task.tags
-                    .map((tag) => Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 8, vertical: 3),
-                          decoration: BoxDecoration(
-                            color: AppColors.accentLight,
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: Text(
-                            tag,
-                            style: const TextStyle(
-                                fontSize: 11, color: AppColors.accent),
-                          ),
-                        ))
-                    .toList(),
-              ),
-            ),
-          ],
         ],
       ),
     );
@@ -423,7 +607,6 @@ class _TaskCard extends StatelessWidget {
 
 class _PriorityBadge extends StatelessWidget {
   const _PriorityBadge({required this.priority});
-
   final String priority;
 
   @override
@@ -433,22 +616,22 @@ class _PriorityBadge extends StatelessWidget {
     switch (priority) {
       case "high":
         color = AppColors.danger;
-        label = "高";
+        label = "\u9ad8";
         break;
       case "low":
         color = AppColors.textSecondary;
-        label = "低";
+        label = "\u4f4e";
         break;
       default:
         color = AppColors.accent;
-        label = "中";
+        label = "\u4e2d";
         break;
     }
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
       decoration: BoxDecoration(
-        color: color.withAlpha(18),
+        color: color.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(8),
       ),
       child: Text(
@@ -465,7 +648,6 @@ class _PriorityBadge extends StatelessWidget {
 
 class _EmptyState extends StatelessWidget {
   const _EmptyState({required this.icon, required this.message, this.action});
-
   final IconData icon;
   final String message;
   final Widget? action;
