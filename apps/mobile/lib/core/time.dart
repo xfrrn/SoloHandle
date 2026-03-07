@@ -13,6 +13,26 @@ String formatIsoToLocal(String? value) {
   }
 }
 
+String formatIsoToFriendly(String? value) {
+  if (value == null || value.isEmpty) return "";
+  try {
+    final dt = DateTime.parse(value).toLocal();
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final date = DateTime(dt.year, dt.month, dt.day);
+    final diffDays = date.difference(today).inDays;
+    final h = dt.hour.toString().padLeft(2, "0");
+    final min = dt.minute.toString().padLeft(2, "0");
+    final time = "$h:$min";
+    if (diffDays == 0) return "今天 $time";
+    if (diffDays == -1) return "昨天 $time";
+    if (diffDays == 1) return "明天 $time";
+    return "${dt.month}月${dt.day}日 $time";
+  } catch (_) {
+    return value;
+  }
+}
+
 DateTime? parseIsoToLocal(String? value) {
   if (value == null || value.isEmpty) return null;
   try {

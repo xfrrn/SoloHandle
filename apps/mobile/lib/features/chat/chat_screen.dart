@@ -35,8 +35,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   List<String> _selectedImageBase64 = [];
   final AudioRecorder _audioRecorder = AudioRecorder();
   bool _isRecording = false;
+  bool _sendingLock = false;
   bool _shouldAutoScroll = true;
-  bool _showAllCards = false;
   int _lastMessageCount = 0;
 
   @override
@@ -83,7 +83,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     try {
       if (await _audioRecorder.hasPermission()) {
         final tempDir = await getTemporaryDirectory();
-        final path = "${tempDir.path}/audio_${DateTime.now().millisecondsSinceEpoch}.m4a";
+        final path =
+            "${tempDir.path}/audio_${DateTime.now().millisecondsSinceEpoch}.m4a";
         await _audioRecorder.start(
           const RecordConfig(encoder: AudioEncoder.aacLc, numChannels: 1),
           path: path,
@@ -200,6 +201,28 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     });
   }
 
+  Future<void> _handleSend(ChatController notifier) async {
+    if (_sendingLock) return;
+    final text = _controller.text.trim();
+    final imageBase64 = _selectedImageBase64;
+    if (text.isEmpty && imageBase64.isEmpty) return;
+
+    setState(() => _sendingLock = true);
+    _controller.clear();
+    _clearImages();
+    _shouldAutoScroll = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _scrollToBottom(jump: true);
+    });
+    notifier.sendText(
+      text: text.isEmpty ? null : text,
+      imageBase64: imageBase64.isEmpty ? null : imageBase64,
+    );
+    await Future.delayed(const Duration(milliseconds: 220));
+    if (!mounted) return;
+    setState(() => _sendingLock = false);
+  }
+
   void _showMoreMenu(BuildContext context, ChatController notifier) {
     showModalBottomSheet(
       context: context,
@@ -221,6 +244,39 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                 ),
               ),
               const SizedBox(height: 16),
+              ListTile(
+                leading: const Icon(Icons.dashboard_outlined),
+                title: const Text("Dashboard"),
+                onTap: () {
+                  Navigator.of(ctx).pop();
+                  context.go("/dashboard");
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.timeline),
+                title: const Text("Timeline"),
+                onTap: () {
+                  Navigator.of(ctx).pop();
+                  context.go("/timeline");
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.check_box_outlined),
+                title: const Text("Tasks"),
+                onTap: () {
+                  Navigator.of(ctx).pop();
+                  context.go("/tasks");
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.person_outline),
+                title: const Text("Me"),
+                onTap: () {
+                  Navigator.of(ctx).pop();
+                  context.go("/me");
+                },
+              ),
+              const Divider(height: 24),
               ListTile(
                 leading: const Icon(Icons.clear_all, color: AppColors.danger),
                 title: const Text('清空当前上下文',
@@ -256,6 +312,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       }
     });
 
+    final hasMessages = state.messages.isNotEmpty;
+
     return Scaffold(
       body: Column(
         children: [
@@ -263,6 +321,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
             onNotifications: () => _openNotifications(context),
             onMore: () => _showMoreMenu(context, notifier),
             showDot: state.drafts.isNotEmpty,
+            compact: hasMessages,
           ),
           Expanded(
             child: NotificationListener<ScrollNotification>(
@@ -276,9 +335,11 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
               },
               child: ListView(
                 controller: _scrollController,
-                padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+                keyboardDismissBehavior:
+                    ScrollViewKeyboardDismissBehavior.onDrag,
+                padding: EdgeInsets.fromLTRB(16, hasMessages ? 8 : 12, 16, 16),
                 children: [
-                  if (state.messages.isEmpty)
+                  if (!hasMessages)
                     _WelcomeSection(
                       onSuggestion: (text) {
                         _controller.text = text;
@@ -287,16 +348,39 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                         );
                       },
                     ),
-                  for (final message in state.messages)
-                    MessageBubble(
-                      message: message,
-                      bottom: (message.cards != null && message.cards!.isNotEmpty)
-                          ? Column(
-                              children: message.cards!
-                                  .map((c) => _buildCard(c, notifier))
-                                  .toList(),
-                            )
-                          : null,
+                  for (var i = 0; i < state.messages.length; i++)
+                    Builder(
+                      builder: (_) {
+                        final message = state.messages[i];
+                        final prevRole =
+                            i > 0 ? state.messages[i - 1].role : null;
+                        final nextRole = i < state.messages.length - 1
+                            ? state.messages[i + 1].role
+                            : null;
+                        final mergeTop = prevRole == message.role;
+                        final mergeBottom = nextRole == message.role;
+                        final hasCards =
+                            message.cards != null && message.cards!.isNotEmpty;
+                        final cardsColumn = hasCards
+                            ? Column(
+                                children: message.cards!
+                                    .map((c) => _buildCard(c, notifier))
+                                    .toList(),
+                              )
+                            : null;
+                        return MessageBubble(
+                          message: message,
+                          compactTop: mergeTop,
+                          mergeTop: mergeTop,
+                          mergeBottom: mergeBottom,
+                          bottom: hasCards
+                              ? _DelayedReveal(
+                                  delay: const Duration(milliseconds: 140),
+                                  child: cardsColumn!,
+                                )
+                              : null,
+                        );
+                      },
                     ),
                   if (state.loading)
                     const Align(
@@ -311,13 +395,14 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                       message: state.status ?? "请求失败",
                       onRetry: () => notifier.retry(),
                     ),
-              ],
+                ],
+              ),
             ),
-          ),
           ),
           AnimatedSlide(
             duration: const Duration(milliseconds: 250),
-            offset: state.drafts.length > 1 ? Offset.zero : const Offset(0, 0.2),
+            offset:
+                state.drafts.length > 1 ? Offset.zero : const Offset(0, 0.2),
             child: AnimatedOpacity(
               duration: const Duration(milliseconds: 200),
               opacity: state.drafts.length > 1 ? 1 : 0,
@@ -331,31 +416,19 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
           ),
           InputBar(
             controller: _controller,
-            loading: state.loading,
+            loading: state.loading || _sendingLock,
             isRecording: _isRecording,
             selectedImages: _selectedImageBytes,
             onPickImage: _pickImage,
             onRemoveImageAt: _removeImageAt,
             onStartRecord: _startRecording,
             onStopRecord: () => _stopRecording(notifier),
-            onSend: () {
-              final text = _controller.text.trim();
-              final imageBase64 = _selectedImageBase64;
-              if (text.isEmpty && imageBase64.isEmpty) return;
-
-              _controller.clear();
-              _clearImages();
-              notifier.sendText(
-                text: text.isEmpty ? null : text,
-                imageBase64: imageBase64.isEmpty ? null : imageBase64,
-              );
-            },
+            onSend: () => _handleSend(notifier),
           ),
         ],
       ),
     );
   }
-
 
   Widget _buildCard(CardDto card, ChatController notifier) {
     final taskId = _extractTaskId(card);
@@ -405,11 +478,13 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       firstDate: now.subtract(const Duration(days: 365)),
       lastDate: now.add(const Duration(days: 365 * 3)),
     );
+    if (!mounted) return;
     if (date == null) return;
     final time = await showTimePicker(
       context: context,
       initialTime: TimeOfDay.fromDateTime(now),
     );
+    if (!mounted) return;
     if (time == null) return;
     final dt =
         DateTime(date.year, date.month, date.day, time.hour, time.minute);
@@ -479,13 +554,20 @@ class _StatusLine extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.only(top: 8),
-      child: Text(
-        text,
-        style: Theme.of(context)
-            .textTheme
-            .bodySmall
-            ?.copyWith(color: AppColors.textSecondary),
+      padding: const EdgeInsets.only(top: 6, bottom: 4),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Icon(Icons.check_circle, size: 14, color: AppColors.success),
+          const SizedBox(width: 6),
+          Text(
+            text,
+            style: Theme.of(context)
+                .textTheme
+                .bodySmall
+                ?.copyWith(color: AppColors.textSecondary),
+          ),
+        ],
       ),
     );
   }
@@ -496,18 +578,21 @@ class _Header extends StatelessWidget {
     required this.onNotifications,
     required this.onMore,
     required this.showDot,
+    required this.compact,
   });
 
   final VoidCallback onNotifications;
   final VoidCallback onMore;
   final bool showDot;
+  final bool compact;
 
   @override
   Widget build(BuildContext context) {
     return SafeArea(
       bottom: false,
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(16, 14, 16, 8),
+        padding:
+            EdgeInsets.fromLTRB(16, compact ? 10 : 14, 16, compact ? 6 : 8),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -522,13 +607,15 @@ class _Header extends StatelessWidget {
                           letterSpacing: 0.2,
                         ),
                   ),
-                  const SizedBox(height: 4),
-                  Text(
-                    "说句话，我来帮你记录、整理和提醒",
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: AppColors.textSecondary,
-                        ),
-                  ),
+                  if (!compact) ...[
+                    const SizedBox(height: 4),
+                    Text(
+                      "说句话，我来帮你记录、整理和提醒",
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            color: AppColors.textSecondary,
+                          ),
+                    ),
+                  ],
                 ],
               ),
             ),
@@ -580,7 +667,7 @@ class _WelcomeSection extends StatelessWidget {
           border: Border.all(color: AppColors.divider),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.04),
+              color: Colors.black.withValues(alpha: 0.04),
               blurRadius: 12,
               offset: const Offset(0, 6),
             ),
@@ -594,11 +681,12 @@ class _WelcomeSection extends StatelessWidget {
                 Container(
                   width: 40,
                   height: 40,
-                  decoration: BoxDecoration(
+                  decoration: const BoxDecoration(
                     color: AppColors.accentLight,
                     shape: BoxShape.circle,
                   ),
-                  child: const Icon(Icons.auto_awesome, color: AppColors.accent),
+                  child:
+                      const Icon(Icons.auto_awesome, color: AppColors.accent),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
@@ -666,6 +754,47 @@ class _SuggestionChip extends StatelessWidget {
                 color: AppColors.textPrimary,
               ),
         ),
+      ),
+    );
+  }
+}
+
+class _DelayedReveal extends StatefulWidget {
+  const _DelayedReveal({
+    required this.child,
+    this.delay = const Duration(milliseconds: 120),
+  });
+
+  final Widget child;
+  final Duration delay;
+
+  @override
+  State<_DelayedReveal> createState() => _DelayedRevealState();
+}
+
+class _DelayedRevealState extends State<_DelayedReveal> {
+  bool _visible = false;
+
+  @override
+  void initState() {
+    super.initState();
+    Future.delayed(widget.delay, () {
+      if (!mounted) return;
+      setState(() => _visible = true);
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedOpacity(
+      duration: const Duration(milliseconds: 180),
+      curve: Curves.easeOutCubic,
+      opacity: _visible ? 1 : 0,
+      child: AnimatedSlide(
+        duration: const Duration(milliseconds: 180),
+        curve: Curves.easeOutCubic,
+        offset: _visible ? Offset.zero : const Offset(0, 0.03),
+        child: widget.child,
       ),
     );
   }

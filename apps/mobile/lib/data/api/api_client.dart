@@ -10,11 +10,18 @@ class ApiClient {
 
   final LocalStore _store;
   Dio? _cachedDio;
+  String? _cachedBaseUrl;
+  String? _cachedToken;
 
   Future<Dio> get dio async {
-    if (_cachedDio != null) return _cachedDio!;
     final baseUrl = await _store.getBaseUrl() ?? "http://127.0.0.1:8000";
     final token = await _store.getToken();
+
+    if (_cachedDio != null &&
+        _cachedBaseUrl == baseUrl &&
+        _cachedToken == token) {
+      return _cachedDio!;
+    }
 
     _cachedDio = Dio(
       BaseOptions(
@@ -28,12 +35,18 @@ class ApiClient {
         },
       ),
     );
+    _cachedBaseUrl = baseUrl;
+    _cachedToken = token;
     _cachedDio!.interceptors.add(RetryInterceptor(_cachedDio!));
     return _cachedDio!;
   }
 
   /// Force re-create the Dio instance on next access (e.g. after settings change).
-  void invalidate() => _cachedDio = null;
+  void invalidate() {
+    _cachedDio = null;
+    _cachedBaseUrl = null;
+    _cachedToken = null;
+  }
 }
 
 /// Interceptor that automatically retries requests on network errors

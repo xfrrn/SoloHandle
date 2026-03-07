@@ -6,6 +6,7 @@ import "../../data/api/api_client.dart";
 import "dart:convert";
 
 import "package:flutter/services.dart";
+import "package:dio/dio.dart";
 
 import "../../data/api/events_api.dart";
 import "../../data/api/tasks_api.dart";
@@ -72,8 +73,16 @@ class _DeveloperSettingsScreenState extends State<DeveloperSettingsScreen> {
     }
   }
 
+  String _normalizeBaseUrl(String value) {
+    final trimmed = value.trim();
+    if (trimmed.isEmpty) return trimmed;
+    final uri = Uri.tryParse(trimmed);
+    if (uri != null && uri.hasScheme) return trimmed;
+    return "http://$trimmed";
+  }
+
   bool _validateBaseUrl() {
-    final value = _baseUrlController.text.trim();
+    final value = _normalizeBaseUrl(_baseUrlController.text);
     if (value.isEmpty) {
       setState(() => _baseUrlError = "Base URL 不能为空");
       return false;
@@ -89,7 +98,9 @@ class _DeveloperSettingsScreenState extends State<DeveloperSettingsScreen> {
 
   Future<void> _save() async {
     if (!_validateBaseUrl()) return;
-    await _store.setBaseUrl(_baseUrlController.text.trim());
+    final normalized = _normalizeBaseUrl(_baseUrlController.text);
+    _baseUrlController.text = normalized;
+    await _store.setBaseUrl(normalized);
     await _store.setToken(_tokenController.text.trim());
     await _store.setDraftPolicy(_draftPolicy);
     await _store.setDefaultTimezone(_timezone);
@@ -107,7 +118,19 @@ class _DeveloperSettingsScreenState extends State<DeveloperSettingsScreen> {
     if (!_validateBaseUrl()) return;
     setState(() => _connection = ConnectionStatus.unknown);
     try {
-      final dio = await ApiClient(store: _store).dio;
+      final baseUrl = _normalizeBaseUrl(_baseUrlController.text);
+      final token = _tokenController.text.trim();
+      final dio = Dio(
+        BaseOptions(
+          baseUrl: baseUrl,
+          connectTimeout: const Duration(seconds: 10),
+          receiveTimeout: const Duration(seconds: 20),
+          headers: {
+            "Content-Type": "application/json",
+            if (token.isNotEmpty) "Authorization": "Bearer $token",
+          },
+        ),
+      );
       final resp = await dio.get("/router/health");
       final data = resp.data as Map?;
       final ok = data?["llm_configured"] == true;

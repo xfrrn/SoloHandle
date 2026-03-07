@@ -10,121 +10,167 @@ class MessageBubble extends StatelessWidget {
     super.key,
     required this.message,
     this.bottom,
+    this.compactTop = false,
+    this.mergeTop = false,
+    this.mergeBottom = false,
   });
 
   final ChatMessage message;
   final Widget? bottom;
+  final bool compactTop;
+  final bool mergeTop;
+  final bool mergeBottom;
 
   @override
   Widget build(BuildContext context) {
     final isUser = message.role == MessageRole.user;
     final align = isUser ? Alignment.centerRight : Alignment.centerLeft;
-    final bg = isUser ? AppColors.surface : const Color(0xFFF2F2F2);
-    final textColor = AppColors.textPrimary;
-    final maxWidth = MediaQuery.of(context).size.width * 0.78;
+    final hasImages =
+        message.imageBytes != null && message.imageBytes!.isNotEmpty;
+    final hasText = message.text != null && message.text!.trim().isNotEmpty;
+    final hasMixed = hasImages && hasText;
 
-    final bubble = Align(
-      alignment: align,
+    final nodes = <Widget>[];
+    if (hasImages) {
+      nodes.add(
+        _buildImageBubble(
+          context: context,
+          alignment: align,
+          images: message.imageBytes!,
+        ),
+      );
+    }
+    if (hasText) {
+      if (hasMixed) {
+        nodes.add(const SizedBox(height: 6));
+      }
+      nodes.add(
+        _buildTextBubble(
+          context: context,
+          isUser: isUser,
+          alignment: align,
+          text: message.text!,
+          mergeTop: mergeTop,
+          mergeBottom: mergeBottom && bottom == null,
+        ),
+      );
+    }
+
+    if (nodes.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    final content = Column(
+      crossAxisAlignment:
+          isUser ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+      children: [
+        ...nodes,
+        if (bottom != null) ...[
+          const SizedBox(height: 6),
+          bottom!,
+        ],
+      ],
+    );
+
+    return Padding(
+      padding: EdgeInsets.only(top: compactTop ? 2 : 6, bottom: 4),
+      child: TweenAnimationBuilder<double>(
+        tween: Tween(begin: 0, end: 1),
+        duration: const Duration(milliseconds: 260),
+        curve: Curves.easeOutCubic,
+        builder: (context, value, child) {
+          return Opacity(
+            opacity: value.clamp(0.0, 1.0),
+            child: Transform.translate(
+              offset: Offset(0, (1 - value) * 8),
+              child: child,
+            ),
+          );
+        },
+        child: content,
+      ),
+    );
+  }
+
+  Widget _buildTextBubble({
+    required BuildContext context,
+    required bool isUser,
+    required Alignment alignment,
+    required String text,
+    required bool mergeTop,
+    required bool mergeBottom,
+  }) {
+    final maxWidth = MediaQuery.of(context).size.width * 0.78;
+    return Align(
+      alignment: alignment,
       child: GestureDetector(
-        onLongPress: () => _showMessageMenu(context, message),
-        child: TweenAnimationBuilder<double>(
-          tween: Tween(begin: 0, end: 1),
-          duration: const Duration(milliseconds: 320),
-          curve: Curves.easeOutBack,
-          builder: (context, value, child) {
-            return Opacity(
-              opacity: value.clamp(0.0, 1.0),
-              child: Transform.translate(
-                offset: Offset(0, (1 - value) * 12),
-                child: child,
+        onLongPress: () => _showMessageMenu(context, text),
+        child: Container(
+          constraints: BoxConstraints(maxWidth: maxWidth),
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
+          decoration: BoxDecoration(
+            color: isUser ? const Color(0xFF2563EB) : AppColors.surface,
+            borderRadius: BorderRadius.only(
+              topLeft: Radius.circular(mergeTop ? 10 : 18),
+              topRight: Radius.circular(mergeTop ? 10 : 18),
+              bottomLeft: Radius.circular(
+                mergeBottom ? 10 : (isUser ? 18 : 8),
               ),
-            );
-          },
-          child: Container(
-            margin: const EdgeInsets.symmetric(vertical: 6),
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            constraints: BoxConstraints(maxWidth: maxWidth),
-            decoration: BoxDecoration(
-              color: isUser ? null : AppColors.assistantBubble,
-              gradient: isUser
-                  ? const LinearGradient(
-                      colors: [
-                        AppColors.userBubbleGradientStart,
-                        AppColors.userBubbleGradientEnd,
-                      ],
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                    )
-                  : null,
-              boxShadow: isUser
-                  ? [
-                      BoxShadow(
-                        color: AppColors.accent.withOpacity(0.2),
-                        blurRadius: 10,
-                        offset: const Offset(0, 4),
-                      )
-                    ]
-                  : [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.04),
-                        blurRadius: 10,
-                        offset: const Offset(0, 2),
-                      )
-                    ],
-              borderRadius: BorderRadius.only(
-                topLeft: const Radius.circular(16),
-                topRight: const Radius.circular(16),
-                bottomLeft: Radius.circular(isUser ? 16 : 6),
-                bottomRight: Radius.circular(isUser ? 6 : 16),
+              bottomRight: Radius.circular(
+                mergeBottom ? 10 : (isUser ? 8 : 18),
               ),
-              border: isUser
-                  ? null
-                  : Border.all(color: AppColors.assistantBubbleBorder),
             ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                if (message.imageBytes != null &&
-                    message.imageBytes!.isNotEmpty)
-                  Padding(
-                    padding: EdgeInsets.only(
-                        bottom: message.text != null ? 8.0 : 0.0),
-                    child: _ImageGrid(
-                      images: message.imageBytes!,
-                      isUser: isUser,
-                    ),
-                  ),
-                if (message.text != null)
-                  _ExpandableText(
-                    text: message.text!,
-                    textStyle: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          color: isUser
-                              ? AppColors.userBubbleText
-                              : AppColors.textPrimary,
-                          height: 1.4,
-                        ),
-                  ),
-              ],
-            ),
+            border: isUser ? null : Border.all(color: AppColors.divider),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: isUser ? 0.10 : 0.05),
+                blurRadius: 10,
+                offset: const Offset(0, 2),
+              ),
+            ],
+          ),
+          child: _ExpandableText(
+            text: text,
+            textStyle: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  color: isUser ? Colors.white : AppColors.textPrimary,
+                  height: 1.45,
+                ),
+            isUser: isUser,
           ),
         ),
       ),
     );
+  }
 
-    if (bottom == null) return bubble;
-    
-    return Column(
-      crossAxisAlignment:
-          isUser ? CrossAxisAlignment.end : CrossAxisAlignment.start,
-      children: [
-        bubble,
-        bottom!,
-      ],
+  Widget _buildImageBubble({
+    required BuildContext context,
+    required Alignment alignment,
+    required List<String> images,
+  }) {
+    final maxWidth = MediaQuery.of(context).size.width * 0.74;
+    return Align(
+      alignment: alignment,
+      child: Container(
+        constraints: BoxConstraints(maxWidth: maxWidth),
+        padding: const EdgeInsets.all(6),
+        decoration: BoxDecoration(
+          color: AppColors.surface,
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(color: AppColors.divider),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.06),
+              blurRadius: 10,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: _ImageGrid(images: images),
+      ),
     );
   }
 
-  void _showMessageMenu(BuildContext context, ChatMessage message) {
-    final text = message.text ?? "";
+  void _showMessageMenu(BuildContext context, String text) {
     showModalBottomSheet<void>(
       context: context,
       showDragHandle: true,
@@ -183,10 +229,15 @@ class MessageBubble extends StatelessWidget {
 }
 
 class _ExpandableText extends StatefulWidget {
-  const _ExpandableText({required this.text, this.textStyle});
+  const _ExpandableText({
+    required this.text,
+    this.textStyle,
+    required this.isUser,
+  });
 
   final String text;
   final TextStyle? textStyle;
+  final bool isUser;
 
   @override
   State<_ExpandableText> createState() => _ExpandableTextState();
@@ -215,6 +266,9 @@ class _ExpandableTextState extends State<_ExpandableText> {
               padding: EdgeInsets.zero,
               minimumSize: const Size(0, 0),
               tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              foregroundColor: widget.isUser
+                  ? Colors.white.withValues(alpha: 0.92)
+                  : AppColors.accent,
             ),
             child: Text(_expanded ? "收起" : "展开全文"),
           ),
@@ -224,14 +278,30 @@ class _ExpandableTextState extends State<_ExpandableText> {
 }
 
 class _ImageGrid extends StatelessWidget {
-  const _ImageGrid({required this.images, required this.isUser});
+  const _ImageGrid({required this.images});
 
   final List<String> images;
-  final bool isUser;
 
   @override
   Widget build(BuildContext context) {
     final count = images.length;
+    if (count == 1) {
+      return ClipRRect(
+        borderRadius: BorderRadius.circular(12),
+        child: GestureDetector(
+          onTap: () => _openImage(context, images, 0),
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxHeight: 260),
+            child: Image.memory(
+              base64Decode(images.first),
+              fit: BoxFit.cover,
+              width: double.infinity,
+            ),
+          ),
+        ),
+      );
+    }
+
     final crossAxisCount = count <= 2 ? 2 : 3;
     return GridView.builder(
       shrinkWrap: true,

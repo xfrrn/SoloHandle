@@ -360,9 +360,10 @@ class ChatController extends StateNotifier<ChatState> {
       drafts: const [],
       cards: const [],
       loading: false,
-      status: "",
-      clarifyQuestion: "",
-      undoToken: "",
+      status: null,
+      clarifyQuestion: null,
+      undoToken: null,
+      lastFailedRequest: null,
     );
   }
 }

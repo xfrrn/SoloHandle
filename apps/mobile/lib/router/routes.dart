@@ -86,13 +86,16 @@ class _AppShell extends StatelessWidget {
   Widget build(BuildContext context) {
     final location = GoRouterState.of(context).uri.toString();
     final index = _locationToIndex(location);
+    final hideTabBar = location.startsWith("/chat");
     return Scaffold(
       body: child,
-      bottomNavigationBar: _RoundedTabBar(
-        currentIndex: index,
-        onTap: (next) => context.go(_tabs[next].path),
-        tabs: _tabs,
-      ),
+      bottomNavigationBar: hideTabBar
+          ? null
+          : _RoundedTabBar(
+              currentIndex: index,
+              onTap: (next) => context.go(_tabs[next].path),
+              tabs: _tabs,
+            ),
     );
   }
 }

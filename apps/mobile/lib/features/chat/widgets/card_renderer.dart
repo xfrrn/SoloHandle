@@ -28,27 +28,17 @@ class CardRenderer extends StatefulWidget {
 
 class _CardRendererState extends State<CardRenderer> {
   bool _showActions = false;
-  bool _showAllFields = false;
 
   @override
   Widget build(BuildContext context) {
     final card = widget.card;
-    final subtitle = card.type == "task"
-        ? _subtitleFromData(card.data)
-        : (card.subtitle.isNotEmpty
-            ? card.subtitle
-            : _subtitleFromData(card.data));
-    final dataEntries = card.data.entries.toList();
     final isDraft = card.status == "draft";
-    final isCommitted = card.status != "draft";
-    final visibleEntries =
-        _showAllFields || dataEntries.length <= 4 ? dataEntries : dataEntries.take(4).toList();
 
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: isCommitted ? const Color(0xFFF5F6F8) : AppColors.surface,
+        color: AppColors.surface,
         borderRadius: BorderRadius.circular(20),
         border: Border.all(
           color: isDraft
@@ -78,83 +68,26 @@ class _CardRendererState extends State<CardRenderer> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        card.title.isEmpty ? "草稿" : card.title,
+                        _displayTitle(card),
                         style: Theme.of(context).textTheme.titleMedium?.copyWith(
                               fontWeight: FontWeight.w600,
                             ),
                       ),
-                      if (subtitle.isNotEmpty) ...[
-                        const SizedBox(height: 2),
-                        Text(
-                          subtitle,
-                          style:
-                              Theme.of(context).textTheme.bodySmall?.copyWith(
-                                    color: AppColors.textSecondary,
-                                  ),
-                        ),
-                      ],
+                      const SizedBox(height: 2),
+                      Text(
+                        _headerSubtitle(card),
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                              color: AppColors.textSecondary,
+                            ),
+                      ),
                     ],
                   ),
                 ),
                 _StatusBadge(status: card.status),
               ],
             ),
-            if (card.type == "task") ...[
-              const SizedBox(height: 12),
-              Wrap(
-                spacing: 6,
-                runSpacing: 6,
-                children: _taskBadges(card.data)
-                    .map((text) => _Badge(text: text))
-                    .toList(),
-              ),
-            ],
-            if (dataEntries.isNotEmpty) ...[
-              const SizedBox(height: 12),
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: AppColors.background,
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Wrap(
-                  spacing: 12,
-                  runSpacing: 10,
-                  children: visibleEntries.map((entry) {
-                    return Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(
-                          entry.key.toUpperCase(),
-                          style:
-                              Theme.of(context).textTheme.labelSmall?.copyWith(
-                                    color: AppColors.textSecondary,
-                                    fontSize: 10,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          entry.value.toString(),
-                          style:
-                              Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                    color: AppColors.textPrimary,
-                                    fontWeight: FontWeight.w500,
-                                  ),
-                        ),
-                      ],
-                    );
-                  }).toList(),
-                ),
-              ),
-              if (dataEntries.length > 4)
-                TextButton(
-                  onPressed: () =>
-                      setState(() => _showAllFields = !_showAllFields),
-                  child: Text(_showAllFields ? "收起字段" : "展开更多字段"),
-                ),
-            ],
+            const SizedBox(height: 12),
+            _buildContent(context, card),
             const SizedBox(height: 12),
             AnimatedOpacity(
               duration: const Duration(milliseconds: 180),
@@ -169,6 +102,216 @@ class _CardRendererState extends State<CardRenderer> {
         ),
       ),
     );
+  }
+
+  String _displayTitle(CardDto card) {
+    if (card.title.isNotEmpty) return card.title;
+    return switch (card.type) {
+      "expense" => "支出",
+      "meal" => "用餐",
+      "mood" => "心情",
+      "lifelog" => "生活记录",
+      "task" => "任务",
+      _ => "记录",
+    };
+  }
+
+  String _headerSubtitle(CardDto card) {
+    if (card.type == "expense") {
+      final amount = _asNum(card.data["amount"]);
+      final currencyValue = card.data["currency"]?.toString().trim();
+      final currency =
+          (currencyValue?.isNotEmpty ?? false) ? currencyValue! : "CNY";
+      final category = _categoryLabel(card.data["category"]?.toString());
+      if (amount != null) return "¥${_formatAmount(amount)} · $category";
+      return category;
+    }
+    if (card.type == "meal") {
+      final mealType = _mealTypeLabel(card.data["meal_type"]?.toString());
+      final items = _firstNonEmpty([
+        card.data["items"]?.toString(),
+        card.data["note"]?.toString(),
+      ]);
+      return items.isNotEmpty ? "$mealType · $items" : mealType;
+    }
+    if (card.type == "mood") {
+      final mood = _firstNonEmpty([
+        card.data["mood"]?.toString(),
+        card.data["valence"]?.toString(),
+      ]);
+      return mood.isNotEmpty ? "心情 · $mood" : "心情记录";
+    }
+    if (card.type == "lifelog") {
+      final title = _firstNonEmpty([
+        card.data["title"]?.toString(),
+        card.data["note"]?.toString(),
+      ]);
+      return title.isNotEmpty ? title : "生活记录";
+    }
+    if (card.type == "task") {
+      return _subtitleFromData(card.data);
+    }
+    return card.subtitle.isNotEmpty ? card.subtitle : _subtitleFromData(card.data);
+  }
+
+  Widget _buildContent(BuildContext context, CardDto card) {
+    switch (card.type) {
+      case "expense":
+        return _buildExpenseContent(context, card);
+      case "meal":
+        return _buildMealContent(context, card);
+      case "mood":
+        return _buildMoodContent(context, card);
+      case "lifelog":
+        return _buildLifelogContent(context, card);
+      case "task":
+        return _buildTaskContent(context, card);
+      default:
+        return _buildGenericContent(context, card);
+    }
+  }
+
+  Widget _buildExpenseContent(BuildContext context, CardDto card) {
+    final amount = _asNum(card.data["amount"]);
+    final currencyValue = card.data["currency"]?.toString().trim();
+    final currency =
+        (currencyValue?.isNotEmpty ?? false) ? currencyValue! : "CNY";
+    final category = _categoryLabel(card.data["category"]?.toString());
+    final note = _firstNonEmpty([card.data["note"]?.toString()]);
+    final time = _friendlyTime(card.data["happened_at"] ?? card.data["time"]);
+    return _CardBody(
+      primary: amount != null ? "¥${_formatAmount(amount)} $currency" : "",
+      secondary: note.isNotEmpty ? "$category · $note" : category,
+      tertiary: time,
+    );
+  }
+
+  Widget _buildMealContent(BuildContext context, CardDto card) {
+    final mealType = _mealTypeLabel(card.data["meal_type"]?.toString());
+    final items = _firstNonEmpty([
+      card.data["items"]?.toString(),
+      card.data["note"]?.toString(),
+    ]);
+    final time = _friendlyTime(card.data["happened_at"] ?? card.data["time"]);
+    return _CardBody(
+      primary: mealType,
+      secondary: items,
+      tertiary: time,
+    );
+  }
+
+  Widget _buildMoodContent(BuildContext context, CardDto card) {
+    final mood = _firstNonEmpty([
+      card.data["mood"]?.toString(),
+      card.data["valence"]?.toString(),
+    ]);
+    final note = _firstNonEmpty([card.data["note"]?.toString()]);
+    final time = _friendlyTime(card.data["happened_at"] ?? card.data["time"]);
+    return _CardBody(
+      primary: mood.isNotEmpty ? mood : "心情记录",
+      secondary: note,
+      tertiary: time,
+    );
+  }
+
+  Widget _buildLifelogContent(BuildContext context, CardDto card) {
+    final title = _firstNonEmpty([
+      card.data["title"]?.toString(),
+      card.data["note"]?.toString(),
+      card.data["content"]?.toString(),
+    ]);
+    final time = _friendlyTime(card.data["happened_at"] ?? card.data["time"]);
+    return _CardBody(
+      primary: title.isNotEmpty ? title : "生活记录",
+      secondary: "",
+      tertiary: time,
+    );
+  }
+
+  Widget _buildTaskContent(BuildContext context, CardDto card) {
+    final title = _firstNonEmpty([
+      card.data["title"]?.toString(),
+      card.title,
+    ]);
+    final due = card.data["due_at"]?.toString();
+    final remind = card.data["remind_at"]?.toString();
+    final time = _firstNonEmpty([
+      due != null ? "截止 ${formatIsoToFriendly(due)}" : "",
+      remind != null ? "提醒 ${formatIsoToFriendly(remind)}" : "",
+    ]);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _CardBody(
+          primary: title.isNotEmpty ? title : "任务",
+          secondary: time,
+          tertiary: "",
+        ),
+        if (_taskBadges(card.data).isNotEmpty) ...[
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 6,
+            runSpacing: 6,
+            children: _taskBadges(card.data)
+                .map((text) => _Badge(text: text))
+                .toList(),
+          ),
+        ],
+      ],
+    );
+  }
+
+  Widget _buildGenericContent(BuildContext context, CardDto card) {
+    final note = _firstNonEmpty([card.data["note"]?.toString()]);
+    final time = _friendlyTime(card.data["happened_at"] ?? card.data["time"]);
+    return _CardBody(
+      primary: card.subtitle,
+      secondary: note,
+      tertiary: time,
+    );
+  }
+
+  String _friendlyTime(Object? value) {
+    if (value is String && value.isNotEmpty) {
+      return formatIsoToFriendly(value);
+    }
+    return "";
+  }
+
+  double? _asNum(Object? value) {
+    if (value is num) return value.toDouble();
+    return double.tryParse(value?.toString() ?? "");
+  }
+
+  String _formatAmount(double value) {
+    if (value == value.roundToDouble()) {
+      return value.toStringAsFixed(0);
+    }
+    return value.toStringAsFixed(2);
+  }
+
+  String _categoryLabel(String? value) {
+    if (value == null || value.trim().isEmpty || value == "unknown") {
+      return "未分类";
+    }
+    return value;
+  }
+
+  String _mealTypeLabel(String? value) {
+    return switch (value) {
+      "breakfast" => "早餐",
+      "lunch" => "午餐",
+      "dinner" => "晚餐",
+      "snack" => "加餐",
+      _ => "用餐",
+    };
+  }
+
+  String _firstNonEmpty(List<String?> values) {
+    for (final v in values) {
+      if (v != null && v.trim().isNotEmpty) return v.trim();
+    }
+    return "";
   }
 
   Widget _buildActions(CardDto card) {
@@ -261,10 +404,10 @@ class _CardRendererState extends State<CardRenderer> {
     final priority = data["priority"];
     final parts = <String>[];
     if (due is String && due.isNotEmpty) {
-      parts.add("截止：${formatIsoToLocal(due)}");
+      parts.add("截止：${formatIsoToFriendly(due)}");
     }
     if (remind is String && remind.isNotEmpty) {
-      parts.add("提醒：${formatIsoToLocal(remind)}");
+      parts.add("提醒：${formatIsoToFriendly(remind)}");
     }
     if (priority is String && priority.isNotEmpty) {
       parts.add("优先级：${_priorityLabel(priority)}");
@@ -272,7 +415,7 @@ class _CardRendererState extends State<CardRenderer> {
     if (parts.isNotEmpty) return parts.join(" · ");
     final time = data["time"] ?? data["happened_at"];
     if (time is String && time.isNotEmpty)
-      return "时间：${formatIsoToLocal(time)}";
+      return "时间：${formatIsoToFriendly(time)}";
     return "";
   }
 
@@ -303,6 +446,53 @@ class _CardRendererState extends State<CardRenderer> {
       "canceled" => "已取消",
       _ => "进行中",
     };
+  }
+}
+
+class _CardBody extends StatelessWidget {
+  const _CardBody({
+    required this.primary,
+    required this.secondary,
+    required this.tertiary,
+  });
+
+  final String primary;
+  final String secondary;
+  final String tertiary;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (primary.isNotEmpty)
+          Text(
+            primary,
+            style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                  fontWeight: FontWeight.w600,
+                  height: 1.2,
+                ),
+          ),
+        if (secondary.isNotEmpty) ...[
+          const SizedBox(height: 6),
+          Text(
+            secondary,
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  color: AppColors.textPrimary,
+                ),
+          ),
+        ],
+        if (tertiary.isNotEmpty) ...[
+          const SizedBox(height: 6),
+          Text(
+            tertiary,
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: AppColors.textSecondary,
+                ),
+          ),
+        ],
+      ],
+    );
   }
 }
 
