@@ -6,6 +6,7 @@ import "../features/chat/chat_screen.dart";
 import "../features/dashboard/dashboard_screen.dart";
 import "../features/notifications/notifications_screen.dart";
 import "../features/settings/settings_screen.dart";
+import "../features/settings/developer_settings_screen.dart";
 import "../features/tasks/tasks_screen.dart";
 import "../features/timeline/timeline_screen.dart";
 
@@ -44,6 +45,11 @@ final routerProvider = Provider<GoRouter>((ref) {
                 const NoTransitionPage(child: SettingsScreen()),
           ),
         ],
+      ),
+      GoRoute(
+        path: "/developer-settings",
+        pageBuilder: (context, state) =>
+            const NoTransitionPage(child: DeveloperSettingsScreen()),
       ),
       GoRoute(
         path: "/notifications",

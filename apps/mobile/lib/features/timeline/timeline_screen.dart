@@ -36,20 +36,33 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
     final notifier = ref.read(timelineControllerProvider.notifier);
 
     return Scaffold(
-      appBar: AppBar(title: const Text("Timeline")),
       body: Column(
         children: [
+          _TimelineHeader(),
           // Search bar
           Padding(
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+            padding: const EdgeInsets.fromLTRB(16, 6, 16, 0),
             child: TextField(
               controller: _searchController,
               decoration: InputDecoration(
-                prefixIcon: const Icon(Icons.search, size: 20),
+                prefixIcon: const Icon(Icons.search, size: 18),
                 hintText: "搜索记录...",
+                isDense: true,
+                filled: true,
+                fillColor: AppColors.surface,
+                contentPadding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(16),
+                  borderSide: const BorderSide(color: AppColors.divider),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(16),
+                  borderSide: const BorderSide(color: AppColors.accent),
+                ),
                 suffixIcon: _searchController.text.isNotEmpty
                     ? IconButton(
-                        icon: const Icon(Icons.clear, size: 18),
+                        icon: const Icon(Icons.clear, size: 16),
                         onPressed: () {
                           _searchController.clear();
                           notifier.setSearchQuery("");
@@ -64,7 +77,7 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
               },
             ),
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 8),
 
           // Type filter chips
           Padding(
@@ -114,7 +127,7 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
               ),
             ),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 6),
 
           // Content
           Expanded(child: _buildBody(state, notifier)),
@@ -154,7 +167,7 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
     return RefreshIndicator(
       onRefresh: () => notifier.loadEvents(),
       child: ListView.builder(
-        padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
+        padding: const EdgeInsets.fromLTRB(16, 6, 16, 24),
         itemCount: dateKeys.length,
         itemBuilder: (context, index) {
           final dateKey = dateKeys[index];
@@ -162,16 +175,7 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
           return Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Padding(
-                padding: const EdgeInsets.symmetric(vertical: 10),
-                child: Text(
-                  dateKey,
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.w700,
-                        color: AppColors.textSecondary,
-                      ),
-                ),
-              ),
+              _DateHeader(label: dateKey),
               ...events.map((event) {
                 final expanded = state.expandedEventId == event.eventId;
                 return Column(
@@ -232,10 +236,10 @@ class _FilterChip extends StatelessWidget {
       onTap: onTap,
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
         decoration: BoxDecoration(
-          color: selected ? AppColors.accent.withAlpha(30) : AppColors.surface,
-          borderRadius: BorderRadius.circular(20),
+          color: selected ? AppColors.accent.withOpacity(0.12) : AppColors.surface,
+          borderRadius: BorderRadius.circular(16),
           border: Border.all(
             color: selected ? AppColors.accent : AppColors.divider,
           ),
@@ -276,6 +280,7 @@ class _TimelineCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final summary = _TimelineSummary.fromEvent(event);
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(14),
@@ -309,7 +314,7 @@ class _TimelineCard extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    event.displayTitle,
+                    summary.title,
                     style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                           fontWeight: FontWeight.w500,
                         ),
@@ -321,6 +326,17 @@ class _TimelineCard extends StatelessWidget {
                           color: AppColors.textSecondary,
                         ),
                   ),
+                  if (summary.subtitle != null) ...[
+                    const SizedBox(height: 4),
+                    Text(
+                      summary.subtitle!,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            color: AppColors.textSecondary,
+                          ),
+                    ),
+                  ],
                 ],
               ),
             ),
@@ -474,6 +490,135 @@ class _EmptyState extends StatelessWidget {
   }
 }
 
+class _TimelineHeader extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return SafeArea(
+      bottom: false,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 10, 16, 4),
+        child: Text(
+          "Timeline",
+          style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                fontWeight: FontWeight.w700,
+              ),
+        ),
+      ),
+    );
+  }
+}
+
+class _DateHeader extends StatelessWidget {
+  const _DateHeader({required this.label});
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(top: 10, bottom: 6),
+      child: Row(
+        children: [
+          Container(
+            width: 6,
+            height: 6,
+            decoration: const BoxDecoration(
+              color: AppColors.accent,
+              shape: BoxShape.circle,
+            ),
+          ),
+          const SizedBox(width: 8),
+          Text(
+            label,
+            style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.textPrimary,
+                ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _TimelineSummary {
+  _TimelineSummary({required this.title, this.subtitle});
+
+  final String title;
+  final String? subtitle;
+
+  static _TimelineSummary fromEvent(EventDto event) {
+    switch (event.type) {
+      case "expense":
+        final amount = event.data["amount"];
+        final cat = event.data["category"] ?? "unknown";
+        final catLabel = _mapCategory(cat.toString());
+        final note = event.data["note"]?.toString();
+        return _TimelineSummary(
+          title: "¥$amount · $catLabel",
+          subtitle: (note != null && note.isNotEmpty) ? note : null,
+        );
+      case "meal":
+        final mealType = _mapMealType(event.data["meal_type"]?.toString());
+        final items = (event.data["items"] as List?)
+                ?.map((e) => e.toString())
+                .join("、") ??
+            "";
+        final title = items.isNotEmpty
+            ? "$mealType · $items"
+            : (mealType.isNotEmpty ? "$mealType 记录" : "用餐记录");
+        return _TimelineSummary(title: title, subtitle: null);
+      case "mood":
+        final mood = event.data["mood"] ?? event.data["emotion"];
+        final moodText = mood?.toString().isNotEmpty == true ? mood.toString() : "心情记录";
+        final topic = event.data["topic"]?.toString();
+        return _TimelineSummary(
+          title: _mapMood(moodText),
+          subtitle: (topic != null && topic.isNotEmpty) ? topic : null,
+        );
+      case "life_log":
+        final text = event.data["text"] ?? event.data["description"];
+        final content = text?.toString().trim();
+        return _TimelineSummary(
+          title: (content != null && content.isNotEmpty)
+              ? content
+              : "生活记录",
+          subtitle: null,
+        );
+      default:
+        return _TimelineSummary(title: event.displayTitle, subtitle: null);
+    }
+  }
+
+  static String _mapCategory(String value) {
+    if (value == "unknown") return "未分类";
+    if (value == "other") return "其他";
+    return value;
+  }
+
+  static String _mapMealType(String? value) {
+    switch (value) {
+      case "breakfast":
+        return "早餐";
+      case "lunch":
+        return "午餐";
+      case "dinner":
+        return "晚餐";
+      case "snack":
+        return "加餐";
+      default:
+        return "";
+    }
+  }
+
+  static String _mapMood(String value) {
+    if (value.contains("开心") || value.contains("高兴")) return "🙂 心情不错";
+    if (value.contains("难过") || value.contains("沮丧")) return "😞 有点低落";
+    if (value.contains("焦虑")) return "😣 有些焦虑";
+    if (value.contains("生气")) return "😠 有点生气";
+    return "😐 $value";
+  }
+}
 class _TimelineDetailCard extends StatefulWidget {
   const _TimelineDetailCard({
     required this.event,

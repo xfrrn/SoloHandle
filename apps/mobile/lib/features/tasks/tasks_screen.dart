@@ -29,20 +29,13 @@ class _TasksScreenState extends ConsumerState<TasksScreen> {
     final notifier = ref.read(tasksControllerProvider.notifier);
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text("Tasks"),
-        actions: [
-          IconButton(
-            onPressed: () => notifier.loadAll(),
-            icon: const Icon(Icons.refresh),
-          ),
-        ],
-      ),
       body: Column(
         children: [
+          _TasksHeader(onRefresh: () => notifier.loadAll()),
+          const SizedBox(height: 6),
           // Scope tabs
           Padding(
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
+            padding: const EdgeInsets.fromLTRB(16, 6, 16, 4),
             child: Row(
               children: [
                 _ScopeTab(
@@ -51,7 +44,7 @@ class _TasksScreenState extends ConsumerState<TasksScreen> {
                   selected: state.activeScope == TaskScope.today,
                   onTap: () => notifier.setScope(TaskScope.today),
                 ),
-                const SizedBox(width: 10),
+                const SizedBox(width: 8),
                 _ScopeTab(
                   label: "逾期",
                   count: state.overdueTasks.length,
@@ -60,7 +53,7 @@ class _TasksScreenState extends ConsumerState<TasksScreen> {
                   badgeColor:
                       state.overdueTasks.isNotEmpty ? AppColors.danger : null,
                 ),
-                const SizedBox(width: 10),
+                const SizedBox(width: 8),
                 _ScopeTab(
                   label: "全部",
                   count: state.allTasks.length,
@@ -108,6 +101,21 @@ class _TasksScreenState extends ConsumerState<TasksScreen> {
       return _EmptyState(
         icon: Icons.check_circle_outline,
         message: _emptyMessage(state.activeScope),
+        action: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            TextButton.icon(
+              onPressed: () => context.go("/chat", extra: {"prefill": "新建任务："}),
+              icon: const Icon(Icons.add),
+              label: const Text("新建任务"),
+            ),
+            const SizedBox(width: 8),
+            TextButton(
+              onPressed: () => context.go("/chat"),
+              child: const Text("去聊天添加"),
+            ),
+          ],
+        ),
       );
     }
 
@@ -145,6 +153,50 @@ class _TasksScreenState extends ConsumerState<TasksScreen> {
 
 // ─── Widgets ─────────────────────────────────────────
 
+class _TasksHeader extends StatelessWidget {
+  const _TasksHeader({required this.onRefresh});
+
+  final VoidCallback onRefresh;
+
+  @override
+  Widget build(BuildContext context) {
+    return SafeArea(
+      bottom: false,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 10, 16, 4),
+        child: Row(
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    "Tasks",
+                    style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                          fontWeight: FontWeight.w700,
+                        ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    "把待办一件件完成",
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: AppColors.textSecondary,
+                        ),
+                  ),
+                ],
+              ),
+            ),
+            IconButton(
+              onPressed: onRefresh,
+              icon: const Icon(Icons.refresh, color: AppColors.textSecondary),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 class _ScopeTab extends StatelessWidget {
   const _ScopeTab({
     required this.label,
@@ -167,11 +219,10 @@ class _ScopeTab extends StatelessWidget {
         onTap: onTap,
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 200),
-          padding: const EdgeInsets.symmetric(vertical: 10),
+          padding: const EdgeInsets.symmetric(vertical: 8),
           decoration: BoxDecoration(
-            color:
-                selected ? AppColors.accent.withAlpha(25) : AppColors.surface,
-            borderRadius: BorderRadius.circular(12),
+            color: selected ? AppColors.accent.withOpacity(0.12) : AppColors.surface,
+            borderRadius: BorderRadius.circular(14),
             border: Border.all(
               color: selected ? AppColors.accent : AppColors.divider,
             ),
@@ -320,6 +371,20 @@ class _TaskCard extends StatelessWidget {
                     ),
                   ),
               ],
+            ),
+          ],
+          if (task.note != null && task.note!.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            Padding(
+              padding: const EdgeInsets.only(left: 36),
+              child: Text(
+                task.note!,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: AppColors.textSecondary,
+                    ),
+              ),
             ),
           ],
           if (task.tags.isNotEmpty) ...[

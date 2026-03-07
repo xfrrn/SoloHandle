@@ -1,118 +1,256 @@
 import "package:flutter/material.dart";
+import "package:go_router/go_router.dart";
 
 import "../../core/constants.dart";
-import "../../data/storage/local_store.dart";
-
-class SettingsScreen extends StatefulWidget {
+class SettingsScreen extends StatelessWidget {
   const SettingsScreen({super.key});
-
-  @override
-  State<SettingsScreen> createState() => _SettingsScreenState();
-}
-
-class _SettingsScreenState extends State<SettingsScreen> {
-  final _baseUrlController = TextEditingController();
-  final _tokenController = TextEditingController();
-  final _store = LocalStore();
-  bool _loading = true;
-
-  @override
-  void initState() {
-    super.initState();
-    _load();
-  }
-
-  Future<void> _load() async {
-    final baseUrl = await _store.getBaseUrl();
-    final token = await _store.getToken();
-    _baseUrlController.text = baseUrl ?? "http://127.0.0.1:8000";
-    _tokenController.text = token ?? "";
-    setState(() => _loading = false);
-  }
-
-  Future<void> _save() async {
-    await _store.setBaseUrl(_baseUrlController.text.trim());
-    await _store.setToken(_tokenController.text.trim());
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text("已保存")),
-    );
-  }
-
-  @override
-  void dispose() {
-    _baseUrlController.dispose();
-    _tokenController.dispose();
-    super.dispose();
-  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text("Me")),
-      body: _loading
-          ? const Center(child: CircularProgressIndicator())
-          : ListView(
-              padding: const EdgeInsets.all(16),
-              children: [
-                Text("API Base URL",
-                    style: Theme.of(context).textTheme.titleMedium),
-                const SizedBox(height: 8),
-                TextField(controller: _baseUrlController),
-                const SizedBox(height: 16),
-                Text("Token", style: Theme.of(context).textTheme.titleMedium),
-                const SizedBox(height: 8),
-                TextField(controller: _tokenController),
-                const SizedBox(height: 16),
-                _SettingTile(
-                  title: "Draft policy",
-                  value: "记账/任务默认需确认",
+      body: ListView(
+        padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+        children: [
+          _MeHeader(),
+          const SizedBox(height: 12),
+          _ProfileCard(),
+          const SizedBox(height: 16),
+          _Group(
+            title: "偏好",
+            children: const [
+              _SettingRow(
+                title: "Draft policy",
+                subtitle: "记账/任务默认需确认",
+                value: "需要确认",
+              ),
+              _SettingRow(
+                title: "默认时区",
+                subtitle: "当前时区",
+                value: "Asia/Shanghai",
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          _Group(
+            title: "数据",
+            children: const [
+              _SettingRow(
+                title: "Export data",
+                subtitle: "导出为 JSON",
+                value: "JSON",
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          _Group(
+            title: "开发与连接",
+            children: [
+              _SettingRow(
+                title: "Developer Settings",
+                subtitle: "API Base URL / Token",
+                value: "进入",
+                onTap: () => _openDeveloperSettings(context),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          _Group(
+            title: "关于",
+            children: const [
+              _SettingRow(
+                title: "App Version",
+                subtitle: "当前版本",
+                value: "0.1.0",
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _openDeveloperSettings(BuildContext context) {
+    context.go("/developer-settings");
+  }
+}
+
+class _MeHeader extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return SafeArea(
+      bottom: false,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            "Me",
+            style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                  fontWeight: FontWeight.w700,
                 ),
-                _SettingTile(
-                  title: "默认时区",
-                  value: "Asia/Shanghai",
+          ),
+          const SizedBox(height: 4),
+          Text(
+            "管理你的偏好、数据与连接设置",
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: AppColors.textSecondary,
                 ),
-                _SettingTile(
-                  title: "Export data",
-                  value: "JSON",
-                ),
-                const SizedBox(height: 20),
-                Align(
-                  alignment: Alignment.centerRight,
-                  child: TextButton(
-                    onPressed: _save,
-                    style:
-                        TextButton.styleFrom(foregroundColor: AppColors.accent),
-                    child: const Text("保存"),
-                  ),
-                ),
-              ],
-            ),
+          ),
+        ],
+      ),
     );
   }
 }
 
-class _SettingTile extends StatelessWidget {
-  const _SettingTile({required this.title, required this.value});
-
-  final String title;
-  final String value;
-
+class _ProfileCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      margin: const EdgeInsets.only(bottom: 10),
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: AppColors.surface,
-        borderRadius: BorderRadius.circular(10),
+        borderRadius: BorderRadius.circular(18),
         border: Border.all(color: AppColors.divider),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 12,
+            offset: const Offset(0, 6),
+          )
+        ],
       ),
       child: Row(
         children: [
-          Expanded(child: Text(title)),
-          Text(value, style: Theme.of(context).textTheme.bodySmall),
+          Container(
+            width: 44,
+            height: 44,
+            decoration: BoxDecoration(
+              color: AppColors.accentLight,
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(Icons.person, color: AppColors.accent),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  "Local Profile",
+                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                        fontWeight: FontWeight.w600,
+                      ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  "当前使用本地配置，无需登录",
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: AppColors.textSecondary,
+                      ),
+                ),
+              ],
+            ),
+          ),
         ],
+      ),
+    );
+  }
+}
+
+class _Group extends StatelessWidget {
+  const _Group({required this.title, required this.children});
+
+  final String title;
+  final List<Widget> children;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          title,
+          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                color: AppColors.textSecondary,
+                fontWeight: FontWeight.w600,
+              ),
+        ),
+        const SizedBox(height: 8),
+        Container(
+          decoration: BoxDecoration(
+            color: AppColors.surface,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: AppColors.divider),
+          ),
+          child: Column(
+            children: [
+              for (var i = 0; i < children.length; i++) ...[
+                if (i > 0)
+                  const Divider(height: 1, color: AppColors.divider),
+                children[i],
+              ]
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _SettingRow extends StatelessWidget {
+  const _SettingRow({
+    required this.title,
+    this.subtitle,
+    this.value,
+    this.onTap,
+  });
+
+  final String title;
+  final String? subtitle;
+  final String? value;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(16),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        child: Row(
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          fontWeight: FontWeight.w600,
+                        ),
+                  ),
+                  if (subtitle != null) ...[
+                    const SizedBox(height: 4),
+                    Text(
+                      subtitle!,
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            color: AppColors.textSecondary,
+                          ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+            if (value != null)
+              Text(
+                value!,
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: AppColors.textSecondary,
+                    ),
+              ),
+            const SizedBox(width: 6),
+            const Icon(Icons.chevron_right, color: AppColors.textSecondary),
+          ],
+        ),
       ),
     );
   }
