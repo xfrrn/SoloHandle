@@ -20,12 +20,6 @@ class TaskPatchBody(BaseModel):
     status: Optional[str] = None
 
 
-def _get_task_service() -> TaskService:
-    conn = get_connection()
-    ensure_tables(conn)
-    return TaskService(TaskRepository(conn))
-
-
 @router.get("/tasks")
 def list_tasks(
     query: str | None = Query(None, description="Full-text search keyword"),
@@ -37,64 +31,75 @@ def list_tasks(
     limit: int = Query(50, ge=1, le=200),
     offset: int = Query(0, ge=0),
 ) -> dict:
-    svc = _get_task_service()
+    with get_connection() as conn:
+        ensure_tables(conn)
+        svc = TaskService(TaskRepository(conn))
 
-    if scope == "today":
-        return svc.list_tasks_today(timezone=timezone)
-    if scope == "overdue":
-        return svc.list_tasks_overdue(timezone=timezone)
+        if scope == "today":
+            return svc.list_tasks_today(timezone=timezone)
+        if scope == "overdue":
+            return svc.list_tasks_overdue(timezone=timezone)
 
-    return svc.search_tasks(
-        query=query,
-        status=status,
-        date_from=date_from,
-        date_to=date_to,
-        limit=limit,
-        offset=offset,
-    )
+        return svc.search_tasks(
+            query=query,
+            status=status,
+            date_from=date_from,
+            date_to=date_to,
+            limit=limit,
+            offset=offset,
+        )
 
 
 @router.post("/tasks/{task_id}/complete")
 def complete_task(task_id: int) -> dict:
-    svc = _get_task_service()
-    try:
-        return svc.complete_task(task_id)
-    except ToolError as exc:
-        raise HTTPException(status_code=404, detail={"code": exc.code, "message": exc.message}) from exc
+    with get_connection() as conn:
+        ensure_tables(conn)
+        svc = TaskService(TaskRepository(conn))
+        try:
+            return svc.complete_task(task_id)
+        except ToolError as exc:
+            raise HTTPException(status_code=404, detail={"code": exc.code, "message": exc.message}) from exc
 
 
 @router.post("/tasks/{task_id}/waiting")
 def mark_task_waiting(task_id: int) -> dict:
-    svc = _get_task_service()
-    try:
-        return svc.update_task(
-            task_id,
-            {
-                "status": "pending",
-                "completed_at": None,
-                "updated_at": now_iso8601(),
-            },
-        )
-    except ToolError as exc:
-        raise HTTPException(status_code=404, detail={"code": exc.code, "message": exc.message}) from exc
+    with get_connection() as conn:
+        ensure_tables(conn)
+        svc = TaskService(TaskRepository(conn))
+        try:
+            return svc.update_task(
+                task_id,
+                {
+                    "status": "pending",
+                    "completed_at": None,
+                    "updated_at": now_iso8601(),
+                },
+            )
+        except ToolError as exc:
+            raise HTTPException(status_code=404, detail={"code": exc.code, "message": exc.message}) from exc
 
 
 @router.patch("/tasks/{task_id}")
 def patch_task(task_id: int, body: TaskPatchBody) -> dict:
-    svc = _get_task_service()
     fields = body.model_dump(exclude_unset=True)
     if not fields:
         raise HTTPException(status_code=400, detail={"code": "invalid_param", "message": "No fields to update"})
-    try:
-        return svc.update_task(task_id, fields)
-    except ToolError as exc:
-        raise HTTPException(status_code=404, detail={"code": exc.code, "message": exc.message}) from exc
+    fields["updated_at"] = now_iso8601()
+    with get_connection() as conn:
+        ensure_tables(conn)
+        svc = TaskService(TaskRepository(conn))
+        try:
+            return svc.update_task(task_id, fields)
+        except ToolError as exc:
+            raise HTTPException(status_code=404, detail={"code": exc.code, "message": exc.message}) from exc
 
 
 @router.delete("/tasks/{task_id}")
 def delete_task(task_id: int) -> dict:
-    svc = _get_task_service()
-    try:
-        return svc.set_deleted(task_id, 1)
-    except ToolError as exc:
-        raise HTTPException(status_code=404, detail={"code": exc.code, "message": exc.message}) from exc
+    with get_connection() as conn:
+        ensure_tables(conn)
+        svc = TaskService(TaskRepository(conn))
+        try:
+            return svc.set_deleted(task_id, 1)
+        except ToolError as exc:
+            raise HTTPException(status_code=404, detail={"code": exc.code, "message": exc.message}) from exc
