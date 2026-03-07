@@ -30,7 +30,7 @@ class InputBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      padding: const EdgeInsets.fromLTRB(16, 10, 16, 12),
       decoration: BoxDecoration(
         color: AppColors.surface,
         boxShadow: [
@@ -64,118 +64,140 @@ class InputBar extends StatelessWidget {
             Row(
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
-                IconButton(
-                  onPressed: loading ? null : onPickImage,
-                  icon: const Icon(Icons.add_circle),
-                  color: AppColors.textSecondary,
-                  iconSize: 28,
-                  padding: const EdgeInsets.only(bottom: 10),
-                ),
-                const SizedBox(width: 8),
                 Expanded(
                   child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
                     decoration: BoxDecoration(
                       color: isRecording
                           ? AppColors.danger.withOpacity(0.08)
                           : AppColors.background,
-                      borderRadius: BorderRadius.circular(24),
+                      borderRadius: BorderRadius.circular(28),
+                      border: Border.all(color: AppColors.divider),
                     ),
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    child: isRecording
-                        ? const Padding(
-                            padding: EdgeInsets.symmetric(vertical: 14),
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                RecordingWave(),
-                                SizedBox(width: 8),
-                                Icon(Icons.mic,
-                                    color: AppColors.danger, size: 20),
-                                SizedBox(width: 8),
-                                Text("正在录音...",
-                                    style: TextStyle(
-                                        color: AppColors.danger,
-                                        fontWeight: FontWeight.w500)),
-                              ],
-                            ),
-                          )
-                        : TextField(
-                            controller: controller,
-                            minLines: 1,
-                            maxLines: 4,
-                            decoration: const InputDecoration(
-                              hintText: "和助理说话...",
-                              hintStyle: TextStyle(color: AppColors.textSecondary),
-                              border: InputBorder.none,
-                            ),
-                          ),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 6),
-                  child: ValueListenableBuilder<TextEditingValue>(
-                    valueListenable: controller,
-                    builder: (context, value, child) {
-                      final hasText = value.text.trim().isNotEmpty;
-                      final isSendMode = hasText || selectedImages.isNotEmpty;
-
-                      if (isSendMode) {
-                        return PressableScale(
-                          onTap: loading ? null : onSend,
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        PressableScale(
+                          onTap: loading ? null : onPickImage,
                           child: Container(
-                            padding: const EdgeInsets.all(12),
+                            width: 36,
+                            height: 36,
                             decoration: BoxDecoration(
-                              color: loading
-                                  ? AppColors.divider
-                                  : AppColors.accent,
+                              color: AppColors.surface,
                               shape: BoxShape.circle,
+                              border: Border.all(color: AppColors.divider),
                             ),
-                            child: loading
-                                ? const SizedBox(
-                                    width: 20,
-                                    height: 20,
-                                    child: CircularProgressIndicator(
-                                        color: Colors.white, strokeWidth: 2),
-                                  )
-                                : const Icon(Icons.send_rounded,
-                                    color: Colors.white, size: 20),
+                            child: const Icon(Icons.add, size: 18, color: AppColors.textSecondary),
                           ),
-                        );
-                      }
-
-                      return PressableScale(
-                        onTap: loading
-                            ? null
-                            : () {
-                                if (isRecording) {
-                                  onStopRecord?.call();
-                                } else {
-                                  onStartRecord?.call();
-                                }
-                              },
-                        onLongPressStart:
-                            loading ? null : (_) => onStartRecord?.call(),
-                        onLongPressEnd:
-                            loading ? null : (_) => onStopRecord?.call(),
-                        child: Container(
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            color: isRecording ? AppColors.danger : AppColors.divider,
-                            shape: BoxShape.circle,
-                          ),
-                          child: loading
-                              ? const SizedBox(
-                                  width: 20,
-                                  height: 20,
-                                  child: CircularProgressIndicator(
-                                      color: Colors.white, strokeWidth: 2),
-                                )
-                              : Icon(Icons.mic,
-                                  color: isRecording ? Colors.white : AppColors.textPrimary, size: 20),
                         ),
-                      );
-                    },
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: isRecording
+                              ? const Padding(
+                                  padding: EdgeInsets.symmetric(vertical: 10),
+                                  child: Row(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      RecordingWave(),
+                                      SizedBox(width: 8),
+                                      Icon(Icons.mic,
+                                          color: AppColors.danger, size: 18),
+                                      SizedBox(width: 8),
+                                      Text("正在录音...",
+                                          style: TextStyle(
+                                              color: AppColors.danger,
+                                              fontWeight: FontWeight.w500)),
+                                    ],
+                                  ),
+                                )
+                              : TextField(
+                                  controller: controller,
+                                  minLines: 1,
+                                  maxLines: 4,
+                                  decoration: const InputDecoration(
+                                    hintText: "和助理说话...",
+                                    hintStyle: TextStyle(
+                                        color: AppColors.textSecondary),
+                                    border: InputBorder.none,
+                                  ),
+                                ),
+                        ),
+                        const SizedBox(width: 8),
+                        ValueListenableBuilder<TextEditingValue>(
+                          valueListenable: controller,
+                          builder: (context, value, child) {
+                            final hasText = value.text.trim().isNotEmpty;
+                            final isSendMode = hasText || selectedImages.isNotEmpty;
+
+                            return AnimatedSwitcher(
+                              duration: const Duration(milliseconds: 160),
+                              switchInCurve: Curves.easeOutCubic,
+                              switchOutCurve: Curves.easeInCubic,
+                              child: isSendMode
+                                  ? PressableScale(
+                                      key: const ValueKey("send"),
+                                      onTap: loading ? null : onSend,
+                                      child: Container(
+                                        width: 36,
+                                        height: 36,
+                                        decoration: BoxDecoration(
+                                          color: loading
+                                              ? AppColors.divider
+                                              : AppColors.accent,
+                                          shape: BoxShape.circle,
+                                        ),
+                                        child: loading
+                                            ? const SizedBox(
+                                                width: 18,
+                                                height: 18,
+                                                child: CircularProgressIndicator(
+                                                    color: Colors.white,
+                                                    strokeWidth: 2),
+                                              )
+                                            : const Icon(Icons.send_rounded,
+                                                color: Colors.white, size: 18),
+                                      ),
+                                    )
+                                  : PressableScale(
+                                      key: const ValueKey("mic"),
+                                      onTap: loading
+                                          ? null
+                                          : () {
+                                              if (isRecording) {
+                                                onStopRecord?.call();
+                                              } else {
+                                                onStartRecord?.call();
+                                              }
+                                            },
+                                      onLongPressStart: loading
+                                          ? null
+                                          : (_) => onStartRecord?.call(),
+                                      onLongPressEnd: loading
+                                          ? null
+                                          : (_) => onStopRecord?.call(),
+                                      child: Container(
+                                        width: 36,
+                                        height: 36,
+                                        decoration: BoxDecoration(
+                                          color: isRecording
+                                              ? AppColors.danger
+                                              : AppColors.surface,
+                                          shape: BoxShape.circle,
+                                          border:
+                                              Border.all(color: AppColors.divider),
+                                        ),
+                                        child: Icon(Icons.mic,
+                                            color: isRecording
+                                                ? Colors.white
+                                                : AppColors.textPrimary,
+                                            size: 18),
+                                      ),
+                                    ),
+                            );
+                          },
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ],

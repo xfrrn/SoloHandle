@@ -215,24 +215,13 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     });
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text("Assistant"),
-        actions: [
-          IconButton(
-            onPressed: () => _openNotifications(context),
-            icon: _BadgeIcon(
-              icon: Icons.notifications_none,
-              showDot: state.drafts.isNotEmpty,
-            ),
-          ),
-          IconButton(
-            onPressed: () {},
-            icon: const Icon(Icons.more_horiz),
-          ),
-        ],
-      ),
       body: Column(
         children: [
+          _Header(
+            onNotifications: () => _openNotifications(context),
+            onMore: () {},
+            showDot: state.drafts.isNotEmpty,
+          ),
           Expanded(
             child: NotificationListener<ScrollNotification>(
               onNotification: (notification) {
@@ -247,6 +236,15 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                 controller: _scrollController,
                 padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
                 children: [
+                  if (state.messages.isEmpty)
+                    _WelcomeSection(
+                      onSuggestion: (text) {
+                        _controller.text = text;
+                        _controller.selection = TextSelection.fromPosition(
+                          TextPosition(offset: _controller.text.length),
+                        );
+                      },
+                    ),
                   for (final message in state.messages)
                     MessageBubble(message: message),
                   if (state.clarifyQuestion != null)
@@ -459,6 +457,186 @@ class _StatusLine extends StatelessWidget {
             .textTheme
             .bodySmall
             ?.copyWith(color: AppColors.textSecondary),
+      ),
+    );
+  }
+}
+
+class _Header extends StatelessWidget {
+  const _Header({
+    required this.onNotifications,
+    required this.onMore,
+    required this.showDot,
+  });
+
+  final VoidCallback onNotifications;
+  final VoidCallback onMore;
+  final bool showDot;
+
+  @override
+  Widget build(BuildContext context) {
+    return SafeArea(
+      bottom: false,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 14, 16, 8),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    "Assistant",
+                    style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: 0.2,
+                        ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    "说句话，我来帮你记录、整理和提醒",
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: AppColors.textSecondary,
+                        ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 12),
+            IconButton(
+              onPressed: onNotifications,
+              icon: _BadgeIcon(
+                icon: Icons.notifications_none,
+                showDot: showDot,
+              ),
+            ),
+            IconButton(
+              onPressed: onMore,
+              icon: const Icon(Icons.more_horiz),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _WelcomeSection extends StatelessWidget {
+  const _WelcomeSection({required this.onSuggestion});
+
+  final ValueChanged<String> onSuggestion;
+
+  @override
+  Widget build(BuildContext context) {
+    return TweenAnimationBuilder<double>(
+      tween: Tween(begin: 0, end: 1),
+      duration: const Duration(milliseconds: 420),
+      curve: Curves.easeOutCubic,
+      builder: (context, value, child) {
+        return Opacity(
+          opacity: value,
+          child: Transform.translate(
+            offset: Offset(0, (1 - value) * 12),
+            child: child,
+          ),
+        );
+      },
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 16),
+        padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
+        decoration: BoxDecoration(
+          color: AppColors.surface,
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(color: AppColors.divider),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.04),
+              blurRadius: 12,
+              offset: const Offset(0, 6),
+            ),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  width: 40,
+                  height: 40,
+                  decoration: BoxDecoration(
+                    color: AppColors.accentLight,
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(Icons.auto_awesome, color: AppColors.accent),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    "今天想从哪件事开始？",
+                    style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                          fontWeight: FontWeight.w600,
+                        ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                _SuggestionChip(
+                  label: "记一笔支出",
+                  onTap: () => onSuggestion("我今天花了50元买咖啡"),
+                ),
+                _SuggestionChip(
+                  label: "添加一个任务",
+                  onTap: () => onSuggestion("提醒我明天上午10点开会"),
+                ),
+                _SuggestionChip(
+                  label: "记录今天心情",
+                  onTap: () => onSuggestion("我今天心情不错，挺开心"),
+                ),
+                _SuggestionChip(
+                  label: "写一条生活记录",
+                  onTap: () => onSuggestion("今天去跑步了，感觉很放松"),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _SuggestionChip extends StatelessWidget {
+  const _SuggestionChip({required this.label, required this.onTap});
+
+  final String label;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(18),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 160),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        decoration: BoxDecoration(
+          color: AppColors.background,
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(color: AppColors.divider),
+        ),
+        child: Text(
+          label,
+          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                color: AppColors.textPrimary,
+              ),
+        ),
       ),
     );
   }
