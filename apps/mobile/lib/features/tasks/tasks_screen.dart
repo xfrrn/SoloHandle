@@ -109,11 +109,6 @@ class _TasksScreenState extends ConsumerState<TasksScreen> {
               icon: const Icon(Icons.add),
               label: const Text("\u65b0\u5efa\u4efb\u52a1"),
             ),
-            const SizedBox(width: 8),
-            TextButton(
-              onPressed: () => context.go("/chat"),
-              child: const Text("\u53bb\u804a\u5929\u6dfb\u52a0"),
-            ),
           ],
         ),
       );
@@ -450,7 +445,7 @@ class _ScopeTab extends StatelessWidget {
   }
 }
 
-class _TaskCard extends StatelessWidget {
+class _TaskCard extends StatefulWidget {
   const _TaskCard({
     required this.task,
     required this.onToggleDone,
@@ -468,7 +463,15 @@ class _TaskCard extends StatelessWidget {
   final VoidCallback? onMarkWaiting;
 
   @override
+  State<_TaskCard> createState() => _TaskCardState();
+}
+
+class _TaskCardState extends State<_TaskCard> {
+  bool _noteExpanded = false;
+
+  @override
   Widget build(BuildContext context) {
+    final task = widget.task;
     final isOverdue = task.isOverdue;
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
@@ -488,7 +491,7 @@ class _TaskCard extends StatelessWidget {
           Row(
             children: [
               InkWell(
-                onTap: onToggleDone,
+                onTap: widget.onToggleDone,
                 borderRadius: BorderRadius.circular(20),
                 child: AnimatedContainer(
                   duration: const Duration(milliseconds: 180),
@@ -524,14 +527,16 @@ class _TaskCard extends StatelessWidget {
               _PriorityBadge(priority: task.priority),
               PopupMenuButton<String>(
                 onSelected: (v) {
-                  if (v == "edit") onEdit();
-                  if (v == "delete") onDelete();
-                  if (v == "waiting" && onMarkWaiting != null) onMarkWaiting!();
+                  if (v == "edit") widget.onEdit();
+                  if (v == "delete") widget.onDelete();
+                  if (v == "waiting" && widget.onMarkWaiting != null) {
+                    widget.onMarkWaiting!();
+                  }
                 },
                 itemBuilder: (ctx) => [
                   const PopupMenuItem(
                       value: "edit", child: Text("\u4fee\u6539")),
-                  if (onMarkWaiting != null)
+                  if (widget.onMarkWaiting != null)
                     const PopupMenuItem(
                         value: "waiting",
                         child: Text("\u6807\u8bb0\u7b49\u5f85")),
@@ -542,28 +547,30 @@ class _TaskCard extends StatelessWidget {
             ],
           ),
           if (task.dueAt != null) ...[
-            const SizedBox(height: 8),
+            const SizedBox(height: 2),
             Row(
               children: [
-                const SizedBox(width: 36),
+                const SizedBox(width: 24),
                 Icon(
                   Icons.schedule,
                   size: 14,
                   color: isOverdue ? AppColors.danger : AppColors.textSecondary,
                 ),
-                const SizedBox(width: 4),
-                Text(
-                  formatIsoToLocal(task.dueAt!),
-                  style: TextStyle(
-                    fontSize: 12,
-                    color:
-                        isOverdue ? AppColors.danger : AppColors.textSecondary,
+                const SizedBox(width: 2),
+                Expanded(
+                  child: Text(
+                    formatIsoToLocal(task.dueAt!),
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: isOverdue
+                          ? AppColors.danger
+                          : AppColors.textSecondary,
+                    ),
                   ),
                 ),
-                const Spacer(),
                 if (!task.isDone)
                   InkWell(
-                    onTap: onPostpone,
+                    onTap: widget.onPostpone,
                     borderRadius: BorderRadius.circular(8),
                     child: Container(
                       padding: const EdgeInsets.symmetric(
@@ -586,21 +593,74 @@ class _TaskCard extends StatelessWidget {
             ),
           ],
           if (task.note != null && task.note!.isNotEmpty) ...[
-            const SizedBox(height: 8),
+            const SizedBox(height: 2),
             Padding(
-              padding: const EdgeInsets.only(left: 36),
-              child: Text(
-                task.note!,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: AppColors.textSecondary,
-                    ),
+              padding: const EdgeInsets.only(left: 24),
+              child: _ExpandableTaskNote(
+                text: task.note!,
+                expanded: _noteExpanded,
+                onToggle: () => setState(() => _noteExpanded = !_noteExpanded),
               ),
             ),
           ],
         ],
       ),
+    );
+  }
+}
+
+class _ExpandableTaskNote extends StatelessWidget {
+  const _ExpandableTaskNote({
+    required this.text,
+    required this.expanded,
+    required this.onToggle,
+  });
+
+  final String text;
+  final bool expanded;
+  final VoidCallback onToggle;
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final painter = TextPainter(
+          text: TextSpan(
+            text: text,
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: AppColors.textSecondary,
+                ),
+          ),
+          maxLines: 2,
+          textDirection: TextDirection.ltr,
+        )..layout(maxWidth: constraints.maxWidth);
+
+        final overflow = painter.didExceedMaxLines;
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              text,
+              maxLines: expanded ? null : 2,
+              overflow: expanded ? TextOverflow.visible : TextOverflow.ellipsis,
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: AppColors.textSecondary,
+                  ),
+            ),
+            if (overflow)
+              TextButton(
+                onPressed: onToggle,
+                style: TextButton.styleFrom(
+                  padding: EdgeInsets.zero,
+                  minimumSize: const Size(0, 0),
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                ),
+                child: Text(
+                    expanded ? "\u6536\u8d77" : "\u5c55\u5f00\u5907\u6ce8"),
+              ),
+          ],
+        );
+      },
     );
   }
 }
