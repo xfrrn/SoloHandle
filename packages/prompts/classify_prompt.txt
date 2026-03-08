@@ -9,11 +9,35 @@ Output rules:
 - No punctuation, no markdown, no explanation.
 
 Treat as `action` when any of these are true:
-- The message clearly describes an expense, income, meal, task, or life log to be recorded.
+- The message clearly describes an expense, income, transfer, repayment, meal, task, or life log to be recorded.
 - The user provides a receipt, food photo, note photo, or other image intended for extraction.
-- The message contains an explicit type marker such as `@expense`, `@income`, `@lifelog`, `@meal`, `@task`.
-- The message contains an injected hint like `[TYPE_HINT:expense]`, `[TYPE_HINT:income]`, `[TYPE_HINT:lifelog]`, `[TYPE_HINT:meal]`, `[TYPE_HINT:task]`.
+- The message contains an explicit type marker such as `@expense`, `@income`, `@transfer`, `@repayment`, `@lifelog`, `@meal`, `@task`.
+- The message contains an injected hint like `[TYPE_HINT:expense]`, `[TYPE_HINT:income]`, `[TYPE_HINT:transfer]`, `[TYPE_HINT:repayment]`, `[TYPE_HINT:lifelog]`, `[TYPE_HINT:meal]`, `[TYPE_HINT:task]`.
 - The user is confirming or editing a draft-like record.
+
+Finance-specific guidance:
+- Treat money moving between the user's own accounts/platforms as `action`, not `chat`.
+- Treat repayment of Huabei, credit cards, Baitiao, loans, or similar debt as `action`, not `chat`.
+- Do not require the user to explicitly say “记录一下”; if the message is already phrased like a ledger item, return `action`.
+- Do not confuse transfer/repayment with ordinary income or expense classification here; this stage only decides `action` vs `chat`.
+
+Common transfer cues:
+- 转账
+- 转到
+- 转入
+- 转出
+- 从银行卡转到支付宝
+- 从支付宝转微信
+- 微信转银行卡
+- 卡里转 500 到证券账户
+
+Common repayment cues:
+- 还款
+- 还花呗
+- 花呗还了 500
+- 还信用卡
+- 白条还款
+- 还贷款
 
 Treat as `chat` when any of these are true:
 - The user is greeting, making small talk, or asking a general question.
@@ -26,12 +50,15 @@ Bias:
 
 Examples:
 - "spent 20 on coffee" -> action
+- "salary came in, 8000" -> action
+- "transfer 500 from Alipay to WeChat" -> action
+- "paid Huabei 1200" -> action
 - "remind me to join a meeting tomorrow at 3pm" -> action
 - "@lifelog went to the park today" -> action
 - "@income salary 8000" -> action
-- "@meal a bowl of noodles" -> action
+- "@transfer 支付宝转微信 500" -> action
+- "@repayment 花呗还款 1200" -> action
 - "here is a receipt image, help me log it" -> action
-- "I ate eggs and milk this morning" -> action
 - "hello" -> chat
 - "I feel a bit upset today" -> chat
 - "what can you help me with?" -> chat
@@ -40,14 +67,17 @@ Examples:
 More Chinese examples:
 - "@expense 今天午饭 32" -> action
 - "@income 工资到账 8000" -> action
-- "@expense 打车 18.5" -> action
+- "@transfer 支付宝转微信 500" -> action
+- "@repayment 花呗还款 1200" -> action
+- "支付宝转到微信 300" -> action
+- "银行卡转证券账户 2000" -> action
+- "今天还了花呗 800" -> action
+- "刚还了 3000 信用卡" -> action
 - "@lifelog 今天心情一般，但还是去跑步了" -> action
 - "@lifelog" with an attached image -> action
 - "@meal 一碗牛肉面" -> action
-- "@meal 早餐吃了鸡蛋和豆浆" -> action
 - "@task 明天下午给客户回电话" -> action
 - "帮我记一下这张小票" with an attached receipt image -> action
-- "把这顿饭记录一下" with an attached food image -> action
 - "我今天有点烦" -> chat
 - "最近总觉得很累，不知道怎么办" -> chat
 - "你觉得我是不是该辞职" -> chat

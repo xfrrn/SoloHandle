@@ -15,6 +15,7 @@ class ChatRequest {
     this.taskId,
     this.op,
     this.payload,
+    this.draftDefaults,
   });
 
   final String? text;
@@ -32,6 +33,7 @@ class ChatRequest {
   final int? taskId;
   final String? op;
   final Map<String, dynamic>? payload;
+  final Map<String, dynamic>? draftDefaults;
 
   Map<String, dynamic> toJson() {
     final data = <String, dynamic>{};
@@ -71,6 +73,9 @@ class ChatRequest {
     }
     if (payload != null && payload!.isNotEmpty) {
       data["payload"] = payload;
+    }
+    if (draftDefaults != null && draftDefaults!.isNotEmpty) {
+      data["draft_defaults"] = draftDefaults;
     }
     return data;
   }

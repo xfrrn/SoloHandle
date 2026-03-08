@@ -145,6 +145,12 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
             ),
             const SizedBox(width: 8),
             _FilterChip(
+              label: "还款",
+              selected: state.selectedTypes.contains("repayment"),
+              onTap: () => notifier.toggleType("repayment"),
+            ),
+            const SizedBox(width: 8),
+            _FilterChip(
               label: "\u5FC3\u60C5",
               selected: state.selectedTypes.contains("mood"),
               onTap: () => notifier.toggleType("mood"),
@@ -379,6 +385,7 @@ class _EventCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final summary = _buildSummary(event);
+    final isRepayment = _isRepaymentEvent(event);
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(14),
@@ -434,7 +441,7 @@ class _EventCard extends StatelessWidget {
                 ],
               ),
             ),
-            _TypeBadge(type: event.type),
+            _TypeBadge(type: event.type, isRepayment: isRepayment),
           ],
         ),
       ),
@@ -493,9 +500,16 @@ class _TypeAvatar extends StatelessWidget {
   }
 }
 
+bool _isRepaymentEvent(EventDto event) {
+  if (event.type != "transfer") return false;
+  final note = (event.data["note"]?.toString() ?? "").trim();
+  return note.startsWith("还款");
+}
+
 class _TypeBadge extends StatelessWidget {
-  const _TypeBadge({required this.type});
+  const _TypeBadge({required this.type, this.isRepayment = false});
   final String type;
+  final bool isRepayment;
 
   @override
   Widget build(BuildContext context) {
@@ -511,8 +525,8 @@ class _TypeBadge extends StatelessWidget {
         color = AppColors.success;
         break;
       case "transfer":
-        label = "\u8F6C\u8D26";
-        color = AppColors.accent;
+        label = isRepayment ? "还款" : "\u8F6C\u8D26";
+        color = isRepayment ? AppColors.danger : AppColors.accent;
         break;
       case "meal":
         label = "\u7528\u9910";
@@ -673,14 +687,14 @@ class _DetailTop extends StatelessWidget {
         size = 26;
         break;
       case "transfer":
-        label = "\u8F6C\u8D26\u8BB0\u5F55";
+        label = _isRepaymentEvent(event) ? "还款记录" : "\u8F6C\u8D26\u8BB0\u5F55";
         final amount = event.data["amount"]?.toString() ?? "0";
         final from = (event.data["from_account_name"]?.toString() ?? "").trim();
         final to = (event.data["to_account_name"]?.toString() ?? "").trim();
         primary = "\u00A5$amount";
         secondary = from.isNotEmpty && to.isNotEmpty ? "$from \u2192 $to" : "";
         icon = Icons.swap_horiz;
-        color = AppColors.accent;
+        color = _isRepaymentEvent(event) ? AppColors.danger : AppColors.accent;
         size = 26;
         break;
       case "meal":
@@ -1053,8 +1067,9 @@ _Summary _buildSummary(EventDto event) {
       final from = (event.data["from_account_name"]?.toString() ?? "").trim();
       final to = (event.data["to_account_name"]?.toString() ?? "").trim();
       final note = (event.data["note"]?.toString() ?? "").trim();
+      final isRepayment = _isRepaymentEvent(event);
       return _Summary(
-        title: "\u00A5$amount \u00B7 \u8F6C\u8D26",
+        title: "\u00A5$amount \u00B7 ${isRepayment ? "还款" : "转账"}",
         subtitle: note.isNotEmpty
             ? note
             : (from.isNotEmpty && to.isNotEmpty ? "$from \u2192 $to" : null),

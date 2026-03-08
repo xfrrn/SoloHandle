@@ -10,7 +10,9 @@ import "package:record/record.dart";
 
 import "../../core/constants.dart";
 import "../../core/time.dart";
+import "../../data/api/api_client.dart";
 import "../../data/api/dto.dart";
+import "../../data/api/finance_api.dart";
 import "../../shared/widgets/error_banner.dart";
 import "chat_controller.dart";
 import "widgets/card_edit_sheet.dart";
@@ -41,10 +43,18 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   int _lastMessageCount = 0;
   bool _showTypeHintOptions = false;
   String _typeHintQuery = "";
+  final FinanceApi _financeApi = FinanceApi(ApiClient());
+  List<_ChatAccountOption> _accounts = const [];
+  bool _loadingAccounts = false;
+  int? _selectedAccountId;
+  String? _selectedCategory;
+  int? _selectedFromAccountId;
+  int? _selectedToAccountId;
 
   @override
   void initState() {
     super.initState();
+    _loadAccounts();
   }
 
   @override
@@ -210,6 +220,26 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     final text = _controller.text.trim();
     final imageBase64 = _selectedImageBase64;
     if (text.isEmpty && imageBase64.isEmpty) return;
+    final currentTypeHint = _currentFinanceTypeHint;
+    final draftDefaults = <String, dynamic>{};
+    if ((currentTypeHint == "expense" || currentTypeHint == "income") &&
+        _selectedAccountId != null) {
+      draftDefaults["account_id"] = _selectedAccountId;
+    }
+    if ((currentTypeHint == "expense" || currentTypeHint == "income") &&
+        _selectedCategory != null &&
+        _selectedCategory!.isNotEmpty) {
+      draftDefaults["category"] = _selectedCategory;
+    }
+    if ((currentTypeHint == "transfer" || currentTypeHint == "repayment") &&
+        _selectedFromAccountId != null &&
+        _selectedToAccountId != null) {
+      draftDefaults["from_account_id"] = _selectedFromAccountId;
+      draftDefaults["to_account_id"] = _selectedToAccountId;
+      if (currentTypeHint == "repayment") {
+        draftDefaults["note"] = "还款";
+      }
+    }
 
     setState(() => _sendingLock = true);
     _controller.clear();
@@ -217,6 +247,10 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     setState(() {
       _showTypeHintOptions = false;
       _typeHintQuery = "";
+      _selectedAccountId = null;
+      _selectedCategory = null;
+      _selectedFromAccountId = null;
+      _selectedToAccountId = null;
     });
     _shouldAutoScroll = true;
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -225,6 +259,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     notifier.sendText(
       text: text.isEmpty ? null : text,
       imageBase64: imageBase64.isEmpty ? null : imageBase64,
+      draftDefaults: draftDefaults.isEmpty ? null : draftDefaults,
     );
     await Future.delayed(const Duration(milliseconds: 220));
     if (!mounted) return;
@@ -240,13 +275,126 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     setState(() {
       _showTypeHintOptions = match != null;
       _typeHintQuery = match?.group(1)?.toLowerCase() ?? "";
+      final typeHint = _extractFinanceTypeHint(value);
+      if (typeHint != "expense" && typeHint != "income") {
+        _selectedAccountId = null;
+        _selectedCategory = null;
+      } else if (_selectedAccountId != null &&
+          !_accountOptionsFor(typeHint).any((account) => account.id == _selectedAccountId)) {
+        _selectedAccountId = null;
+      }
+      if (_selectedCategory != null &&
+          !_categoryOptionsFor(typeHint)
+              .any((option) => option.id == _selectedCategory)) {
+        _selectedCategory = null;
+      }
+      if (typeHint != "transfer" && typeHint != "repayment") {
+        _selectedFromAccountId = null;
+        _selectedToAccountId = null;
+      } else {
+        final fromAccounts = _fromAccountOptionsFor(typeHint);
+        final toAccounts = _toAccountOptionsFor(typeHint, _selectedFromAccountId);
+        if (_selectedFromAccountId != null &&
+            !fromAccounts.any((account) => account.id == _selectedFromAccountId)) {
+          _selectedFromAccountId = null;
+        }
+        if (_selectedToAccountId != null &&
+            !toAccounts.any((account) => account.id == _selectedToAccountId)) {
+          _selectedToAccountId = null;
+        }
+      }
     });
+  }
+
+  String? get _currentFinanceTypeHint => _extractFinanceTypeHint(_controller.text);
+
+  String? _extractFinanceTypeHint(String value) {
+    final match = RegExp(
+      r"(?:^|\s)@(expense|income|transfer|repayment)\b",
+      caseSensitive: false,
+    ).firstMatch(value);
+    return match?.group(1)?.toLowerCase();
+  }
+
+  Future<void> _loadAccounts() async {
+    setState(() => _loadingAccounts = true);
+    try {
+      final rows = await _financeApi.getAccounts();
+      if (!mounted) return;
+      setState(() {
+        _accounts = rows.map(_ChatAccountOption.fromJson).toList();
+        _loadingAccounts = false;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _loadingAccounts = false);
+    }
+  }
+
+  List<_ChatAccountOption> _accountOptionsFor(String? typeHint) {
+    if (typeHint == "income") {
+      return _accounts.where((account) => account.kind == "asset").toList();
+    }
+    if (typeHint == "expense") {
+      return _accounts;
+    }
+    return const [];
+  }
+
+  List<_ChatAccountOption> _fromAccountOptionsFor(String? typeHint) {
+    if (typeHint == "repayment") {
+      return _accounts.where((account) => account.kind == "asset").toList();
+    }
+    if (typeHint == "transfer") {
+      return _accounts;
+    }
+    return const [];
+  }
+
+  List<_ChatAccountOption> _toAccountOptionsFor(String? typeHint, int? fromAccountId) {
+    final base = typeHint == "repayment"
+        ? _accounts.where((account) => account.kind == "liability").toList()
+        : typeHint == "transfer"
+            ? _accounts
+            : const <_ChatAccountOption>[];
+    return base.where((account) => account.id != fromAccountId).toList();
+  }
+
+  List<_CategoryOption> _categoryOptionsFor(String? typeHint) {
+    if (typeHint == "expense") {
+      return const [
+        _CategoryOption("food", "餐饮"),
+        _CategoryOption("transport", "交通"),
+        _CategoryOption("shopping", "购物"),
+        _CategoryOption("entertainment", "娱乐"),
+        _CategoryOption("housing", "住房"),
+        _CategoryOption("bills", "账单"),
+        _CategoryOption("medical", "医疗"),
+        _CategoryOption("education", "教育"),
+        _CategoryOption("personal_care", "个人护理"),
+        _CategoryOption("other", "其他"),
+      ];
+    }
+    if (typeHint == "income") {
+      return const [
+        _CategoryOption("salary", "工资"),
+        _CategoryOption("bonus", "奖金"),
+        _CategoryOption("freelance", "副业"),
+        _CategoryOption("refund", "退款"),
+        _CategoryOption("gift", "礼金"),
+        _CategoryOption("investment", "投资"),
+        _CategoryOption("other", "其他"),
+      ];
+    }
+    return const [];
   }
 
   List<_TypeHintOption> get _typeHintOptions {
     const options = [
       _TypeHintOption(id: "income", label: "收入", alias: "income"),
       _TypeHintOption(id: "expense", label: "支出", alias: "expense"),
+      _TypeHintOption(id: "transfer", label: "转账", alias: "transfer"),
+      _TypeHintOption(id: "repayment", label: "还款", alias: "repayment"),
       _TypeHintOption(id: "lifelog", label: "日志", alias: "lifelog"),
       _TypeHintOption(id: "meal", label: "餐食", alias: "meal"),
       _TypeHintOption(id: "task", label: "任务", alias: "task"),
@@ -309,6 +457,205 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
           },
         ),
       ),
+    );
+  }
+
+  Widget _buildAccountPicker() {
+    final typeHint = _currentFinanceTypeHint;
+    if (typeHint != "expense" && typeHint != "income") {
+      return const SizedBox.shrink();
+    }
+
+    final accounts = _accountOptionsFor(typeHint);
+    final label = typeHint == "income" ? "入账账户" : "支付账户";
+
+    if (_loadingAccounts) {
+      return const LinearProgressIndicator(minHeight: 2);
+    }
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: AppColors.divider),
+      ),
+      child: Row(
+        children: [
+          Icon(
+            typeHint == "income" ? Icons.savings_outlined : Icons.account_balance_wallet_outlined,
+            size: 18,
+            color: AppColors.textSecondary,
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: DropdownButtonFormField<int?>(
+              initialValue:
+                  accounts.any((account) => account.id == _selectedAccountId)
+                      ? _selectedAccountId
+                      : null,
+              decoration: InputDecoration(
+                labelText: label,
+                isDense: true,
+                border: InputBorder.none,
+              ),
+              items: [
+                const DropdownMenuItem<int?>(
+                  value: null,
+                  child: Text("不指定账户"),
+                ),
+                ...accounts.map(
+                  (account) => DropdownMenuItem<int?>(
+                    value: account.id,
+                    child: Text(account.name),
+                  ),
+                ),
+              ],
+              onChanged: (value) => setState(() => _selectedAccountId = value),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCategoryPicker() {
+    final typeHint = _currentFinanceTypeHint;
+    if (typeHint != "expense" && typeHint != "income") {
+      return const SizedBox.shrink();
+    }
+    final options = _categoryOptionsFor(typeHint);
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: AppColors.divider),
+      ),
+      child: Row(
+        children: [
+          const Icon(
+            Icons.category_outlined,
+            size: 18,
+            color: AppColors.textSecondary,
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: DropdownButtonFormField<String?>(
+              initialValue: options.any((option) => option.id == _selectedCategory)
+                  ? _selectedCategory
+                  : null,
+              decoration: const InputDecoration(
+                labelText: "分类",
+                isDense: true,
+                border: InputBorder.none,
+              ),
+              items: [
+                const DropdownMenuItem<String?>(
+                  value: null,
+                  child: Text("不指定分类"),
+                ),
+                ...options.map(
+                  (option) => DropdownMenuItem<String?>(
+                    value: option.id,
+                    child: Text(option.label),
+                  ),
+                ),
+              ],
+              onChanged: (value) => setState(() => _selectedCategory = value),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTransferPicker() {
+    final typeHint = _currentFinanceTypeHint;
+    if (typeHint != "transfer" && typeHint != "repayment") {
+      return const SizedBox.shrink();
+    }
+    final fromAccounts = _fromAccountOptionsFor(typeHint);
+    final toAccounts = _toAccountOptionsFor(typeHint, _selectedFromAccountId);
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: AppColors.divider),
+      ),
+      child: Column(
+        children: [
+          DropdownButtonFormField<int?>(
+            initialValue: fromAccounts.any((account) => account.id == _selectedFromAccountId)
+                ? _selectedFromAccountId
+                : null,
+            decoration: InputDecoration(
+              labelText: typeHint == "repayment" ? "还款账户" : "转出账户",
+              isDense: true,
+              border: InputBorder.none,
+            ),
+            items: fromAccounts
+                .map(
+                  (account) => DropdownMenuItem<int?>(
+                    value: account.id,
+                    child: Text(account.name),
+                  ),
+                )
+                .toList(),
+            onChanged: (value) => setState(() {
+              _selectedFromAccountId = value;
+              if (_selectedToAccountId == value) {
+                _selectedToAccountId = null;
+              }
+            }),
+          ),
+          const SizedBox(height: 8),
+          DropdownButtonFormField<int?>(
+            initialValue: toAccounts.any((account) => account.id == _selectedToAccountId)
+                ? _selectedToAccountId
+                : null,
+            decoration: InputDecoration(
+              labelText: typeHint == "repayment" ? "负债账户" : "转入账户",
+              isDense: true,
+              border: InputBorder.none,
+            ),
+            items: toAccounts
+                .map(
+                  (account) => DropdownMenuItem<int?>(
+                    value: account.id,
+                    child: Text(account.name),
+                  ),
+                )
+                .toList(),
+            onChanged: (value) => setState(() => _selectedToAccountId = value),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget? _buildInputTopContent() {
+    final showMoneyPicker = _currentFinanceTypeHint == "expense" ||
+        _currentFinanceTypeHint == "income";
+    final showTransferPicker = _currentFinanceTypeHint == "transfer" ||
+        _currentFinanceTypeHint == "repayment";
+    if (!_showTypeHintOptions && !showMoneyPicker && !showTransferPicker) {
+      return null;
+    }
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (_showTypeHintOptions) _buildTypeHintPicker(),
+        if (_showTypeHintOptions && (showMoneyPicker || showTransferPicker))
+          const SizedBox(height: 8),
+        if (showMoneyPicker) _buildAccountPicker(),
+        if (showMoneyPicker) const SizedBox(height: 8),
+        if (showMoneyPicker) _buildCategoryPicker(),
+        if (showTransferPicker) _buildTransferPicker(),
+      ],
     );
   }
 
@@ -501,7 +848,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
             isRecording: _isRecording,
             selectedImages: _selectedImageBytes,
             onChanged: _onInputChanged,
-            topContent: _buildTypeHintPicker(),
+            topContent: _buildInputTopContent(),
             onPickImage: _pickImage,
             onRemoveImageAt: _removeImageAt,
             onStartRecord: _startRecording,
@@ -581,7 +928,10 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
 
 class _TagHighlightController extends TextEditingController {
   static final RegExp _tagPattern =
-      RegExp(r"(?:^|\s)(@(expense|income|lifelog|meal|task)\b)", caseSensitive: false);
+      RegExp(
+        r"(?:^|\s)(@(expense|income|transfer|repayment|lifelog|meal|task)\b)",
+        caseSensitive: false,
+      );
 
   @override
   TextSpan buildTextSpan({
@@ -634,6 +984,33 @@ class _TypeHintOption {
   final String id;
   final String label;
   final String alias;
+}
+
+class _ChatAccountOption {
+  const _ChatAccountOption({
+    required this.id,
+    required this.name,
+    required this.kind,
+  });
+
+  final int id;
+  final String name;
+  final String kind;
+
+  factory _ChatAccountOption.fromJson(Map<String, dynamic> json) {
+    return _ChatAccountOption(
+      id: json["id"] as int? ?? 0,
+      name: json["name"] as String? ?? "",
+      kind: json["kind"] as String? ?? "asset",
+    );
+  }
+}
+
+class _CategoryOption {
+  const _CategoryOption(this.id, this.label);
+
+  final String id;
+  final String label;
 }
 
 class _BadgeIcon extends StatelessWidget {

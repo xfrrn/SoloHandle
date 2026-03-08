@@ -111,6 +111,7 @@ class _CardRendererState extends State<CardRenderer> {
     return switch (card.type) {
       "income" => "收入",
       "expense" => "支出",
+      "transfer" => "转账",
       "meal" => "餐食",
       "mood" => "心情",
       "lifelog" => "日志",
@@ -125,6 +126,14 @@ class _CardRendererState extends State<CardRenderer> {
     }
     if (card.type == "expense") {
       return _moneySubtitle(card, isIncome: false);
+    }
+    if (card.type == "transfer") {
+      final from = _firstNonEmpty([card.data["from_account_name"]?.toString()]);
+      final to = _firstNonEmpty([card.data["to_account_name"]?.toString()]);
+      final note = _firstNonEmpty([card.data["note"]?.toString()]);
+      if (note.isNotEmpty) return note;
+      if (from.isNotEmpty && to.isNotEmpty) return "$from → $to";
+      return "账户转账";
     }
     if (card.type == "meal") {
       final mealType = _mealTypeLabel(card.data["meal_type"]?.toString());
@@ -175,6 +184,8 @@ class _CardRendererState extends State<CardRenderer> {
         return _buildMoneyContent(card, isIncome: true);
       case "expense":
         return _buildMoneyContent(card, isIncome: false);
+      case "transfer":
+        return _buildTransferContent(card);
       case "meal":
         return _buildMealContent(card);
       case "mood":
@@ -221,6 +232,24 @@ class _CardRendererState extends State<CardRenderer> {
     return _CardBody(
       primary: mealType,
       secondary: items,
+      tertiary: time,
+    );
+  }
+
+  Widget _buildTransferContent(CardDto card) {
+    final amount = _asNum(card.data["amount"]);
+    final currencyValue = card.data["currency"]?.toString().trim();
+    final currency = (currencyValue?.isNotEmpty ?? false) ? currencyValue! : "CNY";
+    final from = _firstNonEmpty([card.data["from_account_name"]?.toString()]);
+    final to = _firstNonEmpty([card.data["to_account_name"]?.toString()]);
+    final note = _firstNonEmpty([card.data["note"]?.toString()]);
+    final time = _friendlyTime(card.data["happened_at"] ?? card.data["time"]);
+    final secondary = note.isNotEmpty
+        ? note
+        : (from.isNotEmpty && to.isNotEmpty ? "$from → $to" : "");
+    return _CardBody(
+      primary: amount != null ? "¥${_formatAmount(amount)} $currency" : "",
+      secondary: secondary,
       tertiary: time,
     );
   }
@@ -627,6 +656,11 @@ class _CardAvatar extends StatelessWidget {
         iconData = Icons.receipt_long;
         bgColor = AppColors.warningLight;
         iconColor = AppColors.warning;
+        break;
+      case "transfer":
+        iconData = Icons.swap_horiz;
+        bgColor = AppColors.accentLight;
+        iconColor = AppColors.accent;
         break;
       case "task":
         iconData = Icons.check_circle_outline;

@@ -70,7 +70,14 @@ class TimelineState {
 
   List<EventDto> get filteredEvents {
     if (selectedTypes.isEmpty) return events;
-    return events.where((e) => selectedTypes.contains(e.type)).toList();
+    return events.where((e) {
+      final isRepayment = e.type == "transfer" &&
+          ((e.data["note"]?.toString() ?? "").trim().startsWith("还款"));
+      if (selectedTypes.contains("repayment") && isRepayment) {
+        return true;
+      }
+      return selectedTypes.contains(e.type);
+    }).toList();
   }
 
   Map<String, List<EventDto>> get groupedByDate {
@@ -135,7 +142,12 @@ class TimelineController extends StateNotifier<TimelineState> {
       final api = EventsApi(dio);
       final resp = await api.list(
         query: state.searchQuery.isEmpty ? null : state.searchQuery,
-        types: state.selectedTypes.isEmpty ? null : state.selectedTypes.toList(),
+        types: state.selectedTypes
+                .where((type) => type != "repayment")
+                .toList()
+                .isEmpty
+            ? null
+            : state.selectedTypes.where((type) => type != "repayment").toList(),
       );
       state = state.copyWith(
         events: resp.items,

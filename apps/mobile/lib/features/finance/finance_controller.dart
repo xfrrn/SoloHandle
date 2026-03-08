@@ -78,6 +78,23 @@ class FinanceController extends AsyncNotifier<FinanceSummaryState> {
       return FinanceSummaryState.fromJson(data);
     });
   }
+
+  Future<void> createRepayment({
+    required double amount,
+    required int fromAccountId,
+    required int toAccountId,
+    String? note,
+  }) async {
+    final normalizedNote = (note == null || note.trim().isEmpty)
+        ? '还款'
+        : '还款：${note.trim()}';
+    await createTransfer(
+      amount: amount,
+      fromAccountId: fromAccountId,
+      toAccountId: toAccountId,
+      note: normalizedNote,
+    );
+  }
 }
 
 final financeControllerProvider =

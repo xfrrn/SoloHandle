@@ -70,6 +70,11 @@ class _FinanceScreenState extends ConsumerState<FinanceScreen> {
                 onCreateTransfer: data.accounts.items.length >= 2
                     ? () => _showCreateTransferDialog(context, data.accounts.items)
                     : null,
+                onCreateRepayment:
+                    data.accounts.items.any((item) => item.kind == 'asset') &&
+                            data.accounts.items.any((item) => item.kind == 'liability')
+                        ? () => _showCreateRepaymentDialog(context, data.accounts.items)
+                        : null,
                 onSetAccountBalance: (account) =>
                     _showSetAccountBalanceDialog(context, account),
               ),
@@ -125,6 +130,11 @@ class _FinanceScreenState extends ConsumerState<FinanceScreen> {
         break;
       case _RecentFilter.expense:
         filtered = entries.where((entry) => entry.type == 'expense').toList();
+        break;
+      case _RecentFilter.repayment:
+        filtered = entries
+            .where((entry) => entry.type == 'transfer' && (entry.note ?? '').trim().startsWith('还款'))
+            .toList();
         break;
       case _RecentFilter.all:
         filtered = entries;
@@ -468,6 +478,134 @@ class _FinanceScreenState extends ConsumerState<FinanceScreen> {
       );
     }
   }
+
+  Future<void> _showCreateRepaymentDialog(
+    BuildContext context,
+    List<FinanceAccountModel> accounts,
+  ) async {
+    final assetAccounts = accounts.where((item) => item.kind == 'asset').toList();
+    final liabilityAccounts = accounts.where((item) => item.kind == 'liability').toList();
+    if (assetAccounts.isEmpty || liabilityAccounts.isEmpty) {
+      return;
+    }
+
+    final amountController = TextEditingController();
+    final noteController = TextEditingController();
+    var fromAccount = assetAccounts.first;
+    var toAccount = liabilityAccounts.first;
+    final result = await showDialog<_TransferDraft>(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setModalState) => AlertDialog(
+          title: const Text('记录还款'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                DropdownButtonFormField<int>(
+                  initialValue: fromAccount.accountId,
+                  decoration: const InputDecoration(labelText: '还款账户'),
+                  items: assetAccounts
+                      .map(
+                        (account) => DropdownMenuItem(
+                          value: account.accountId,
+                          child: Text(account.name),
+                        ),
+                      )
+                      .toList(),
+                  onChanged: (value) {
+                    if (value == null) return;
+                    setModalState(() {
+                      fromAccount =
+                          assetAccounts.firstWhere((item) => item.accountId == value);
+                    });
+                  },
+                ),
+                const SizedBox(height: 12),
+                DropdownButtonFormField<int>(
+                  initialValue: toAccount.accountId,
+                  decoration: const InputDecoration(labelText: '还款到'),
+                  items: liabilityAccounts
+                      .map(
+                        (account) => DropdownMenuItem(
+                          value: account.accountId,
+                          child: Text(account.name),
+                        ),
+                      )
+                      .toList(),
+                  onChanged: (value) {
+                    if (value == null) return;
+                    setModalState(() {
+                      toAccount =
+                          liabilityAccounts.firstWhere((item) => item.accountId == value);
+                    });
+                  },
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: amountController,
+                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                  decoration: const InputDecoration(
+                    labelText: '还款金额',
+                    hintText: '例如 500',
+                  ),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: noteController,
+                  decoration: const InputDecoration(
+                    labelText: '备注（可选）',
+                    hintText: '例如 3月账单',
+                  ),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('取消'),
+            ),
+            FilledButton(
+              onPressed: () {
+                final amount = double.tryParse(amountController.text.trim());
+                if (amount == null || amount <= 0) return;
+                Navigator.of(context).pop(
+                  _TransferDraft(
+                    amount: amount,
+                    fromAccountId: fromAccount.accountId,
+                    toAccountId: toAccount.accountId,
+                    note: noteController.text.trim(),
+                  ),
+                );
+              },
+              child: const Text('保存'),
+            ),
+          ],
+        ),
+      ),
+    );
+    amountController.dispose();
+    noteController.dispose();
+    if (result == null || !context.mounted) return;
+    try {
+      await ref.read(financeControllerProvider.notifier).createRepayment(
+            amount: result.amount,
+            fromAccountId: result.fromAccountId,
+            toAccountId: result.toAccountId,
+            note: result.note.isEmpty ? null : result.note,
+          );
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('还款已记录')),
+      );
+    } catch (_) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('还款失败')),
+      );
+    }
+  }
 }
 
 class _AccountDraft {
@@ -634,12 +772,14 @@ class _AccountsSection extends StatelessWidget {
     required this.accounts,
     required this.onCreateAccount,
     required this.onCreateTransfer,
+    required this.onCreateRepayment,
     required this.onSetAccountBalance,
   });
 
   final FinanceAccountsSummaryModel accounts;
   final VoidCallback onCreateAccount;
   final VoidCallback? onCreateTransfer;
+  final VoidCallback? onCreateRepayment;
   final ValueChanged<FinanceAccountModel> onSetAccountBalance;
 
   @override
@@ -666,6 +806,12 @@ class _AccountsSection extends StatelessWidget {
                 onPressed: onCreateTransfer,
                 icon: const Icon(Icons.swap_horiz, size: 16),
                 label: const Text('转账'),
+              ),
+            if (onCreateRepayment != null)
+              TextButton.icon(
+                onPressed: onCreateRepayment,
+                icon: const Icon(Icons.credit_score_outlined, size: 16),
+                label: const Text('还款'),
               ),
           ],
         ),
@@ -1153,6 +1299,7 @@ class _EntryTile extends StatelessWidget {
             ? _formatSignedAmount(entry.amount, entry.currency)
             : _formatSignedAmount(-entry.amount, entry.currency));
     final note = (entry.note ?? '').trim();
+    final isRepayment = isTransfer && note.startsWith('还款');
     final category = (entry.category ?? '').trim();
     final subtitleParts = <String>[
       if (isTransfer &&
@@ -1191,7 +1338,7 @@ class _EntryTile extends StatelessWidget {
                     note.isNotEmpty
                         ? note
                         : (isTransfer
-                            ? '转账记录'
+                            ? (isRepayment ? '还款记录' : '转账记录')
                             : (isIncome ? '收入记录' : '支出记录')),
                     style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                           fontWeight: FontWeight.w600,
@@ -1225,7 +1372,8 @@ class _EntryTile extends StatelessWidget {
 enum _RecentFilter {
   all('全部'),
   income('收入'),
-  expense('支出');
+  expense('支出'),
+  repayment('还款');
 
   const _RecentFilter(this.label);
   final String label;

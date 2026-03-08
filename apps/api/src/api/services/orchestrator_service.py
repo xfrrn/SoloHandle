@@ -33,6 +33,7 @@ from api.tools.events import (
     create_lifelog,
     create_meal,
     create_mood,
+    create_transfer,
     undo_event,
     soft_delete_event,
 )
@@ -64,16 +65,18 @@ class OrchestratorService:
         text: str,
         image_base64s: list[str] | None = None,
         type_hint: str | None = None,
+        draft_defaults: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         routed_text = _inject_type_hint(text, type_hint)
         provider = load_provider_from_config()
 
         # Deterministic route for explicit lifelog tag: avoid LLM misclassification.
-        if type_hint in {"lifelog", "income"}:
+        if type_hint in {"lifelog", "income", "transfer", "repayment"}:
             drafts = _fallback_drafts(
                 text,
                 type_hint=type_hint,
                 image_base64s=image_base64s,
+                draft_defaults=draft_defaults,
             )
             if drafts:
                 return {
@@ -114,6 +117,7 @@ class OrchestratorService:
                 }
 
             drafts = _drafts_from_decision(decision)
+            drafts = _apply_draft_defaults(drafts, draft_defaults)
             if not drafts and any(c.name in _DISABLED_CHAT_TOOLS for c in decision.tool_calls):
                 return {
                     "need_clarification": False,
@@ -126,6 +130,7 @@ class OrchestratorService:
                     text,
                     type_hint=type_hint,
                     image_base64s=image_base64s,
+                    draft_defaults=draft_defaults,
                 )
                 if forced:
                     return {
@@ -159,6 +164,7 @@ class OrchestratorService:
                 text,
                 type_hint=type_hint,
                 image_base64s=image_base64s,
+                draft_defaults=draft_defaults,
             )
             if not drafts:
                 return {
@@ -381,17 +387,29 @@ def _pick_card(cards, idx: int, draft_id: str, tool_name: str, payload: dict[str
 
 def _display_card_data(tool_name: str, payload: dict[str, Any]) -> dict[str, Any]:
     data = dict(payload)
-    if tool_name not in {"create_expense", "create_income"}:
-        return data
-
-    account_id = payload.get("account_id")
-    if not isinstance(account_id, int) or account_id <= 0:
+    if tool_name not in {"create_expense", "create_income", "create_transfer"}:
         return data
 
     try:
         with get_connection() as conn:
             ensure_tables(conn)
-            account = AccountsRepository(conn).get_account(account_id)
+            repo = AccountsRepository(conn)
+            if tool_name == "create_transfer":
+                from_account_id = payload.get("from_account_id")
+                to_account_id = payload.get("to_account_id")
+                if isinstance(from_account_id, int) and from_account_id > 0:
+                    account = repo.get_account(from_account_id)
+                    if account and account.get("name"):
+                        data["from_account_name"] = account["name"]
+                if isinstance(to_account_id, int) and to_account_id > 0:
+                    account = repo.get_account(to_account_id)
+                    if account and account.get("name"):
+                        data["to_account_name"] = account["name"]
+                return data
+            account_id = payload.get("account_id")
+            if not isinstance(account_id, int) or account_id <= 0:
+                return data
+            account = repo.get_account(account_id)
     except Exception:
         return data
 
@@ -426,12 +444,14 @@ def _fallback_drafts(
     text: str,
     type_hint: str | None = None,
     image_base64s: list[str] | None = None,
+    draft_defaults: dict[str, Any] | None = None,
 ) -> list[Draft]:
     drafts: list[Draft] = []
 
     def add(tool_name: str, payload: dict[str, Any], confidence: float = 0.5) -> None:
         draft_id = str(uuid4())
         payload = _normalize_time_fields(payload, tool_name)
+        payload = _merge_draft_defaults(tool_name, payload, draft_defaults)
         payload = {**payload, "idempotency_key": draft_id}
         card = _pick_card([], 0, draft_id, tool_name, payload)
         drafts.append(
@@ -461,6 +481,14 @@ def _fallback_drafts(
         amount_hint = _extract_amount(text)
         if amount_hint is not None:
             add("create_income", {"amount": amount_hint, "category": "other"}, confidence=0.7)
+        return drafts
+    if type_hint in {"transfer", "repayment"}:
+        amount_hint = _extract_amount(text)
+        if amount_hint is not None:
+            payload: dict[str, Any] = {"amount": amount_hint}
+            if type_hint == "repayment":
+                payload["note"] = "还款"
+            add("create_transfer", payload, confidence=0.7)
         return drafts
     if type_hint == "meal" and stripped:
         add("create_meal", {"meal_type": "snack", "items": [stripped]}, confidence=0.7)
@@ -492,6 +520,8 @@ def _call_tool(tool_name: str, payload: dict[str, Any]) -> dict[str, Any]:
         return create_expense(**payload)
     if tool_name == "create_income":
         return create_income(**payload)
+    if tool_name == "create_transfer":
+        return create_transfer(**payload)
     if tool_name == "create_task":
         return create_task(**payload)
     if tool_name == "create_mood":
@@ -503,8 +533,62 @@ def _call_tool(tool_name: str, payload: dict[str, Any]) -> dict[str, Any]:
     raise ToolError("invalid_tool", "unsupported tool", {"tool_name": tool_name})
 
 
+def _apply_draft_defaults(
+    drafts: list[Draft],
+    draft_defaults: dict[str, Any] | None,
+) -> list[Draft]:
+    if not draft_defaults:
+        return drafts
+
+    updated: list[Draft] = []
+    for draft in drafts:
+        payload = _merge_draft_defaults(draft.tool_name, draft.payload, draft_defaults)
+        if payload == draft.payload:
+            updated.append(draft)
+            continue
+        updated.append(
+            Draft(
+                draft_id=draft.draft_id,
+                tool_name=draft.tool_name,
+                payload=payload,
+                confidence=draft.confidence,
+                card=_pick_card([], 0, draft.draft_id, draft.tool_name, payload),
+            )
+        )
+    return updated
+
+
+def _merge_draft_defaults(
+    tool_name: str,
+    payload: dict[str, Any],
+    draft_defaults: dict[str, Any] | None,
+) -> dict[str, Any]:
+    if not draft_defaults:
+        return payload
+
+    updated = dict(payload)
+    if tool_name in {"create_expense", "create_income"}:
+        account_id = draft_defaults.get("account_id")
+        if isinstance(account_id, int) and account_id > 0:
+            updated["account_id"] = account_id
+        category = draft_defaults.get("category")
+        if isinstance(category, str) and category.strip():
+            updated["category"] = category.strip()
+    if tool_name == "create_transfer":
+        from_account_id = draft_defaults.get("from_account_id")
+        to_account_id = draft_defaults.get("to_account_id")
+        if isinstance(from_account_id, int) and from_account_id > 0:
+            updated["from_account_id"] = from_account_id
+        if isinstance(to_account_id, int) and to_account_id > 0:
+            updated["to_account_id"] = to_account_id
+        note = draft_defaults.get("note")
+        if isinstance(note, str) and note.strip():
+            updated["note"] = note.strip()
+    return updated
+
+
 def _undo_tool(tool_name: str, result: dict[str, Any]) -> dict[str, Any]:
-    if tool_name in {"create_expense", "create_income", "create_lifelog", "create_meal", "create_mood"}:
+    if tool_name in {"create_expense", "create_income", "create_lifelog", "create_meal", "create_mood", "create_transfer"}:
         event_id = result.get("event_id")
         if isinstance(event_id, int):
             return {"event": soft_delete_event(event_id)}
@@ -551,7 +635,7 @@ def _normalize_time_fields(payload: dict[str, Any], tool_name: str) -> dict[str,
     fields: list[str] = []
     if tool_name == "create_task":
         fields = ["due_at", "remind_at"]
-    elif tool_name in {"create_expense", "create_income", "create_lifelog", "create_meal", "create_mood"}:
+    elif tool_name in {"create_expense", "create_income", "create_lifelog", "create_meal", "create_mood", "create_transfer"}:
         fields = ["happened_at"]
 
     for field in fields:
@@ -762,6 +846,10 @@ def _clarify_for_type_hint(type_hint: str | None) -> str:
         return "请补充这笔支出的金额。"
     if type_hint == "income":
         return "请补充这笔收入的金额。"
+    if type_hint == "transfer":
+        return "请补充转账金额，并选择转出和转入账户。"
+    if type_hint == "repayment":
+        return "请补充还款金额，并选择还款账户和负债账户。"
     if type_hint == "meal":
         return "请补充你吃了什么。"
     if type_hint == "task":

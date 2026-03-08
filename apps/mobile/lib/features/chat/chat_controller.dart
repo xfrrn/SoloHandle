@@ -103,6 +103,7 @@ class ChatController extends StateNotifier<ChatState> {
     String? typeHint,
     List<String>? imageBase64,
     String? audioBase64,
+    Map<String, dynamic>? draftDefaults,
   }) async {
     final hasText = text != null && text.trim().isNotEmpty;
     final hasImage = imageBase64 != null && imageBase64.isNotEmpty;
@@ -134,6 +135,7 @@ class ChatController extends StateNotifier<ChatState> {
         typeHint: typeHint,
         images: imageBase64,
         audio: audioBase64,
+        draftDefaults: draftDefaults,
       );
       state = state.copyWith(lastFailedRequest: req); // track for retry
 
@@ -359,6 +361,7 @@ class ChatController extends StateNotifier<ChatState> {
         typeHint: req.typeHint,
         imageBase64: req.images ?? (req.image != null ? [req.image!] : null),
         audioBase64: req.audio,
+        draftDefaults: req.draftDefaults,
       );
     } else if (req.confirmDraftIds != null) {
       await confirmDrafts(req.confirmDraftIds!);

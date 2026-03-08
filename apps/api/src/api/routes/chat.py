@@ -6,6 +6,7 @@ import uuid
 
 from fastapi import APIRouter, HTTPException, Request
 
+from api.core.constants_loader import get_constants
 from api.db.connection import ToolError, ensure_tables, get_connection, normalize_iso8601
 from api.repositories.events_repo import EventRepository
 from api.services.events_service import EventService
@@ -37,6 +38,7 @@ async def chat(request: Request) -> dict:
     op = body.get("op")
     payload = body.get("payload")
     type_hint = body.get("type_hint")
+    draft_defaults = body.get("draft_defaults")
 
     service = get_orchestrator_service()
 
@@ -159,6 +161,30 @@ async def chat(request: Request) -> dict:
                 raise ToolError("invalid_param", "payload must be object")
             return service.task_action(task_id, op.strip(), payload)
 
+        if draft_defaults is not None and not isinstance(draft_defaults, dict):
+            raise ToolError("invalid_param", "draft_defaults must be object")
+        if isinstance(draft_defaults, dict) and "account_id" in draft_defaults:
+            account_id = draft_defaults.get("account_id")
+            if account_id is not None:
+                if not isinstance(account_id, int) or account_id <= 0:
+                    raise ToolError("invalid_param", "draft_defaults.account_id must be positive integer")
+        if isinstance(draft_defaults, dict) and "category" in draft_defaults:
+            category = draft_defaults.get("category")
+            if category is not None:
+                if not isinstance(category, str) or not category.strip():
+                    raise ToolError("invalid_param", "draft_defaults.category must be non-empty string")
+                consts = get_constants()
+                allowed = set(consts.expense.categories) | set(consts.income.categories)
+                if category.strip() not in allowed:
+                    raise ToolError("invalid_param", "draft_defaults.category is invalid")
+        if isinstance(draft_defaults, dict):
+            for field in ("from_account_id", "to_account_id"):
+                if field in draft_defaults:
+                    value = draft_defaults.get(field)
+                    if value is not None:
+                        if not isinstance(value, int) or value <= 0:
+                            raise ToolError("invalid_param", f"draft_defaults.{field} must be positive integer")
+
         if commit_id:
             if not isinstance(commit_id, str):
                 raise ToolError("invalid_param", "commit_id must be string")
@@ -206,7 +232,7 @@ async def chat(request: Request) -> dict:
                 text = f"{text}\n\n[语音附加内容]: {transcription}"
 
         if isinstance(text, str) and text.strip():
-            match = re.search(r"(?:^|\s)@(expense|income|lifelog|meal|task)\b", text, re.IGNORECASE)
+            match = re.search(r"(?:^|\s)@(expense|income|transfer|repayment|lifelog|meal|task)\b", text, re.IGNORECASE)
             if match:
                 if type_hint is None:
                     type_hint = match.group(1).lower()
@@ -217,7 +243,7 @@ async def chat(request: Request) -> dict:
         if type_hint is not None:
             if not isinstance(type_hint, str) or not type_hint.strip():
                 raise ToolError("invalid_param", "type_hint must be non-empty string")
-            allowed_type_hints = {"expense", "income", "lifelog", "meal", "task"}
+            allowed_type_hints = {"expense", "income", "transfer", "repayment", "lifelog", "meal", "task"}
             if type_hint.strip() not in allowed_type_hints:
                 raise ToolError(
                     "invalid_param",
@@ -229,6 +255,7 @@ async def chat(request: Request) -> dict:
             text.strip() if text else "",
             image_base64s=images_list if images_list else None,
             type_hint=type_hint.strip() if isinstance(type_hint, str) else None,
+            draft_defaults=draft_defaults if isinstance(draft_defaults, dict) else None,
         )
         if draft_result.get("need_clarification"):
             return draft_result
