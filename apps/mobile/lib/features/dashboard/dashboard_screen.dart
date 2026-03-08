@@ -426,9 +426,8 @@ class _TodayOverview extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final taskText = "${data.todayCompletedTasks}/${data.todayTotalTasks}";
-    final todayExpense = data.expenseTrend.isNotEmpty
-        ? "¥${data.expenseTrend.last.amount.toStringAsFixed(0)}"
-        : "--";
+    final todayExpense = "¥${_todayExpenseAmount(data.expenseTrend).toStringAsFixed(2)}";
+    final todayRecordText = data.todayRecordCount.toString();
 
     return Container(
       padding: const EdgeInsets.all(14),
@@ -490,7 +489,7 @@ class _TodayOverview extends StatelessWidget {
               Expanded(
                 child: _MiniMetric(
                   title: "今日记录",
-                  value: "--",
+                  value: todayRecordText,
                   icon: Icons.event_note,
                   color: AppColors.textSecondary,
                 ),
@@ -500,6 +499,17 @@ class _TodayOverview extends StatelessWidget {
         ],
       ),
     );
+  }
+  double _todayExpenseAmount(List<ExpenseTrendModel> trend) {
+    if (trend.isEmpty) return 0.0;
+    final now = DateTime.now();
+    final today = "${now.year.toString().padLeft(4, "0")}-"
+        "${now.month.toString().padLeft(2, "0")}-"
+        "${now.day.toString().padLeft(2, "0")}";
+    for (final item in trend.reversed) {
+      if (item.date == today) return item.amount;
+    }
+    return 0.0;
   }
 }
 

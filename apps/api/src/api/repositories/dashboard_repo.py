@@ -1,8 +1,5 @@
 import sqlite3
-from typing import Optional, Any
-from datetime import datetime, timedelta
-from zoneinfo import ZoneInfo
-from api.db.connection import get_constants, DEFAULT_TZ
+from typing import Any
 
 class DashboardRepository:
     def __init__(self, conn: sqlite3.Connection) -> None:
@@ -38,21 +35,30 @@ class DashboardRepository:
         )
         return [dict(row) for row in cur.fetchall()]
 
-    def get_todays_tasks_summary(self, start_date: str, end_date: str) -> list[dict[str, Any]]:
+    def get_tasks_summary_by_due_window(self, start_date: str, end_date: str) -> list[dict[str, Any]]:
         cur = self._conn.cursor()
-        # Fetch tasks due today or completed today.
-        # We also look at tasks without due dates to see if they were completed today.
         cur.execute(
             """
-            SELECT title, status, tags_json, completed_at, due_at
+            SELECT status, due_at, completed_at
             FROM tasks
             WHERE is_deleted = 0
-              AND (
-                (due_at >= ? AND due_at <= ?)
-                OR 
-                (completed_at >= ? AND completed_at <= ?)
-              )
+              AND due_at >= ?
+              AND due_at <= ?
             """,
-            (start_date, end_date, start_date, end_date),
+            (start_date, end_date),
         )
         return [dict(row) for row in cur.fetchall()]
+
+    def get_todays_records_count(self, start_date: str, end_date: str) -> int:
+        cur = self._conn.cursor()
+        row = cur.execute(
+            """
+            SELECT COUNT(1) AS count
+            FROM events
+            WHERE is_deleted = 0
+              AND happened_at >= ?
+              AND happened_at <= ?
+            """,
+            (start_date, end_date),
+        ).fetchone()
+        return int(row["count"]) if row else 0

@@ -46,6 +46,7 @@ class DashboardSummaryState {
     required this.moodTrend,
     required this.todayCompletedTasks,
     required this.todayTotalTasks,
+    required this.todayRecordCount,
     required this.taskStreaks,
   });
 
@@ -54,6 +55,7 @@ class DashboardSummaryState {
   final List<MoodTrendModel> moodTrend;
   final int todayCompletedTasks;
   final int todayTotalTasks;
+  final int todayRecordCount;
   final List<TaskStreakModel> taskStreaks;
 
   factory DashboardSummaryState.fromJson(Map<String, dynamic> json) {
@@ -65,9 +67,15 @@ class DashboardSummaryState {
     final mdList = (moodMap['trend'] as List?)?.cast<Map<String, dynamic>>() ?? [];
 
     final taskMap = json['tasks'] as Map<String, dynamic>? ?? {};
-    final completed = taskMap['today_completed'] as int? ?? 0;
-    final total = taskMap['today_total'] as int? ?? 0;
+    final completed = (taskMap['window_completed_on_time'] as int?) ??
+        (taskMap['today_completed'] as int?) ??
+        0;
+    final total = (taskMap['window_total_active'] as int?) ??
+        (taskMap['today_total'] as int?) ??
+        0;
     final stList = (taskMap['streaks'] as List?)?.cast<Map<String, dynamic>>() ?? [];
+    final recordsMap = json['records'] as Map<String, dynamic>? ?? {};
+    final todayRecordCount = recordsMap['today_total'] as int? ?? 0;
 
     return DashboardSummaryState(
       totalExpense30d: totalExpense,
@@ -75,6 +83,7 @@ class DashboardSummaryState {
       moodTrend: mdList.map(MoodTrendModel.fromJson).toList(),
       todayCompletedTasks: completed,
       todayTotalTasks: total,
+      todayRecordCount: todayRecordCount,
       taskStreaks: stList.map(TaskStreakModel.fromJson).toList(),
     );
   }

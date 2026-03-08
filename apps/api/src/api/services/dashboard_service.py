@@ -1,12 +1,11 @@
 from __future__ import annotations
 
-import sqlite3
 import json
-from typing import Any, Dict, List
+from typing import Any, Dict
 from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 
-from api.db.connection import now_iso8601, DEFAULT_TZ
+from api.db.connection import DEFAULT_TZ
 from api.repositories.dashboard_repo import DashboardRepository
 
 
@@ -32,14 +31,26 @@ class DashboardService:
         seven_days_ago = now - timedelta(days=6) # 7 days including today
         start_date_7d = seven_days_ago.replace(hour=0, minute=0, second=0, microsecond=0).isoformat()
 
-        # Today's window for tasks
+        # Past 7 days window (including today) for task completion stats
+        seven_days_tasks_ago = now - timedelta(days=6)
+        start_of_tasks_window = seven_days_tasks_ago.replace(
+            hour=0, minute=0, second=0, microsecond=0
+        ).isoformat()
+        end_of_tasks_window = now.replace(
+            hour=23, minute=59, second=59, microsecond=999999
+        ).isoformat()
+
+        # Today's window for records
         start_of_today = now.replace(hour=0, minute=0, second=0, microsecond=0).isoformat()
         end_of_today = now.replace(hour=23, minute=59, second=59, microsecond=999999).isoformat()
 
         # Fetch Raw Data
         raw_expenses = self._repo.get_expenses_summary(start_date_30d, end_date_now)
         raw_moods = self._repo.get_moods_summary(start_date_7d, end_date_now)
-        raw_tasks = self._repo.get_todays_tasks_summary(start_of_today, end_of_today)
+        raw_tasks = self._repo.get_tasks_summary_by_due_window(
+            start_of_tasks_window, end_of_tasks_window
+        )
+        today_records_count = self._repo.get_todays_records_count(start_of_today, end_of_today)
 
         # Aggregate Expenses (Group by day, format: yyyy-mm-dd)
         expenses_by_day: Dict[str, float] = {}
@@ -92,11 +103,32 @@ class DashboardService:
                 avg = 0.0 # Or maybe some neutral value or null indicator
             mood_trend.append({"date": target_date, "average_valence": round(avg, 2)})
 
-        # Aggregate Tasks
+        # Aggregate Tasks (past 7 days due window, including today)
+        # total: due_at in window and not overdue at current time
+        # completed: total subset that is done before/on due_at
         completed_count = 0
-        total_count = len(raw_tasks)
+        total_count = 0
         for t in raw_tasks:
-            if t["status"] == "completed":
+            due_at = t.get("due_at")
+            if not isinstance(due_at, str):
+                continue
+            try:
+                due = _parse_iso8601(due_at).astimezone(ZoneInfo(tz))
+            except Exception:
+                continue
+            if due < now:
+                continue
+            total_count += 1
+            if t.get("status") != "done":
+                continue
+            completed_at = t.get("completed_at")
+            if not isinstance(completed_at, str):
+                continue
+            try:
+                completed = _parse_iso8601(completed_at).astimezone(ZoneInfo(tz))
+            except Exception:
+                continue
+            if completed <= due:
                 completed_count += 1
                 
         # Note: True streak calculation is complex and requires scanning history.
@@ -112,10 +144,23 @@ class DashboardService:
                 "trend": mood_trend
             },
             "tasks": {
-                "today_completed": completed_count,
-                "today_total": total_count,
+                "window_completed_on_time": completed_count,
+                "window_total_active": total_count,
                 "streaks": mock_streaks
+            },
+            "records": {
+                "today_total": today_records_count,
             }
         }
+
+
+def _parse_iso8601(value: str) -> datetime:
+    if value.endswith("Z"):
+        value = value[:-1] + "+00:00"
+    dt = datetime.fromisoformat(value)
+    if dt.tzinfo is None:
+        raise ValueError("ISO8601 time must include offset")
+    return dt
+
 
 __all__ = ["DashboardService"]
