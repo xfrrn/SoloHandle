@@ -11,7 +11,6 @@ class ApiClient {
   final LocalStore _store;
   Dio? _cachedDio;
   String? _cachedBaseUrl;
-  String? _cachedToken;
 
   String _normalizeBaseUrl(String value) {
     final trimmed = value.trim();
@@ -24,11 +23,9 @@ class ApiClient {
   Future<Dio> get dio async {
     final rawBaseUrl = await _store.getBaseUrl() ?? "http://127.0.0.1:8000";
     final baseUrl = _normalizeBaseUrl(rawBaseUrl);
-    final token = await _store.getToken();
 
     if (_cachedDio != null &&
-        _cachedBaseUrl == baseUrl &&
-        _cachedToken == token) {
+        _cachedBaseUrl == baseUrl) {
       return _cachedDio!;
     }
 
@@ -39,13 +36,22 @@ class ApiClient {
         receiveTimeout: const Duration(seconds: 20),
         headers: {
           "Content-Type": "application/json",
-          if (token != null && token.isNotEmpty)
-            "Authorization": "Bearer $token",
         },
       ),
     );
     _cachedBaseUrl = baseUrl;
-    _cachedToken = token;
+    _cachedDio!.interceptors.add(
+      InterceptorsWrapper(
+        onRequest: (options, handler) async {
+          final token = await _store.getToken();
+          options.headers.remove("Authorization");
+          if (token != null && token.isNotEmpty) {
+            options.headers["Authorization"] = "Bearer $token";
+          }
+          handler.next(options);
+        },
+      ),
+    );
     _cachedDio!.interceptors.add(RetryInterceptor(_cachedDio!));
     return _cachedDio!;
   }
@@ -54,7 +60,6 @@ class ApiClient {
   void invalidate() {
     _cachedDio = null;
     _cachedBaseUrl = null;
-    _cachedToken = null;
   }
 }
 

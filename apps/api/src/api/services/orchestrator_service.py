@@ -802,7 +802,7 @@ def _resolve_postpone_times(
 def _extract_amount(text: str) -> Optional[float]:
     import re
 
-    match = re.search(r"(\\d+(?:\\.\\d+)?)", text)
+    match = re.search(r"(\d+(?:\.\d+)?)", text)
     if not match:
         return None
     try:
