@@ -16,6 +16,8 @@ class InputBar extends StatelessWidget {
     this.onRemoveImageAt,
     this.onStartRecord,
     this.onStopRecord,
+    this.onChanged,
+    this.topContent,
   });
 
   final TextEditingController controller;
@@ -27,6 +29,8 @@ class InputBar extends StatelessWidget {
   final ValueChanged<int>? onRemoveImageAt;
   final VoidCallback? onStartRecord;
   final VoidCallback? onStopRecord;
+  final ValueChanged<String>? onChanged;
+  final Widget? topContent;
 
   @override
   Widget build(BuildContext context) {
@@ -37,6 +41,10 @@ class InputBar extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          if (topContent != null) ...[
+            topContent!,
+            const SizedBox(height: 8),
+          ],
           if (selectedImages.isNotEmpty)
             Padding(
               padding: const EdgeInsets.only(left: 18, bottom: 8),
@@ -111,12 +119,13 @@ class InputBar extends StatelessWidget {
                                 ],
                               ),
                             )
-                          : SizedBox(
-                              height: 34,
+                          : ConstrainedBox(
+                              constraints: const BoxConstraints(maxHeight: 120),
                               child: TextField(
                                 controller: controller,
+                                onChanged: onChanged,
                                 minLines: 1,
-                                maxLines: 2,
+                                maxLines: 5,
                                 textInputAction: TextInputAction.newline,
                                 decoration: const InputDecoration(
                                   hintText: "问问助手",
@@ -125,7 +134,7 @@ class InputBar extends StatelessWidget {
                                     fontSize: 15,
                                     fontWeight: FontWeight.w400,
                                   ),
-                                  contentPadding: EdgeInsets.only(top: 7),
+                                  contentPadding: EdgeInsets.symmetric(vertical: 8),
                                   border: InputBorder.none,
                                   isDense: true,
                                 ),

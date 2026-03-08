@@ -100,6 +100,7 @@ class ChatController extends StateNotifier<ChatState> {
 
   Future<void> sendText({
     String? text,
+    String? typeHint,
     List<String>? imageBase64,
     String? audioBase64,
   }) async {
@@ -131,6 +132,7 @@ class ChatController extends StateNotifier<ChatState> {
       final imageForRequest = hasImage ? imageBase64!.first : null;
       final req = ChatRequest(
         text: text,
+        typeHint: typeHint,
         image: imageForRequest,
         images: imageBase64,
         audio: audioBase64,
@@ -344,6 +346,7 @@ class ChatController extends StateNotifier<ChatState> {
     if (req.text != null || req.image != null || req.audio != null) {
       await sendText(
         text: req.text,
+        typeHint: req.typeHint,
         imageBase64: req.images ?? (req.image != null ? [req.image!] : null),
         audioBase64: req.audio,
       );

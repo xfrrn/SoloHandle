@@ -1,6 +1,7 @@
 ﻿from __future__ import annotations
 
 import json
+import re
 import uuid
 
 from fastapi import APIRouter, HTTPException, Request
@@ -35,6 +36,7 @@ async def chat(request: Request) -> dict:
     task_id = body.get("task_id")
     op = body.get("op")
     payload = body.get("payload")
+    type_hint = body.get("type_hint")
 
     service = get_orchestrator_service()
 
@@ -203,13 +205,30 @@ async def chat(request: Request) -> dict:
             else:
                 text = f"{text}\n\n[语音附加内容]: {transcription}"
 
+        if isinstance(text, str) and text.strip():
+            match = re.search(r"(?:^|\s)@(expense|lifelog|meal|task)\b", text, re.IGNORECASE)
+            if match:
+                if type_hint is None:
+                    type_hint = match.group(1).lower()
+                text = (text[: match.start()] + text[match.end() :]).strip()
+
         if not (text and text.strip()) and not images_list and not audio:
             raise ToolError("invalid_param", "text, images, or audio must be provided")
+        if type_hint is not None:
+            if not isinstance(type_hint, str) or not type_hint.strip():
+                raise ToolError("invalid_param", "type_hint must be non-empty string")
+            allowed_type_hints = {"expense", "lifelog", "meal", "task"}
+            if type_hint.strip() not in allowed_type_hints:
+                raise ToolError(
+                    "invalid_param",
+                    f"type_hint must be one of {sorted(allowed_type_hints)}",
+                )
 
         request_id = body.get("request_id") or str(uuid.uuid4())
         draft_result = service.create_drafts(
             text.strip() if text else "",
             image_base64s=images_list if images_list else None,
+            type_hint=type_hint.strip() if isinstance(type_hint, str) else None,
         )
         if draft_result.get("need_clarification"):
             return draft_result

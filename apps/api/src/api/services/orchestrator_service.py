@@ -40,6 +40,7 @@ class Draft:
 
 
 _commit_lock = threading.Lock()
+_DISABLED_CHAT_TOOLS = {"create_mood"}
 
 
 class OrchestratorService:
@@ -53,22 +54,26 @@ class OrchestratorService:
         self,
         text: str,
         image_base64s: list[str] | None = None,
+        type_hint: str | None = None,
     ) -> dict[str, Any]:
+        routed_text = _inject_type_hint(text, type_hint)
         provider = load_provider_from_config()
         
-        # Fast intent classification using gpt-4o-mini
-        intent = classify_intent(text, image_base64s, provider)
-        if intent == "chat":
-            reply = chat_reply(text, image_base64s, provider)
-            return {
-                "need_clarification": False,
-                "reply_to_user": reply,
-                "drafts": [],
-                "cards": []
-            }
+        # Fast intent classification using gpt-4o-mini.
+        # If the user explicitly gives type_hint, skip chat short-circuit.
+        if type_hint is None:
+            intent = classify_intent(routed_text, image_base64s, provider)
+            if intent == "chat":
+                reply = chat_reply(routed_text, image_base64s, provider)
+                return {
+                    "need_clarification": False,
+                    "reply_to_user": reply,
+                    "drafts": [],
+                    "cards": []
+                }
 
         try:
-            decision = llm_route(text=text, image_base64s=image_base64s, provider=provider)
+            decision = llm_route(text=routed_text, image_base64s=image_base64s, provider=provider)
             if decision.need_clarification:
                 return {
                     "need_clarification": True,
@@ -79,6 +84,29 @@ class OrchestratorService:
                 }
 
             drafts = _drafts_from_decision(decision)
+            if not drafts and any(c.name in _DISABLED_CHAT_TOOLS for c in decision.tool_calls):
+                return {
+                    "need_clarification": False,
+                    "reply_to_user": "心情记录请使用 Dashboard 的快捷入口。",
+                    "drafts": [],
+                    "cards": [],
+                }
+            if type_hint is not None and not drafts:
+                forced = _fallback_drafts(text, type_hint=type_hint)
+                if forced:
+                    return {
+                        "need_clarification": False,
+                        "reply_to_user": decision.reply_to_user,
+                        "drafts": forced,
+                        "cards": [d.card for d in forced],
+                    }
+                return {
+                    "need_clarification": True,
+                    "clarify_question": _clarify_for_type_hint(type_hint),
+                    "reply_to_user": None,
+                    "drafts": [],
+                    "cards": [],
+                }
             return {
                 "need_clarification": False,
                 "reply_to_user": decision.reply_to_user,
@@ -93,9 +121,13 @@ class OrchestratorService:
                 "router_invalid_schema",
             }:
                 raise
-            drafts = _fallback_drafts(text)
+            drafts = _fallback_drafts(text, type_hint=type_hint)
             if not drafts:
-                return {"need_clarification": True, "clarify_question": "你想记录什么？", "drafts": []}
+                return {
+                    "need_clarification": True,
+                    "clarify_question": _clarify_for_type_hint(type_hint),
+                    "drafts": [],
+                }
             return {
                 "need_clarification": False,
                 "reply_to_user": None,
@@ -302,6 +334,8 @@ def _pick_card(cards, idx: int, draft_id: str, tool_name: str, payload: dict[str
 def _drafts_from_decision(decision) -> list[Draft]:
     drafts: list[Draft] = []
     for idx, call in enumerate(decision.tool_calls):
+        if call.name in _DISABLED_CHAT_TOOLS:
+            continue
         draft_id = str(uuid4())
         payload = dict(call.arguments)
         payload = _normalize_time_fields(payload, call.name)
@@ -319,7 +353,7 @@ def _drafts_from_decision(decision) -> list[Draft]:
     return drafts
 
 
-def _fallback_drafts(text: str) -> list[Draft]:
+def _fallback_drafts(text: str, type_hint: str | None = None) -> list[Draft]:
     drafts: list[Draft] = []
 
     def add(tool_name: str, payload: dict[str, Any], confidence: float = 0.5) -> None:
@@ -337,6 +371,22 @@ def _fallback_drafts(text: str) -> list[Draft]:
             )
         )
 
+    stripped = text.strip()
+    if type_hint == "lifelog" and stripped:
+        add("create_lifelog", {"text": stripped}, confidence=0.7)
+        return drafts
+    if type_hint == "task" and stripped:
+        add("create_task", {"title": stripped}, confidence=0.7)
+        return drafts
+    if type_hint == "meal" and stripped:
+        add("create_meal", {"meal_type": "unknown", "items": [stripped]}, confidence=0.7)
+        return drafts
+    if type_hint == "expense":
+        amount_hint = _extract_amount(text)
+        if amount_hint is not None:
+            add("create_expense", {"amount": amount_hint, "category": "unknown"}, confidence=0.7)
+        return drafts
+
     lowered = text.lower()
     amount = _extract_amount(text)
     if amount is not None and _match_any(lowered, ["花", "消费", "付款", "支付", "买", "￥", "¥", "$"]):
@@ -344,10 +394,6 @@ def _fallback_drafts(text: str) -> list[Draft]:
 
     if _match_any(lowered, ["提醒", "待办", "任务", "记得", "要做"]):
         add("create_task", {"title": text.strip()}, confidence=0.55)
-
-    mood = _extract_mood(lowered)
-    if mood is not None:
-        add("create_mood", {"mood": mood}, confidence=0.5)
 
     return drafts
 
@@ -612,6 +658,24 @@ def _extract_mood(text: str) -> Optional[str]:
         if m in text:
             return m
     return None
+
+
+def _inject_type_hint(text: str, type_hint: str | None) -> str:
+    if not type_hint:
+        return text
+    return f"[TYPE_HINT:{type_hint}] {text}".strip()
+
+
+def _clarify_for_type_hint(type_hint: str | None) -> str:
+    if type_hint == "expense":
+        return "请补充这笔支出的金额。"
+    if type_hint == "meal":
+        return "请补充你吃了什么。"
+    if type_hint == "task":
+        return "请补充任务内容。"
+    if type_hint == "lifelog":
+        return "请补充这条日志的内容。"
+    return "你想记录什么？"
 
 
 def get_orchestrator_service() -> OrchestratorService:

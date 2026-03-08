@@ -1,6 +1,7 @@
 class ChatRequest {
   ChatRequest({
     this.text,
+    this.typeHint,
     this.image,
     this.images,
     this.audio,
@@ -17,6 +18,7 @@ class ChatRequest {
   });
 
   final String? text;
+  final String? typeHint;
   final String? image;
   final List<String>? images;
   final String? audio;
@@ -34,6 +36,9 @@ class ChatRequest {
   Map<String, dynamic> toJson() {
     final data = <String, dynamic>{};
     if (text != null && text!.trim().isNotEmpty) data["text"] = text!.trim();
+    if (typeHint != null && typeHint!.trim().isNotEmpty) {
+      data["type_hint"] = typeHint!.trim();
+    }
     if (image != null && image!.isNotEmpty) data["image"] = image;
     if (images != null && images!.isNotEmpty) data["images"] = images;
     if (audio != null && audio!.isNotEmpty) data["audio"] = audio;

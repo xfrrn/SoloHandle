@@ -27,7 +27,7 @@ class ChatScreen extends ConsumerStatefulWidget {
 }
 
 class _ChatScreenState extends ConsumerState<ChatScreen> {
-  final TextEditingController _controller = TextEditingController();
+  final _TagHighlightController _controller = _TagHighlightController();
   final ScrollController _scrollController = ScrollController();
   String? _lastPrefill;
   final ImagePicker _picker = ImagePicker();
@@ -38,6 +38,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   bool _sendingLock = false;
   bool _shouldAutoScroll = true;
   int _lastMessageCount = 0;
+  bool _showTypeHintOptions = false;
+  String _typeHintQuery = "";
 
   @override
   void initState() {
@@ -52,6 +54,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       final text = extra["prefill"] as String;
       if (text != _lastPrefill) {
         _controller.text = text;
+        _onInputChanged(text);
         _lastPrefill = text;
       }
     }
@@ -210,6 +213,10 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     setState(() => _sendingLock = true);
     _controller.clear();
     _clearImages();
+    setState(() {
+      _showTypeHintOptions = false;
+      _typeHintQuery = "";
+    });
     _shouldAutoScroll = true;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _scrollToBottom(jump: true);
@@ -221,6 +228,86 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     await Future.delayed(const Duration(milliseconds: 220));
     if (!mounted) return;
     setState(() => _sendingLock = false);
+  }
+
+  void _onInputChanged(String value) {
+    final cursor = _controller.selection.baseOffset;
+    final uptoCursor = (cursor >= 0 && cursor <= value.length)
+        ? value.substring(0, cursor)
+        : value;
+    final match = RegExp(r"(?:^|\s)@([a-zA-Z_]*)$").firstMatch(uptoCursor);
+    setState(() {
+      _showTypeHintOptions = match != null;
+      _typeHintQuery = match?.group(1)?.toLowerCase() ?? "";
+    });
+  }
+
+  List<_TypeHintOption> get _typeHintOptions {
+    const options = [
+      _TypeHintOption(id: "expense", label: "支出", alias: "expense"),
+      _TypeHintOption(id: "lifelog", label: "日志", alias: "lifelog"),
+      _TypeHintOption(id: "meal", label: "餐食", alias: "meal"),
+      _TypeHintOption(id: "task", label: "任务", alias: "task"),
+    ];
+    if (_typeHintQuery.isEmpty) return options;
+    return options
+        .where((e) =>
+            e.id.contains(_typeHintQuery) ||
+            e.alias.contains(_typeHintQuery) ||
+            e.label.contains(_typeHintQuery))
+        .toList();
+  }
+
+  void _applyTypeHint(_TypeHintOption option) {
+    final text = _controller.text;
+    final cursor = _controller.selection.baseOffset.clamp(0, text.length).toInt();
+    final left = text.substring(0, cursor);
+    final right = text.substring(cursor);
+    final match = RegExp(r"@([a-zA-Z_]*)$").firstMatch(left);
+    var newLeft = left;
+    if (match != null) {
+      newLeft = left.replaceRange(match.start, match.end, "@${option.id} ");
+    }
+    final merged = "$newLeft$right";
+    final nextCursor = newLeft.length;
+    _controller.value = TextEditingValue(
+      text: merged,
+      selection: TextSelection.collapsed(offset: nextCursor),
+    );
+    setState(() {
+      _showTypeHintOptions = false;
+      _typeHintQuery = "";
+    });
+  }
+
+  Widget _buildTypeHintPicker() {
+    final options = _typeHintOptions;
+    if (!_showTypeHintOptions || options.isEmpty) {
+      return const SizedBox.shrink();
+    }
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: AppColors.divider),
+      ),
+      child: SizedBox(
+        height: 36,
+        child: ListView.separated(
+          scrollDirection: Axis.horizontal,
+          itemCount: options.length,
+          separatorBuilder: (_, __) => const SizedBox(width: 8),
+          itemBuilder: (context, i) {
+            final item = options[i];
+            return ActionChip(
+              label: Text("@${item.id} · ${item.label}"),
+              onPressed: () => _applyTypeHint(item),
+            );
+          },
+        ),
+      ),
+    );
   }
 
   void _showMoreMenu(BuildContext context, ChatController notifier) {
@@ -419,6 +506,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
             loading: state.loading || _sendingLock,
             isRecording: _isRecording,
             selectedImages: _selectedImageBytes,
+            onChanged: _onInputChanged,
+            topContent: _buildTypeHintPicker(),
             onPickImage: _pickImage,
             onRemoveImageAt: _removeImageAt,
             onStartRecord: _startRecording,
@@ -494,6 +583,63 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       payload: {"due_at": toIsoWithOffset(dt)},
     );
   }
+}
+
+class _TagHighlightController extends TextEditingController {
+  static final RegExp _tagPattern =
+      RegExp(r"(?:^|\s)(@(expense|lifelog|meal|task)\b)", caseSensitive: false);
+
+  @override
+  TextSpan buildTextSpan({
+    required BuildContext context,
+    TextStyle? style,
+    required bool withComposing,
+  }) {
+    final textValue = text;
+    if (textValue.isEmpty) {
+      return TextSpan(style: style, text: textValue);
+    }
+
+    final spans = <InlineSpan>[];
+    var start = 0;
+    for (final match in _tagPattern.allMatches(textValue)) {
+      final full = match.group(0)!;
+      final leadingSpace = full.startsWith(" ") ? 1 : 0;
+      final tagStart = match.start + leadingSpace;
+      final tagEnd = match.end;
+
+      if (tagStart > start) {
+        spans.add(TextSpan(text: textValue.substring(start, tagStart), style: style));
+      }
+      spans.add(
+        TextSpan(
+          text: textValue.substring(tagStart, tagEnd),
+          style: (style ?? const TextStyle()).copyWith(
+            color: AppColors.accent,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+      );
+      start = tagEnd;
+    }
+
+    if (start < textValue.length) {
+      spans.add(TextSpan(text: textValue.substring(start), style: style));
+    }
+    return TextSpan(style: style, children: spans);
+  }
+}
+
+class _TypeHintOption {
+  const _TypeHintOption({
+    required this.id,
+    required this.label,
+    required this.alias,
+  });
+
+  final String id;
+  final String label;
+  final String alias;
 }
 
 class _BadgeIcon extends StatelessWidget {
