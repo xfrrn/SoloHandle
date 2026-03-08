@@ -9,7 +9,9 @@ import "../../data/api/models.dart";
 import "timeline_controller.dart";
 
 class TimelineScreen extends ConsumerStatefulWidget {
-  const TimelineScreen({super.key});
+  const TimelineScreen({super.key, this.focusEventId});
+
+  final int? focusEventId;
 
   @override
   ConsumerState<TimelineScreen> createState() => _TimelineScreenState();
@@ -17,21 +19,40 @@ class TimelineScreen extends ConsumerStatefulWidget {
 
 class _TimelineScreenState extends ConsumerState<TimelineScreen> {
   final TextEditingController _searchController = TextEditingController();
+  final ScrollController _scrollController = ScrollController();
+  final Map<int, GlobalKey> _eventKeys = <int, GlobalKey>{};
+  int? _lastScrolledEventId;
 
   @override
   void initState() {
     super.initState();
     Future.microtask(() {
+      final notifier = ref.read(timelineControllerProvider.notifier);
+      if (widget.focusEventId != null) {
+        notifier.focusEvent(widget.focusEventId!);
+        return;
+      }
       final state = ref.read(timelineControllerProvider);
       if (state.events.isEmpty && !state.loading) {
-        ref.read(timelineControllerProvider.notifier).loadEvents();
+        notifier.loadEvents();
       }
     });
   }
 
   @override
+  void didUpdateWidget(covariant TimelineScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.focusEventId != null && widget.focusEventId != oldWidget.focusEventId) {
+      Future.microtask(
+        () => ref.read(timelineControllerProvider.notifier).focusEvent(widget.focusEventId!),
+      );
+    }
+  }
+
+  @override
   void dispose() {
     _searchController.dispose();
+    _scrollController.dispose();
     super.dispose();
   }
 
@@ -39,6 +60,8 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
   Widget build(BuildContext context) {
     final state = ref.watch(timelineControllerProvider);
     final notifier = ref.read(timelineControllerProvider.notifier);
+
+    _scheduleScrollToEvent(state.expandedEventId);
 
     return Scaffold(
       body: Column(
@@ -174,47 +197,71 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
     final dateKeys = grouped.keys.toList();
     return RefreshIndicator(
       onRefresh: notifier.loadEvents,
-      child: ListView.builder(
+      child: SingleChildScrollView(
+        controller: _scrollController,
+        physics: const AlwaysScrollableScrollPhysics(),
         padding: const EdgeInsets.fromLTRB(16, 6, 16, 24),
-        itemCount: dateKeys.length,
-        itemBuilder: (context, index) {
-          final dateKey = dateKeys[index];
-          final events = grouped[dateKey]!;
-          return Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _DateHeader(label: dateKey),
-              ...events.map((event) {
-                final expanded = state.expandedEventId == event.eventId;
-                return Column(
-                  children: [
-                    _EventCard(
-                      event: event,
-                      expanded: expanded,
-                      onTap: () => notifier.toggleExpanded(event.eventId),
+        child: Column(
+          children: [
+            for (final dateKey in dateKeys)
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _DateHeader(label: dateKey),
+                  for (final event in grouped[dateKey]!)
+                    KeyedSubtree(
+                      key: _eventKey(event.eventId),
+                      child: Column(
+                        children: [
+                          _EventCard(
+                            event: event,
+                            expanded: state.expandedEventId == event.eventId,
+                            onTap: () => notifier.toggleExpanded(event.eventId),
+                          ),
+                          AnimatedSize(
+                            duration: const Duration(milliseconds: 220),
+                            curve: Curves.easeOutCubic,
+                            child: state.expandedEventId == event.eventId
+                                ? _DetailCard(
+                                    event: event,
+                                    loading: state.undoLoading,
+                                    onUndo: (event.commitId != null &&
+                                            event.commitId!.isNotEmpty)
+                                        ? () => notifier.undoCommit(event.commitId!)
+                                        : null,
+                                  )
+                                : const SizedBox.shrink(),
+                          ),
+                        ],
+                      ),
                     ),
-                    AnimatedSize(
-                      duration: const Duration(milliseconds: 220),
-                      curve: Curves.easeOutCubic,
-                      child: expanded
-                          ? _DetailCard(
-                              event: event,
-                              loading: state.undoLoading,
-                              onUndo: (event.commitId != null &&
-                                      event.commitId!.isNotEmpty)
-                                  ? () => notifier.undoCommit(event.commitId!)
-                                  : null,
-                            )
-                          : const SizedBox.shrink(),
-                    ),
-                  ],
-                );
-              }),
-            ],
-          );
-        },
+                ],
+              ),
+          ],
+        ),
       ),
     );
+  }
+
+  GlobalKey _eventKey(int eventId) {
+    return _eventKeys.putIfAbsent(eventId, GlobalKey.new);
+  }
+
+  void _scheduleScrollToEvent(int? eventId) {
+    if (eventId == null || _lastScrolledEventId == eventId) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final key = _eventKeys[eventId];
+      final context = key?.currentContext;
+      if (context == null) return;
+      _lastScrolledEventId = eventId;
+      Scrollable.ensureVisible(
+        context,
+        duration: const Duration(milliseconds: 280),
+        curve: Curves.easeOutCubic,
+        alignment: 0.12,
+      );
+    });
   }
 }
 

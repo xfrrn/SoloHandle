@@ -128,7 +128,7 @@ class TimelineController extends StateNotifier<TimelineState> {
     }
   }
 
-  Future<void> loadEvents() async {
+  Future<void> loadEvents({int? expandEventId}) async {
     state = state.copyWith(loading: true, error: null);
     try {
       final dio = await _apiClient.dio;
@@ -137,7 +137,11 @@ class TimelineController extends StateNotifier<TimelineState> {
         query: state.searchQuery.isEmpty ? null : state.searchQuery,
         types: state.selectedTypes.isEmpty ? null : state.selectedTypes.toList(),
       );
-      state = state.copyWith(events: resp.items, loading: false);
+      state = state.copyWith(
+        events: resp.items,
+        loading: false,
+        expandedEventId: expandEventId ?? state.expandedEventId,
+      );
     } on DioException catch (exc) {
       state = state.copyWith(
         loading: false,
@@ -173,5 +177,15 @@ class TimelineController extends StateNotifier<TimelineState> {
     state = state.copyWith(
       expandedEventId: state.expandedEventId == eventId ? null : eventId,
     );
+  }
+
+  Future<void> focusEvent(int eventId) async {
+    state = state.copyWith(
+      selectedTypes: {},
+      searchQuery: "",
+      expandedEventId: eventId,
+      error: null,
+    );
+    await loadEvents(expandEventId: eventId);
   }
 }

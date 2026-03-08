@@ -1,4 +1,4 @@
-﻿{
+{
   "defaults": {
     "timezone": "Asia/Shanghai",
     "currency": "CNY",
@@ -16,7 +16,7 @@
       "medical",
       "education",
       "personal_care",
-      "other",
+      "other"
     ],
     "default_category": "food"
   },
@@ -33,11 +33,25 @@
     "default_category": "other"
   },
   "meal": {
-    "types": ["breakfast", "lunch", "dinner", "snack"]
+    "types": [
+      "breakfast",
+      "lunch",
+      "dinner",
+      "snack"
+    ]
   },
   "task": {
-    "status": ["todo", "doing", "done", "canceled"],
-    "priority": ["low", "medium", "high"],
+    "status": [
+      "todo",
+      "doing",
+      "done",
+      "canceled"
+    ],
+    "priority": [
+      "low",
+      "medium",
+      "high"
+    ],
     "default_priority": "medium",
     "default_status": "todo",
     "default_remind_offset_minutes": 30
@@ -46,8 +60,19 @@
     "max_tags": 20,
     "max_text_len": 2000
   },
-  "sources": ["chat_text", "chat_image", "chat_voice", "import"],
+  "sources": [
+    "chat_text",
+    "chat_image",
+    "chat_voice",
+    "import"
+  ],
   "event": {
-    "types": ["expense", "income", "lifelog", "meal", "mood"]
+    "types": [
+      "expense",
+      "income",
+      "lifelog",
+      "meal",
+      "mood"
+    ]
   }
 }

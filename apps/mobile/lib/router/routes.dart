@@ -5,6 +5,7 @@ import "package:go_router/go_router.dart";
 
 import "../features/chat/chat_screen.dart";
 import "../features/dashboard/dashboard_screen.dart";
+import "../features/finance/finance_screen.dart";
 import "../features/notifications/notifications_screen.dart";
 import "../features/settings/settings_screen.dart";
 import "../features/settings/developer_settings_screen.dart";
@@ -41,9 +42,24 @@ final routerProvider = Provider<GoRouter>((ref) {
           StatefulShellBranch(
             routes: [
               GoRoute(
-                path: "/timeline",
+                path: "/finance",
                 pageBuilder: (context, state) =>
-                    const NoTransitionPage(child: TimelineScreen()),
+                    const NoTransitionPage(child: FinanceScreen()),
+              ),
+            ],
+          ),
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: "/timeline",
+                pageBuilder: (context, state) {
+                  final eventId = int.tryParse(
+                    state.uri.queryParameters["eventId"] ?? "",
+                  );
+                  return NoTransitionPage(
+                    child: TimelineScreen(focusEventId: eventId),
+                  );
+                },
               ),
             ],
           ),
@@ -90,6 +106,10 @@ class _AppShell extends StatelessWidget {
     _TabItem(label: "Chat", icon: Icons.chat_bubble_outline, path: "/chat"),
     _TabItem(
         label: "Dashboard", icon: Icons.dashboard_outlined, path: "/dashboard"),
+    _TabItem(
+        label: "Finance",
+        icon: Icons.account_balance_wallet_outlined,
+        path: "/finance"),
     _TabItem(label: "Timeline", icon: Icons.timeline, path: "/timeline"),
     _TabItem(label: "Tasks", icon: Icons.check_box_outlined, path: "/tasks"),
     _TabItem(label: "Me", icon: Icons.person_outline, path: "/me"),

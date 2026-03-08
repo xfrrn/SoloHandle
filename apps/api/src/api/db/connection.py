@@ -218,11 +218,27 @@ def ensure_tables(conn: DBConnection) -> None:
             "CREATE INDEX IF NOT EXISTS idx_orchestrator_undo_token ON orchestrator_logs(undo_token)"
         )
 
+        cur.execute(
+            """
+            CREATE TABLE IF NOT EXISTS finance_settings (
+                id INTEGER PRIMARY KEY,
+                balance_base DOUBLE PRECISION,
+                balance_base_at TEXT,
+                currency TEXT NOT NULL DEFAULT 'CNY',
+                updated_at TEXT NOT NULL
+            )
+            """
+        )
+
         cur.execute("ALTER TABLE tasks ADD COLUMN IF NOT EXISTS reminded_at TEXT")
         cur.execute("ALTER TABLE tasks ADD COLUMN IF NOT EXISTS notification_id BIGINT")
         cur.execute("ALTER TABLE tasks ADD COLUMN IF NOT EXISTS commit_id TEXT")
         cur.execute("ALTER TABLE events ADD COLUMN IF NOT EXISTS commit_id TEXT")
         cur.execute("ALTER TABLE orchestrator_logs ADD COLUMN IF NOT EXISTS commit_id TEXT")
+        cur.execute("ALTER TABLE finance_settings ADD COLUMN IF NOT EXISTS balance_base DOUBLE PRECISION")
+        cur.execute("ALTER TABLE finance_settings ADD COLUMN IF NOT EXISTS balance_base_at TEXT")
+        cur.execute("ALTER TABLE finance_settings ADD COLUMN IF NOT EXISTS currency TEXT NOT NULL DEFAULT 'CNY'")
+        cur.execute("ALTER TABLE finance_settings ADD COLUMN IF NOT EXISTS updated_at TEXT")
 
         conn.commit()
         _tables_ready = True
