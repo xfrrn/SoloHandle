@@ -689,6 +689,14 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                 },
               ),
               ListTile(
+                leading: const Icon(Icons.account_balance_wallet_outlined),
+                title: const Text("Finance"),
+                onTap: () {
+                  Navigator.of(ctx).pop();
+                  context.go("/finance");
+                },
+              ),
+              ListTile(
                 leading: const Icon(Icons.timeline),
                 title: const Text("Timeline"),
                 onTap: () {
@@ -710,6 +718,14 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                 onTap: () {
                   Navigator.of(ctx).pop();
                   context.go("/me");
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.notifications_none),
+                title: const Text("Notifications"),
+                onTap: () {
+                  Navigator.of(ctx).pop();
+                  context.push("/notifications");
                 },
               ),
               const Divider(height: 24),
