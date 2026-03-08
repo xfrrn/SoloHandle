@@ -33,24 +33,22 @@ class DashboardService:
 
         # Past 7 days window (including today) for task completion stats
         seven_days_tasks_ago = now - timedelta(days=6)
-        start_of_tasks_window = seven_days_tasks_ago.replace(
+        start_of_tasks_window_dt = seven_days_tasks_ago.replace(
             hour=0, minute=0, second=0, microsecond=0
-        ).isoformat()
-        end_of_tasks_window = now.replace(
+        )
+        end_of_tasks_window_dt = now.replace(
             hour=23, minute=59, second=59, microsecond=999999
-        ).isoformat()
+        )
 
         # Today's window for records
-        start_of_today = now.replace(hour=0, minute=0, second=0, microsecond=0).isoformat()
-        end_of_today = now.replace(hour=23, minute=59, second=59, microsecond=999999).isoformat()
+        start_of_today_dt = now.replace(hour=0, minute=0, second=0, microsecond=0)
+        end_of_today_dt = now.replace(hour=23, minute=59, second=59, microsecond=999999)
 
         # Fetch Raw Data
         raw_expenses = self._repo.get_expenses_summary(start_date_30d, end_date_now)
         raw_moods = self._repo.get_moods_summary(start_date_7d, end_date_now)
-        raw_tasks = self._repo.get_tasks_summary_by_due_window(
-            start_of_tasks_window, end_of_tasks_window
-        )
-        today_records_count = self._repo.get_todays_records_count(start_of_today, end_of_today)
+        raw_tasks = self._repo.get_tasks_summary_by_due_window()
+        raw_record_times = self._repo.get_all_records_happened_at()
 
         # Aggregate Expenses (Group by day, format: yyyy-mm-dd)
         expenses_by_day: Dict[str, float] = {}
@@ -116,6 +114,10 @@ class DashboardService:
                 due = _parse_iso8601(due_at).astimezone(ZoneInfo(tz))
             except Exception:
                 continue
+            if due < start_of_tasks_window_dt:
+                continue
+            if due > end_of_tasks_window_dt:
+                continue
             if due < now:
                 continue
             total_count += 1
@@ -130,6 +132,15 @@ class DashboardService:
                 continue
             if completed <= due:
                 completed_count += 1
+
+        today_records_count = 0
+        for happened_at in raw_record_times:
+            try:
+                happened = _parse_iso8601(happened_at).astimezone(ZoneInfo(tz))
+            except Exception:
+                continue
+            if start_of_today_dt <= happened <= end_of_today_dt:
+                today_records_count += 1
                 
         # Note: True streak calculation is complex and requires scanning history.
         # Currently, return an empty array until the real streak calculation is implemented.
