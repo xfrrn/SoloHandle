@@ -129,11 +129,9 @@ class ChatController extends StateNotifier<ChatState> {
       clarifyQuestion: "",
     );
     try {
-      final imageForRequest = hasImage ? imageBase64.first : null;
       final req = ChatRequest(
         text: text,
         typeHint: typeHint,
-        image: imageForRequest,
         images: imageBase64,
         audio: audioBase64,
       );
@@ -142,22 +140,34 @@ class ChatController extends StateNotifier<ChatState> {
       final resp = await _repo.send(req);
       
       final updatedMessages = List<ChatMessage>.from(newMessages);
+      final responseCards = resp.cards.isNotEmpty
+          ? resp.cards
+          : resp.drafts
+              .map((d) => CardDto(
+                    cardId: d.draftId,
+                    type: d.toolName.replaceFirst("create_", ""),
+                    status: "draft",
+                    title: "",
+                    subtitle: "",
+                    data: d.payload,
+                  ))
+              .toList();
       
       final hasReply = resp.replyToUser != null && resp.replyToUser!.trim().isNotEmpty;
-      final hasCards = resp.cards.isNotEmpty;
+      final hasCards = responseCards.isNotEmpty;
 
       if (hasReply || hasCards) {
         updatedMessages.add(ChatMessage(
           role: MessageRole.assistant,
           text: hasReply ? resp.replyToUser!.trim() : null,
-          cards: hasCards ? resp.cards : null,
+          cards: hasCards ? responseCards : null,
         ));
       }
 
       state = state.copyWith(
         messages: updatedMessages,
         drafts: [...state.drafts, ...resp.drafts],
-        cards: [...state.cards, ...resp.cards],
+        cards: [...state.cards, ...responseCards],
         loading: false,
         status: resp.needClarification ? "需要补充说明" : "",
         clarifyQuestion: resp.clarifyQuestion ?? "",

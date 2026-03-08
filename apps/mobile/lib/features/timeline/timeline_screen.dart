@@ -1,3 +1,5 @@
+import "dart:convert";
+
 import "package:flutter/material.dart";
 import "package:flutter_riverpod/flutter_riverpod.dart";
 
@@ -492,7 +494,10 @@ class _DetailCardState extends State<_DetailCard> {
   @override
   Widget build(BuildContext context) {
     final event = widget.event;
-    final note = (event.data["note"]?.toString() ?? "").trim();
+    final note = event.type == "lifelog"
+        ? _lifelogText(event)
+        : (event.data["note"]?.toString() ?? "").trim();
+    final lifelogImages = event.type == "lifelog" ? _lifelogImages(event) : const <String>[];
 
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
@@ -508,6 +513,10 @@ class _DetailCardState extends State<_DetailCard> {
           Container(height: 1, color: AppColors.divider),
           const SizedBox(height: 10),
           _DetailTop(event: event),
+          if (lifelogImages.isNotEmpty) ...[
+            const SizedBox(height: 10),
+            _ImageGrid(images: lifelogImages),
+          ],
           if (note.isNotEmpty) ...[
             const SizedBox(height: 10),
             _ExpandableNote(
@@ -725,6 +734,52 @@ class _DetailFields extends StatelessWidget {
   }
 }
 
+class _ImageGrid extends StatelessWidget {
+  const _ImageGrid({required this.images});
+
+  final List<String> images;
+
+  @override
+  Widget build(BuildContext context) {
+    if (images.length == 1) {
+      return ClipRRect(
+        borderRadius: BorderRadius.circular(10),
+        child: Image.memory(
+          base64Decode(images.first),
+          fit: BoxFit.cover,
+          height: 180,
+          width: double.infinity,
+          errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+        ),
+      );
+    }
+    return GridView.builder(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      itemCount: images.length > 6 ? 6 : images.length,
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 3,
+        crossAxisSpacing: 6,
+        mainAxisSpacing: 6,
+      ),
+      itemBuilder: (context, index) {
+        return ClipRRect(
+          borderRadius: BorderRadius.circular(8),
+          child: Image.memory(
+            base64Decode(images[index]),
+            fit: BoxFit.cover,
+            errorBuilder: (_, __, ___) => Container(
+              color: const Color(0xFFF1F1F1),
+              alignment: Alignment.center,
+              child: const Icon(Icons.broken_image_outlined, size: 16),
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
+
 class _ExpandableNote extends StatelessWidget {
   const _ExpandableNote({
     required this.text,
@@ -850,16 +905,38 @@ _Summary _buildSummary(EventDto event) {
         subtitle: note.isNotEmpty ? note : null,
       );
     default:
-      final text = ((event.data["title"] ??
-                      event.data["text"] ??
-                      event.data["description"] ??
-                      event.data["note"])
-                  ?.toString() ??
-              "")
-          .trim();
+      final text = _lifelogText(event);
+      final imageCount = _lifelogImages(event).length;
+      if (text.isNotEmpty) {
+        return _Summary(
+          title: text,
+          subtitle: imageCount > 0 ? "$imageCount 张图片" : null,
+        );
+      }
       return _Summary(
-          title: text.isNotEmpty ? text : "\u751F\u6D3B\u8BB0\u5F55");
+        title: imageCount > 0 ? "图片日志 · $imageCount 张" : "\u751F\u6D3B\u8BB0\u5F55",
+      );
   }
+}
+
+String _lifelogText(EventDto event) {
+  return ((event.data["title"] ??
+              event.data["text"] ??
+              event.data["description"] ??
+              event.data["note"])
+          ?.toString() ??
+      "")
+      .trim();
+}
+
+List<String> _lifelogImages(EventDto event) {
+  final raw = event.data["images"];
+  if (raw is! List) return const [];
+  return raw
+      .whereType<String>()
+      .map((e) => e.trim())
+      .where((e) => e.isNotEmpty)
+      .toList();
 }
 
 String _mapCategory(String value) {

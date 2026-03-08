@@ -1,3 +1,5 @@
+import "dart:convert";
+
 import "package:flutter/material.dart";
 
 import "../../../core/constants.dart";
@@ -214,14 +216,31 @@ class _CardRendererState extends State<CardRenderer> {
   Widget _buildLifelogContent(BuildContext context, CardDto card) {
     final title = _firstNonEmpty([
       card.data["title"]?.toString(),
+      card.data["text"]?.toString(),
       card.data["note"]?.toString(),
       card.data["content"]?.toString(),
     ]);
+    final images = _readImageBase64List(card.data["images"]);
     final time = _friendlyTime(card.data["happened_at"] ?? card.data["time"]);
-    return _CardBody(
-      primary: title.isNotEmpty ? title : "生活记录",
-      secondary: "",
-      tertiary: time,
+    if (images.isEmpty) {
+      return _CardBody(
+        primary: title.isNotEmpty ? title : "生活记录",
+        secondary: "",
+        tertiary: time,
+      );
+    }
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (title.isNotEmpty || time.isNotEmpty)
+          _CardBody(
+            primary: title.isNotEmpty ? title : "",
+            secondary: "",
+            tertiary: time,
+          ),
+        if (title.isNotEmpty || time.isNotEmpty) const SizedBox(height: 8),
+        _InlineImageGrid(images: images),
+      ],
     );
   }
 
@@ -309,6 +328,15 @@ class _CardRendererState extends State<CardRenderer> {
       if (v != null && v.trim().isNotEmpty) return v.trim();
     }
     return "";
+  }
+
+  List<String> _readImageBase64List(Object? value) {
+    if (value is! List) return const [];
+    return value
+        .whereType<String>()
+        .map((e) => e.trim())
+        .where((e) => e.isNotEmpty)
+        .toList();
   }
 
   Widget _buildActions(CardDto card) {
@@ -514,6 +542,53 @@ class _Badge extends StatelessWidget {
             .bodySmall
             ?.copyWith(color: const Color(0xFF444444)),
       ),
+    );
+  }
+}
+
+class _InlineImageGrid extends StatelessWidget {
+  const _InlineImageGrid({required this.images});
+
+  final List<String> images;
+
+  @override
+  Widget build(BuildContext context) {
+    if (images.length == 1) {
+      return ClipRRect(
+        borderRadius: BorderRadius.circular(12),
+        child: Image.memory(
+          base64Decode(images.first),
+          fit: BoxFit.cover,
+          height: 160,
+          width: double.infinity,
+          errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+        ),
+      );
+    }
+
+    return GridView.builder(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      itemCount: images.length > 6 ? 6 : images.length,
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 3,
+        crossAxisSpacing: 6,
+        mainAxisSpacing: 6,
+      ),
+      itemBuilder: (context, index) {
+        return ClipRRect(
+          borderRadius: BorderRadius.circular(10),
+          child: Image.memory(
+            base64Decode(images[index]),
+            fit: BoxFit.cover,
+            errorBuilder: (_, __, ___) => Container(
+              color: const Color(0xFFF2F2F2),
+              alignment: Alignment.center,
+              child: const Icon(Icons.broken_image_outlined, size: 18),
+            ),
+          ),
+        );
+      },
     );
   }
 }

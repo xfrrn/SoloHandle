@@ -9,7 +9,7 @@ Goals:
 Allowed tools:
 - create_expense(amount, currency?, category?, note?, happened_at?, tags?, source?, confidence?, idempotency_key?)
 - create_task(title, due_at?, remind_at?, priority?, tags?, project?, note?, idempotency_key?)
-- create_lifelog(text, happened_at?, tags?, source?, confidence?, idempotency_key?)
+- create_lifelog(text?, images?, happened_at?, tags?, source?, confidence?, idempotency_key?)
 - create_meal(meal_type, items, happened_at?, tags?, source?, confidence?, idempotency_key?)
 
 Rules:
@@ -22,6 +22,7 @@ Rules:
 - Each card must correspond to the same tool_call by index.
 - Only include fields that are allowed in the tool signatures.
 - If a required field is missing, set need_clarification=true and ask a specific question.
+- For lifelog, text and images are both optional individually, but at least one of them must exist.
 - Use timezone Asia/Shanghai. If time not provided, omit happened_at/due_at/remind_at.
 - Never invent numbers or timestamps.
 - If the user provides an image (e.g. receipt, food, note), extract the relevant information from it to generate expense/meal/task drafts as appropriate.
@@ -89,10 +90,10 @@ Examples:
   "clarify_question": null,
   "reply_to_user": "太棒了！出去走走放松一下对身体很好，已经帮你记录啦。",
   "tool_calls": [
-    {"name": "create_lifelog", "arguments": {"text": "今天散步了30分钟"}}
+    {"name": "create_lifelog", "arguments": {"text": "今天散步了30分钟", "images": ["<base64_optional>"]}}
   ],
   "cards": [
-    {"card_id": "card_1", "type": "lifelog", "status": "draft", "title": "生活记录", "subtitle": "散步 30 分钟", "data": {"text": "今天散步了30分钟"}, "actions": []}
+    {"card_id": "card_1", "type": "lifelog", "status": "draft", "title": "生活记录", "subtitle": "散步 30 分钟", "data": {"text": "今天散步了30分钟", "images": ["<base64_optional>"]}, "actions": []}
   ]
 }
 

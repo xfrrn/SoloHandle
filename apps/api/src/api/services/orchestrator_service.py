@@ -58,6 +58,27 @@ class OrchestratorService:
     ) -> dict[str, Any]:
         routed_text = _inject_type_hint(text, type_hint)
         provider = load_provider_from_config()
+
+        # Deterministic route for explicit lifelog tag: avoid LLM misclassification.
+        if type_hint == "lifelog":
+            drafts = _fallback_drafts(
+                text,
+                type_hint=type_hint,
+                image_base64s=image_base64s,
+            )
+            if drafts:
+                return {
+                    "need_clarification": False,
+                    "reply_to_user": None,
+                    "drafts": drafts,
+                    "cards": [d.card for d in drafts],
+                }
+            return {
+                "need_clarification": True,
+                "clarify_question": _clarify_for_type_hint(type_hint),
+                "drafts": [],
+                "cards": [],
+            }
         
         # Fast intent classification using gpt-4o-mini.
         # If the user explicitly gives type_hint, skip chat short-circuit.
@@ -92,7 +113,11 @@ class OrchestratorService:
                     "cards": [],
                 }
             if type_hint is not None and not drafts:
-                forced = _fallback_drafts(text, type_hint=type_hint)
+                forced = _fallback_drafts(
+                    text,
+                    type_hint=type_hint,
+                    image_base64s=image_base64s,
+                )
                 if forced:
                     return {
                         "need_clarification": False,
@@ -121,7 +146,11 @@ class OrchestratorService:
                 "router_invalid_schema",
             }:
                 raise
-            drafts = _fallback_drafts(text, type_hint=type_hint)
+            drafts = _fallback_drafts(
+                text,
+                type_hint=type_hint,
+                image_base64s=image_base64s,
+            )
             if not drafts:
                 return {
                     "need_clarification": True,
@@ -353,7 +382,11 @@ def _drafts_from_decision(decision) -> list[Draft]:
     return drafts
 
 
-def _fallback_drafts(text: str, type_hint: str | None = None) -> list[Draft]:
+def _fallback_drafts(
+    text: str,
+    type_hint: str | None = None,
+    image_base64s: list[str] | None = None,
+) -> list[Draft]:
     drafts: list[Draft] = []
 
     def add(tool_name: str, payload: dict[str, Any], confidence: float = 0.5) -> None:
@@ -372,8 +405,14 @@ def _fallback_drafts(text: str, type_hint: str | None = None) -> list[Draft]:
         )
 
     stripped = text.strip()
-    if type_hint == "lifelog" and stripped:
-        add("create_lifelog", {"text": stripped}, confidence=0.7)
+    if type_hint == "lifelog":
+        payload: dict[str, Any] = {}
+        if stripped:
+            payload["text"] = stripped
+        if image_base64s:
+            payload["images"] = image_base64s
+        if payload:
+            add("create_lifelog", payload, confidence=0.7)
         return drafts
     if type_hint == "task" and stripped:
         add("create_task", {"title": stripped}, confidence=0.7)
@@ -674,7 +713,7 @@ def _clarify_for_type_hint(type_hint: str | None) -> str:
     if type_hint == "task":
         return "请补充任务内容。"
     if type_hint == "lifelog":
-        return "请补充这条日志的内容。"
+        return "请补充这条日志的内容，或上传一张图片。"
     return "你想记录什么？"
 
 

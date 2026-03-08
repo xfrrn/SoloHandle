@@ -74,7 +74,8 @@ def create_expense(
 
 def create_lifelog(
     *,
-    text: Any,
+    text: Any = None,
+    images: Optional[Iterable[str]] = None,
     happened_at: Optional[str] = None,
     tags: Optional[Iterable[str]] = None,
     source: Optional[str] = None,
@@ -84,8 +85,27 @@ def create_lifelog(
 ) -> dict[str, Any]:
     """Create a lifelog event."""
     consts = get_constants()
-    text_value = require_non_empty_str(text, "text")
-    data = {"text": text_value}
+    text_value = None
+    if text is not None:
+        text_value = require_non_empty_str(text, "text")
+
+    images_list: list[str] = []
+    if images is not None:
+        if isinstance(images, str) or not isinstance(images, Iterable):
+            raise ToolError("invalid_param", "images must be list of base64 strings")
+        for item in images:
+            if not isinstance(item, str) or not item.strip():
+                raise ToolError("invalid_param", "images must be list of base64 strings")
+            images_list.append(item.strip())
+
+    if text_value is None and not images_list:
+        raise ToolError("invalid_param", "text or images must be provided")
+
+    data: dict[str, Any] = {}
+    if text_value is not None:
+        data["text"] = text_value
+    if images_list:
+        data["images"] = images_list
     happened_at_iso = normalize_iso8601(happened_at)
     tags_list = normalize_tags(tags)
     src = require_enum(source or consts.defaults.source, "source", consts.sources)

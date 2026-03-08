@@ -178,8 +178,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         base64List.add(base64Encode(bytes));
       }
       setState(() {
-        _selectedImageBytes = bytesList;
-        _selectedImageBase64 = base64List;
+        _selectedImageBytes = [..._selectedImageBytes, ...bytesList];
+        _selectedImageBase64 = [..._selectedImageBase64, ...base64List];
       });
     } catch (e) {
       if (!mounted) return;

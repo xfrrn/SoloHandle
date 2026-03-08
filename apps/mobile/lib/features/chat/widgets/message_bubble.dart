@@ -56,7 +56,7 @@ class MessageBubble extends StatelessWidget {
       );
     }
 
-    if (nodes.isEmpty) {
+    if (nodes.isEmpty && bottom == null) {
       return const SizedBox.shrink();
     }
 
