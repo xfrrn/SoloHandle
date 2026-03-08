@@ -1104,15 +1104,15 @@ String _buildExpenseInsight(List<ExpenseTrendModel> trend) {
 String _buildMoodValue(List<MoodTrendModel> trend) {
   if (trend.isEmpty) return "—";
   final avg = trend.fold(0.0, (p, e) => p + e.averageValence) / trend.length;
-  return "平均 ${avg.toStringAsFixed(1)} 分";
+  return "平均 ${avg.toStringAsFixed(0)} 分";
 }
 
 String _buildMoodInsight(List<MoodTrendModel> trend) {
   if (trend.length < 3) return "近几天情绪平稳";
   final last = trend.last.averageValence;
   final prev = trend[trend.length - 2].averageValence;
-  if (last - prev > 0.1) return "近两天情绪有所提升";
-  if (prev - last > 0.1) return "近两天情绪略有下降";
+  if (last - prev > 8) return "近两天情绪有所提升";
+  if (prev - last > 8) return "近两天情绪略有下降";
   return "近几天整体较平稳";
 }
 

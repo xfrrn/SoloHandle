@@ -47,7 +47,7 @@ class MoodTrendCard extends StatelessWidget {
                         ),
                   ),
                   Text(
-                    "\u8fc7\u53bb 7 \u5929\u5e73\u5747 ${avgMood.toStringAsFixed(1)} \u5206",
+                    "\u8fc7\u53bb 7 \u5929\u5e73\u5747 ${avgMood.toStringAsFixed(0)} \u5206",
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
                           color: AppColors.textSecondary,
                         ),
@@ -101,10 +101,10 @@ class MoodTrendCard extends StatelessWidget {
                     ? (trend.length - 1).toDouble()
                     : 1,
                 minY: 0,
-                maxY: 10,
+                maxY: 100,
                 lineBarsData: [
                   LineChartBarData(
-                    spots: spots.isEmpty ? const [FlSpot(0, 5)] : spots,
+                    spots: spots.isEmpty ? const [FlSpot(0, 50)] : spots,
                     isCurved: true,
                     curveSmoothness: 0.35,
                     color: const Color(0xFFF59E0B),

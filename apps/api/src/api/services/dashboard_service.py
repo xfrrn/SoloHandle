@@ -74,7 +74,7 @@ class DashboardService:
              {"date": k, "amount": v} for k, v in sorted(expenses_by_day.items())
         ]
 
-        # Aggregate Mood (Group by day)
+        # Aggregate Mood (Group by day, 0-100 scale)
         mood_by_day: Dict[str, list[float]] = {}
         for row in raw_moods:
             try:
@@ -82,8 +82,16 @@ class DashboardService:
                 day_str = dt.strftime("%Y-%m-%d")
                 
                 data = json.loads(row["data_json"])
-                # Assumes 'valence' or 'score' is stored. Let's look for valence or default to 5.0
-                val = float(data.get("valence", data.get("score", 5.0)))
+                if "score_percent" in data:
+                    val = float(data["score_percent"])
+                elif "intensity" in data:
+                    val = float(data["intensity"]) * 100.0
+                elif "score" in data:
+                    score = float(data["score"])
+                    val = ((score - 1.0) / 4.0) * 100.0
+                else:
+                    val = 50.0
+                val = max(0.0, min(100.0, val))
                 
                 if day_str not in mood_by_day:
                     mood_by_day[day_str] = []
