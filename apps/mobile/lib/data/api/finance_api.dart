@@ -4,6 +4,16 @@ class FinanceApi {
   FinanceApi(this._apiClient);
   final ApiClient _apiClient;
 
+  Future<List<Map<String, dynamic>>> getAccounts() async {
+    final dio = await _apiClient.dio;
+    final response = await dio.get('/api/finance/accounts');
+    final items = (response.data as Map<String, dynamic>)['items'] as List? ?? const [];
+    return items
+        .whereType<Map>()
+        .map((e) => e.cast<String, dynamic>())
+        .toList();
+  }
+
   Future<Map<String, dynamic>> getSummary() async {
     final dio = await _apiClient.dio;
     final response = await dio.get('/api/finance/summary');

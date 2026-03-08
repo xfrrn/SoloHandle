@@ -1,4 +1,4 @@
-import "dart:convert";
+﻿import "dart:convert";
 
 import "package:flutter/material.dart";
 
@@ -44,7 +44,7 @@ class _CardRendererState extends State<CardRenderer> {
         borderRadius: BorderRadius.circular(20),
         border: Border.all(
           color: isDraft
-              ? AppColors.accent.withOpacity(0.45)
+              ? AppColors.accent.withValues(alpha: 0.45)
               : AppColors.divider,
         ),
         boxShadow: [
@@ -109,21 +109,22 @@ class _CardRendererState extends State<CardRenderer> {
   String _displayTitle(CardDto card) {
     if (card.title.isNotEmpty) return card.title;
     return switch (card.type) {
+      "income" => "收入",
       "expense" => "支出",
-      "meal" => "用餐",
+      "meal" => "餐食",
       "mood" => "心情",
-      "lifelog" => "生活记录",
+      "lifelog" => "日志",
       "task" => "任务",
       _ => "记录",
     };
   }
 
   String _headerSubtitle(CardDto card) {
+    if (card.type == "income") {
+      return _moneySubtitle(card, isIncome: true);
+    }
     if (card.type == "expense") {
-      final amount = _asNum(card.data["amount"]);
-      final category = _categoryLabel(card.data["category"]?.toString());
-      if (amount != null) return "¥${_formatAmount(amount)} · $category";
-      return category;
+      return _moneySubtitle(card, isIncome: false);
     }
     if (card.type == "meal") {
       final mealType = _mealTypeLabel(card.data["meal_type"]?.toString());
@@ -153,39 +154,64 @@ class _CardRendererState extends State<CardRenderer> {
     return card.subtitle.isNotEmpty ? card.subtitle : _subtitleFromData(card.data);
   }
 
+  String _moneySubtitle(CardDto card, {required bool isIncome}) {
+    final amount = _asNum(card.data["amount"]);
+    final category = _categoryLabel(card.data["category"]?.toString());
+    final accountName = _firstNonEmpty([card.data["account_name"]?.toString()]);
+    final parts = <String>[category];
+    if (accountName.isNotEmpty) {
+      parts.add(accountName);
+    }
+    if (amount != null) {
+      final prefix = isIncome ? "" : "¥";
+      return "$prefix${_formatAmount(amount)} · ${parts.join(" · ")}";
+    }
+    return parts.join(" · ");
+  }
+
   Widget _buildContent(BuildContext context, CardDto card) {
     switch (card.type) {
+      case "income":
+        return _buildMoneyContent(card, isIncome: true);
       case "expense":
-        return _buildExpenseContent(context, card);
+        return _buildMoneyContent(card, isIncome: false);
       case "meal":
-        return _buildMealContent(context, card);
+        return _buildMealContent(card);
       case "mood":
-        return _buildMoodContent(context, card);
+        return _buildMoodContent(card);
       case "lifelog":
-        return _buildLifelogContent(context, card);
+        return _buildLifelogContent(card);
       case "task":
-        return _buildTaskContent(context, card);
+        return _buildTaskContent(card);
       default:
-        return _buildGenericContent(context, card);
+        return _buildGenericContent(card);
     }
   }
 
-  Widget _buildExpenseContent(BuildContext context, CardDto card) {
+  Widget _buildMoneyContent(CardDto card, {required bool isIncome}) {
     final amount = _asNum(card.data["amount"]);
     final currencyValue = card.data["currency"]?.toString().trim();
-    final currency =
-        (currencyValue?.isNotEmpty ?? false) ? currencyValue! : "CNY";
+    final currency = (currencyValue?.isNotEmpty ?? false) ? currencyValue! : "CNY";
     final category = _categoryLabel(card.data["category"]?.toString());
+    final accountName = _firstNonEmpty([card.data["account_name"]?.toString()]);
     final note = _firstNonEmpty([card.data["note"]?.toString()]);
     final time = _friendlyTime(card.data["happened_at"] ?? card.data["time"]);
+    final secondaryParts = <String>[category];
+    if (accountName.isNotEmpty) {
+      secondaryParts.add(accountName);
+    }
+    if (note.isNotEmpty) {
+      secondaryParts.add(note);
+    }
+    final sign = isIncome ? "+" : "¥";
     return _CardBody(
-      primary: amount != null ? "¥${_formatAmount(amount)} $currency" : "",
-      secondary: note.isNotEmpty ? "$category · $note" : category,
+      primary: amount != null ? "$sign${_formatAmount(amount)} $currency" : "",
+      secondary: secondaryParts.join(" · "),
       tertiary: time,
     );
   }
 
-  Widget _buildMealContent(BuildContext context, CardDto card) {
+  Widget _buildMealContent(CardDto card) {
     final mealType = _mealTypeLabel(card.data["meal_type"]?.toString());
     final items = _firstNonEmpty([
       card.data["items"]?.toString(),
@@ -199,7 +225,7 @@ class _CardRendererState extends State<CardRenderer> {
     );
   }
 
-  Widget _buildMoodContent(BuildContext context, CardDto card) {
+  Widget _buildMoodContent(CardDto card) {
     final mood = _firstNonEmpty([
       card.data["mood"]?.toString(),
       card.data["valence"]?.toString(),
@@ -213,7 +239,7 @@ class _CardRendererState extends State<CardRenderer> {
     );
   }
 
-  Widget _buildLifelogContent(BuildContext context, CardDto card) {
+  Widget _buildLifelogContent(CardDto card) {
     final title = _firstNonEmpty([
       card.data["title"]?.toString(),
       card.data["text"]?.toString(),
@@ -234,7 +260,7 @@ class _CardRendererState extends State<CardRenderer> {
       children: [
         if (title.isNotEmpty || time.isNotEmpty)
           _CardBody(
-            primary: title.isNotEmpty ? title : "",
+            primary: title,
             secondary: "",
             tertiary: time,
           ),
@@ -244,7 +270,7 @@ class _CardRendererState extends State<CardRenderer> {
     );
   }
 
-  Widget _buildTaskContent(BuildContext context, CardDto card) {
+  Widget _buildTaskContent(CardDto card) {
     final title = _firstNonEmpty([
       card.data["title"]?.toString(),
       card.title,
@@ -268,16 +294,14 @@ class _CardRendererState extends State<CardRenderer> {
           Wrap(
             spacing: 6,
             runSpacing: 6,
-            children: _taskBadges(card.data)
-                .map((text) => _Badge(text: text))
-                .toList(),
+            children: _taskBadges(card.data).map((text) => _Badge(text: text)).toList(),
           ),
         ],
       ],
     );
   }
 
-  Widget _buildGenericContent(BuildContext context, CardDto card) {
+  Widget _buildGenericContent(CardDto card) {
     final note = _firstNonEmpty([card.data["note"]?.toString()]);
     final time = _friendlyTime(card.data["happened_at"] ?? card.data["time"]);
     return _CardBody(
@@ -310,7 +334,7 @@ class _CardRendererState extends State<CardRenderer> {
     if (value == null || value.trim().isEmpty) {
       return "未分类";
     }
-    return value;
+    return value.trim();
   }
 
   String _mealTypeLabel(String? value) {
@@ -319,7 +343,7 @@ class _CardRendererState extends State<CardRenderer> {
       "lunch" => "午餐",
       "dinner" => "晚餐",
       "snack" => "加餐",
-      _ => "用餐",
+      _ => "餐食",
     };
   }
 
@@ -332,11 +356,7 @@ class _CardRendererState extends State<CardRenderer> {
 
   List<String> _readImageBase64List(Object? value) {
     if (value is! List) return const [];
-    return value
-        .whereType<String>()
-        .map((e) => e.trim())
-        .where((e) => e.isNotEmpty)
-        .toList();
+    return value.whereType<String>().map((e) => e.trim()).where((e) => e.isNotEmpty).toList();
   }
 
   Widget _buildActions(CardDto card) {
@@ -349,8 +369,7 @@ class _CardRendererState extends State<CardRenderer> {
             style: OutlinedButton.styleFrom(
               foregroundColor: AppColors.textSecondary,
               side: const BorderSide(color: AppColors.divider),
-              shape:
-                  RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
               padding: const EdgeInsets.symmetric(horizontal: 16),
             ),
             child: const Text("修改"),
@@ -362,8 +381,7 @@ class _CardRendererState extends State<CardRenderer> {
               backgroundColor: AppColors.accent,
               foregroundColor: Colors.white,
               elevation: 0,
-              shape:
-                  RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
               padding: const EdgeInsets.symmetric(horizontal: 20),
             ),
             child: const Text("确认提交"),
@@ -373,9 +391,7 @@ class _CardRendererState extends State<CardRenderer> {
     }
 
     if (card.type == "task" &&
-        (widget.onComplete != null ||
-            widget.onPostpone != null ||
-            widget.onDelete != null)) {
+        (widget.onComplete != null || widget.onPostpone != null || widget.onDelete != null)) {
       return Row(
         mainAxisAlignment: MainAxisAlignment.end,
         children: [
@@ -385,8 +401,7 @@ class _CardRendererState extends State<CardRenderer> {
               style: OutlinedButton.styleFrom(
                 foregroundColor: AppColors.textSecondary,
                 side: const BorderSide(color: AppColors.divider),
-                shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(10)),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
               ),
               child: const Text("延期"),
             ),
@@ -398,8 +413,7 @@ class _CardRendererState extends State<CardRenderer> {
               style: OutlinedButton.styleFrom(
                 foregroundColor: AppColors.danger,
                 side: const BorderSide(color: AppColors.dangerLight),
-                shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(10)),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
               ),
               child: const Text("删除"),
             ),
@@ -412,8 +426,7 @@ class _CardRendererState extends State<CardRenderer> {
                 backgroundColor: AppColors.success,
                 foregroundColor: Colors.white,
                 elevation: 0,
-                shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(10)),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
               ),
               child: const Text("完成"),
             ),
@@ -439,8 +452,9 @@ class _CardRendererState extends State<CardRenderer> {
     }
     if (parts.isNotEmpty) return parts.join(" · ");
     final time = data["time"] ?? data["happened_at"];
-    if (time is String && time.isNotEmpty)
+    if (time is String && time.isNotEmpty) {
       return "时间：${formatIsoToFriendly(time)}";
+    }
     return "";
   }
 
@@ -537,10 +551,9 @@ class _Badge extends StatelessWidget {
       ),
       child: Text(
         text,
-        style: Theme.of(context)
-            .textTheme
-            .bodySmall
-            ?.copyWith(color: const Color(0xFF444444)),
+        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+              color: const Color(0xFF444444),
+            ),
       ),
     );
   }
@@ -605,6 +618,11 @@ class _CardAvatar extends StatelessWidget {
     Color iconColor;
 
     switch (type) {
+      case "income":
+        iconData = Icons.savings_outlined;
+        bgColor = AppColors.successLight;
+        iconColor = AppColors.success;
+        break;
       case "expense":
         iconData = Icons.receipt_long;
         bgColor = AppColors.warningLight;
@@ -622,8 +640,8 @@ class _CardAvatar extends StatelessWidget {
         break;
       default:
         iconData = Icons.event_note;
-        bgColor = const Color(0xFFF1F5F9); // slate-100
-        iconColor = const Color(0xFF64748B); // slate-500
+        bgColor = const Color(0xFFF1F5F9);
+        iconColor = const Color(0xFF64748B);
         break;
     }
 
@@ -656,12 +674,14 @@ class _StatusBadge extends StatelessWidget {
         child: const Text(
           "草稿",
           style: TextStyle(
-              color: AppColors.accent,
-              fontSize: 10,
-              fontWeight: FontWeight.w600),
+            color: AppColors.accent,
+            fontSize: 10,
+            fontWeight: FontWeight.w600,
+          ),
         ),
       );
-    } else if (status == "failed") {
+    }
+    if (status == "failed") {
       return Container(
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
         decoration: BoxDecoration(
@@ -671,9 +691,10 @@ class _StatusBadge extends StatelessWidget {
         child: const Text(
           "失败",
           style: TextStyle(
-              color: AppColors.danger,
-              fontSize: 10,
-              fontWeight: FontWeight.w600),
+            color: AppColors.danger,
+            fontSize: 10,
+            fontWeight: FontWeight.w600,
+          ),
         ),
       );
     }

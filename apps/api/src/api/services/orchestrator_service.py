@@ -21,6 +21,7 @@ from api.db.connection import (
     require_enum,
     require_non_empty_str,
 )
+from api.repositories.accounts_repo import AccountsRepository
 from api.repositories.orchestrator_repo import OrchestratorRepository
 from api.repositories.tasks_repo import TaskRepository
 from api.services.tasks_service import TaskService
@@ -351,6 +352,7 @@ class OrchestratorService:
 
 
 def _pick_card(cards, idx: int, draft_id: str, tool_name: str, payload: dict[str, Any]) -> dict[str, Any]:
+    display_data = _display_card_data(tool_name, payload)
     if idx < len(cards):
         card = cards[idx].model_dump()
     else:
@@ -368,12 +370,34 @@ def _pick_card(cards, idx: int, draft_id: str, tool_name: str, payload: dict[str
             "status": "draft",
             "title": title,
             "subtitle": subtitle,
-            "data": payload,
+            "data": display_data,
             "actions": [],
         }
+    card["data"] = display_data
     card["card_id"] = draft_id
     card["status"] = "draft"
     return card
+
+
+def _display_card_data(tool_name: str, payload: dict[str, Any]) -> dict[str, Any]:
+    data = dict(payload)
+    if tool_name not in {"create_expense", "create_income"}:
+        return data
+
+    account_id = payload.get("account_id")
+    if not isinstance(account_id, int) or account_id <= 0:
+        return data
+
+    try:
+        with get_connection() as conn:
+            ensure_tables(conn)
+            account = AccountsRepository(conn).get_account(account_id)
+    except Exception:
+        return data
+
+    if account and account.get("name"):
+        data["account_name"] = account["name"]
+    return data
 
 
 def _drafts_from_decision(decision) -> list[Draft]:

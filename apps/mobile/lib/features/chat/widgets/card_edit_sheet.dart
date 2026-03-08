@@ -2,7 +2,9 @@ import "package:flutter/material.dart";
 
 import "../../../core/constants.dart";
 import "../../../core/time.dart";
+import "../../../data/api/api_client.dart";
 import "../../../data/api/dto.dart";
+import "../../../data/api/finance_api.dart";
 
 class CardEditSheet extends StatefulWidget {
   const CardEditSheet({super.key, required this.card, required this.onSubmit});
@@ -145,6 +147,7 @@ class _CardEditSheetState extends State<CardEditSheet> {
       lastDate: now.add(const Duration(days: 365 * 3)),
     );
     if (date == null) return null;
+    if (!context.mounted) return null;
     final time = await showTimePicker(
       context: context,
       initialTime: TimeOfDay.fromDateTime(initial ?? now),
@@ -231,23 +234,72 @@ class _GenericEditSheet extends StatefulWidget {
 class _GenericEditSheetState extends State<_GenericEditSheet> {
   final Map<String, TextEditingController> _controllers = {};
   final Map<String, DateTime?> _dates = {};
+  final FinanceApi _financeApi = FinanceApi(ApiClient());
+  List<_AccountOption> _accounts = const [];
+  bool _loadingAccounts = false;
+  int? _selectedAccountId;
+
+  bool get _isFinanceCard =>
+      widget.card.type == "expense" || widget.card.type == "income";
+
+  bool get _incomeCard => widget.card.type == "income";
 
   @override
   void initState() {
     super.initState();
+    final accountValue = widget.card.data["account_id"];
+    if (accountValue is num && accountValue.toInt() > 0) {
+      _selectedAccountId = accountValue.toInt();
+    } else if (accountValue is String) {
+      final parsed = int.tryParse(accountValue);
+      if (parsed != null && parsed > 0) {
+        _selectedAccountId = parsed;
+      }
+    }
     for (final entry in widget.card.data.entries) {
+      if (entry.key == "account_id" || entry.key == "account_name") {
+        continue;
+      }
       if (entry.key.endsWith("_at")) {
         _dates[entry.key] = parseIsoToLocal(entry.value as String?);
       } else {
         _controllers[entry.key] = TextEditingController(text: entry.value?.toString() ?? "");
       }
     }
+    if (_isFinanceCard) {
+      _loadAccounts();
+    }
   }
 
   @override
   void dispose() {
-    for (final c in _controllers.values) c.dispose();
+    for (final c in _controllers.values) {
+      c.dispose();
+    }
     super.dispose();
+  }
+
+  Future<void> _loadAccounts() async {
+    setState(() => _loadingAccounts = true);
+    try {
+      final rows = await _financeApi.getAccounts();
+      final items = rows
+          .map(_AccountOption.fromJson)
+          .where((account) => !_incomeCard || account.kind == "asset")
+          .toList();
+      if (!mounted) return;
+      setState(() {
+        _accounts = items;
+        _loadingAccounts = false;
+        if (_selectedAccountId != null &&
+            !_accounts.any((account) => account.id == _selectedAccountId)) {
+          _selectedAccountId = null;
+        }
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _loadingAccounts = false);
+    }
   }
 
   @override
@@ -268,6 +320,16 @@ class _GenericEditSheetState extends State<_GenericEditSheet> {
               ),
               const SizedBox(height: 12),
             ],
+            if (_isFinanceCard) ...[
+              _AccountField(
+                label: _incomeCard ? "入账账户" : "支付账户",
+                value: _selectedAccountId,
+                accounts: _accounts,
+                loading: _loadingAccounts,
+                onChanged: (value) => setState(() => _selectedAccountId = value),
+              ),
+              const SizedBox(height: 12),
+            ],
             for (final entry in _dates.entries) ...[
               _TimeRow(
                 label: entry.key,
@@ -276,16 +338,17 @@ class _GenericEditSheetState extends State<_GenericEditSheet> {
                     : formatIsoToLocal(toIsoWithOffset(entry.value!)),
                 onPick: () async {
                   final now = DateTime.now();
-                  final date = await showDatePicker(
-                    context: context,
-                    initialDate: entry.value ?? now,
-                    firstDate: now.subtract(const Duration(days: 365)),
-                    lastDate: now.add(const Duration(days: 365)),
-                  );
-                  if (date == null) return;
-                  final time = await showTimePicker(
-                    context: context,
-                    initialTime: TimeOfDay.fromDateTime(entry.value ?? now),
+                   final date = await showDatePicker(
+                     context: context,
+                     initialDate: entry.value ?? now,
+                     firstDate: now.subtract(const Duration(days: 365)),
+                     lastDate: now.add(const Duration(days: 365)),
+                   );
+                   if (date == null) return;
+                   if (!context.mounted) return;
+                   final time = await showTimePicker(
+                     context: context,
+                     initialTime: TimeOfDay.fromDateTime(entry.value ?? now),
                   );
                   if (time == null) return;
                   setState(() {
@@ -322,6 +385,9 @@ class _GenericEditSheetState extends State<_GenericEditSheet> {
                     for (final entry in _dates.entries) {
                       patch[entry.key] = entry.value == null ? null : toIsoWithOffset(entry.value!);
                     }
+                    if (_isFinanceCard) {
+                      patch["account_id"] = _selectedAccountId;
+                    }
                     widget.onSubmit(patch);
                     Navigator.of(context).pop();
                   },
@@ -333,6 +399,72 @@ class _GenericEditSheetState extends State<_GenericEditSheet> {
           ],
         ),
       ),
+    );
+  }
+}
+
+class _AccountField extends StatelessWidget {
+  const _AccountField({
+    required this.label,
+    required this.value,
+    required this.accounts,
+    required this.loading,
+    required this.onChanged,
+  });
+
+  final String label;
+  final int? value;
+  final List<_AccountOption> accounts;
+  final bool loading;
+  final ValueChanged<int?> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    if (loading) {
+      return const LinearProgressIndicator(minHeight: 2);
+    }
+
+    return DropdownButtonFormField<int?>(
+      initialValue: accounts.any((account) => account.id == value) ? value : null,
+      decoration: InputDecoration(labelText: label),
+      items: [
+        const DropdownMenuItem<int?>(
+          value: null,
+          child: Text("不指定账户"),
+        ),
+        ...accounts.map(
+          (account) => DropdownMenuItem<int?>(
+            value: account.id,
+            child: Text(account.displayName),
+          ),
+        ),
+      ],
+      onChanged: onChanged,
+    );
+  }
+}
+
+class _AccountOption {
+  const _AccountOption({
+    required this.id,
+    required this.name,
+    required this.kind,
+    required this.subtype,
+  });
+
+  final int id;
+  final String name;
+  final String kind;
+  final String subtype;
+
+  String get displayName => name.isNotEmpty ? name : "$kind:$subtype";
+
+  factory _AccountOption.fromJson(Map<String, dynamic> json) {
+    return _AccountOption(
+      id: json["id"] as int? ?? 0,
+      name: json["name"] as String? ?? "",
+      kind: json["kind"] as String? ?? "asset",
+      subtype: json["subtype"] as String? ?? "",
     );
   }
 }
