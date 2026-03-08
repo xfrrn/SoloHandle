@@ -744,12 +744,15 @@ class _ImageGrid extends StatelessWidget {
     if (images.length == 1) {
       return ClipRRect(
         borderRadius: BorderRadius.circular(10),
-        child: Image.memory(
-          base64Decode(images.first),
-          fit: BoxFit.cover,
-          height: 180,
-          width: double.infinity,
-          errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+        child: GestureDetector(
+          onTap: () => _openImage(context, 0),
+          child: Image.memory(
+            base64Decode(images.first),
+            fit: BoxFit.cover,
+            height: 180,
+            width: double.infinity,
+            errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+          ),
         ),
       );
     }
@@ -765,17 +768,77 @@ class _ImageGrid extends StatelessWidget {
       itemBuilder: (context, index) {
         return ClipRRect(
           borderRadius: BorderRadius.circular(8),
-          child: Image.memory(
-            base64Decode(images[index]),
-            fit: BoxFit.cover,
-            errorBuilder: (_, __, ___) => Container(
-              color: const Color(0xFFF1F1F1),
-              alignment: Alignment.center,
-              child: const Icon(Icons.broken_image_outlined, size: 16),
+          child: GestureDetector(
+            onTap: () => _openImage(context, index),
+            child: Image.memory(
+              base64Decode(images[index]),
+              fit: BoxFit.cover,
+              errorBuilder: (_, __, ___) => Container(
+                color: const Color(0xFFF1F1F1),
+                alignment: Alignment.center,
+                child: const Icon(Icons.broken_image_outlined, size: 16),
+              ),
             ),
           ),
         );
       },
+    );
+  }
+
+  void _openImage(BuildContext context, int index) {
+    var currentIndex = index;
+    showDialog(
+      context: context,
+      builder: (_) => StatefulBuilder(
+        builder: (context, setState) => Dialog(
+          backgroundColor: Colors.black,
+          insetPadding: const EdgeInsets.all(12),
+          child: Stack(
+            children: [
+              PageView.builder(
+                controller: PageController(initialPage: index),
+                itemCount: images.length,
+                onPageChanged: (value) => setState(() => currentIndex = value),
+                itemBuilder: (context, i) {
+                  return InteractiveViewer(
+                    child: Image.memory(
+                      base64Decode(images[i]),
+                      fit: BoxFit.contain,
+                    ),
+                  );
+                },
+              ),
+              Positioned(
+                top: 8,
+                right: 8,
+                child: IconButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  icon: const Icon(Icons.close, color: Colors.white),
+                ),
+              ),
+              Positioned(
+                bottom: 12,
+                left: 0,
+                right: 0,
+                child: Center(
+                  child: Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: Colors.black.withValues(alpha: 0.45),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Text(
+                      "${currentIndex + 1}/${images.length}",
+                      style: const TextStyle(color: Colors.white, fontSize: 12),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }
