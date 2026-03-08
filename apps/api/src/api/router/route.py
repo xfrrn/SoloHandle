@@ -1,6 +1,7 @@
 ﻿from __future__ import annotations
 
 import json
+import re
 from pathlib import Path
 from typing import Any
 
@@ -70,6 +71,7 @@ def _build_repair_prompt(original_text: str, output: str, error: ToolError) -> s
 
 
 def _parse_decision(output: str) -> RouterDecision:
+    output = _clean_json_output(output)
     try:
         data = json.loads(output)
     except json.JSONDecodeError as exc:
@@ -79,6 +81,15 @@ def _parse_decision(output: str) -> RouterDecision:
         return RouterDecision.model_validate(data)
     except ValidationError as exc:
         raise ToolError("router_invalid_schema", "Router output schema invalid", {"errors": exc.errors()}) from exc
+
+
+def _clean_json_output(output: str) -> str:
+    text = output.strip()
+    if text.startswith("```"):
+        match = re.match(r"^```(?:json)?\s*([\s\S]*?)\s*```$", text, re.IGNORECASE)
+        if match:
+            return match.group(1).strip()
+    return text
 
 def classify_intent(
     text: str,

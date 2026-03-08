@@ -69,9 +69,15 @@ class OrchestratorService:
     ) -> dict[str, Any]:
         routed_text = _inject_type_hint(text, type_hint)
         provider = load_provider_from_config()
+        has_images = bool(image_base64s)
+        text_amount = _extract_amount(text)
 
         # Deterministic route for explicit tags: avoid LLM misclassification.
-        if type_hint in {"expense", "income", "transfer", "repayment", "lifelog", "meal", "task"}:
+        force_fallback_route = type_hint in {"expense", "income", "transfer", "repayment", "lifelog", "meal", "task"}
+        if has_images and type_hint in {"expense", "income", "meal"} and text_amount is None:
+            force_fallback_route = False
+
+        if force_fallback_route:
             drafts = _fallback_drafts(
                 text,
                 type_hint=type_hint,

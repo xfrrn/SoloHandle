@@ -2,6 +2,8 @@
 
 import base64
 import json
+import logging
+import os
 import tempfile
 import urllib.request
 from dataclasses import dataclass
@@ -10,6 +12,8 @@ from openai import OpenAI
 
 from api.db.connection import ToolError
 from api.settings import LLMSettings, load_llm_settings
+
+logger = logging.getLogger("api.llm")
 
 
 @dataclass
@@ -85,7 +89,13 @@ class OpenAICompatibleProvider(LLMProvider):
 
         try:
             parsed = json.loads(body)
-            return parsed["choices"][0]["message"]["content"]
+            content = parsed["choices"][0]["message"]["content"]
+            self._log_model_output(
+                kind="generate",
+                model=model or self._config.model,
+                text=_normalize_llm_text(content),
+            )
+            return content
         except Exception as exc:  # noqa: BLE001
             raise ToolError("llm_error", "LLM response parse failed", {"body": body}) from exc
 
@@ -106,13 +116,45 @@ class OpenAICompatibleProvider(LLMProvider):
                     response_format="text",
                     temperature=0.2
                 )
-                return transcript.strip()
+                text = transcript.strip()
+                self._log_model_output(
+                    kind="transcribe_audio",
+                    model="whisper-large-v3",
+                    text=text,
+                )
+                return text
             except Exception as exc:  # noqa: BLE001
                 raise ToolError("llm_error", "Audio transcription failed", {"error": str(exc)}) from exc
 
     @property
     def fast_model(self) -> str:
         return self._config.fast_model
+
+    def _log_model_output(self, *, kind: str, model: str, text: str) -> None:
+        if not _llm_debug_enabled():
+            return
+        logger.warning("LLM %s model=%s output:\n%s", kind, model, text)
+
+
+def _llm_debug_enabled() -> bool:
+    return os.environ.get("APP_LLM_DEBUG", "").strip().lower() in {"1", "true", "yes", "on"}
+
+
+def _normalize_llm_text(content: Any) -> str:
+    if isinstance(content, str):
+        return content
+    if isinstance(content, list):
+        parts: list[str] = []
+        for item in content:
+            if isinstance(item, dict):
+                text = item.get("text")
+                if isinstance(text, str) and text.strip():
+                    parts.append(text)
+            elif isinstance(item, str) and item.strip():
+                parts.append(item)
+        if parts:
+            return "\n".join(parts)
+    return str(content)
 
 
 def load_provider_from_config() -> Optional[LLMProvider]:

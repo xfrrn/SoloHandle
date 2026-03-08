@@ -20,6 +20,10 @@ DEFAULT_ENV_PATH = DEFAULT_CONFIG_PATH.parent / ".env"
 load_dotenv(dotenv_path=DEFAULT_ENV_PATH, override=False)
 
 
+def _load_toml_file(path: Path) -> dict:
+    return tomllib.loads(path.read_text(encoding="utf-8-sig"))
+
+
 @dataclass
 class LLMSettings:
     base_url: str
@@ -63,7 +67,7 @@ def load_llm_settings(config_path: Optional[Path] = None) -> Optional[LLMSetting
     path = config_path or DEFAULT_CONFIG_PATH
     if not path.exists():
         return None
-    data = tomllib.loads(path.read_text(encoding="utf-8"))
+    data = _load_toml_file(path)
     llm = data.get("llm")
     if not isinstance(llm, dict):
         return None
@@ -91,7 +95,7 @@ def load_db_settings(config_path: Optional[Path] = None) -> Optional[DBSettings]
     path = config_path or DEFAULT_CONFIG_PATH
     if not path.exists():
         return None
-    data = tomllib.loads(path.read_text(encoding="utf-8"))
+    data = _load_toml_file(path)
     db = data.get("db")
     if not isinstance(db, dict):
         return None
@@ -111,7 +115,7 @@ def load_server_settings(config_path: Optional[Path] = None) -> ServerSettings:
             bearer_token=env_token or None,
         )
 
-    data = tomllib.loads(path.read_text(encoding="utf-8"))
+    data = _load_toml_file(path)
     server = data.get("server")
     auth = data.get("auth")
     origins: list[str] = []
