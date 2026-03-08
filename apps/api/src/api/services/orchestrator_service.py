@@ -26,7 +26,15 @@ from api.repositories.tasks_repo import TaskRepository
 from api.services.tasks_service import TaskService
 from api.router.route import route as llm_route, classify_intent, chat_reply
 from api.router.provider import load_provider_from_config
-from api.tools.events import create_expense, create_lifelog, create_meal, create_mood, undo_event, soft_delete_event
+from api.tools.events import (
+    create_expense,
+    create_income,
+    create_lifelog,
+    create_meal,
+    create_mood,
+    undo_event,
+    soft_delete_event,
+)
 from api.tools.tasks import create_task, postpone_task, soft_delete_task, undo_task
 
 
@@ -60,7 +68,7 @@ class OrchestratorService:
         provider = load_provider_from_config()
 
         # Deterministic route for explicit lifelog tag: avoid LLM misclassification.
-        if type_hint == "lifelog":
+        if type_hint in {"lifelog", "income"}:
             drafts = _fallback_drafts(
                 text,
                 type_hint=type_hint,
@@ -346,12 +354,20 @@ def _pick_card(cards, idx: int, draft_id: str, tool_name: str, payload: dict[str
     if idx < len(cards):
         card = cards[idx].model_dump()
     else:
+        title = ""
+        subtitle = ""
+        if tool_name == "create_income":
+            title = "收入"
+            amount = payload.get("amount")
+            currency = payload.get("currency") or "CNY"
+            if amount is not None:
+                subtitle = f"{amount} {currency}"
         card = {
             "card_id": draft_id,
             "type": tool_name.replace("create_", ""),
             "status": "draft",
-            "title": "",
-            "subtitle": "",
+            "title": title,
+            "subtitle": subtitle,
             "data": payload,
             "actions": [],
         }
@@ -417,6 +433,11 @@ def _fallback_drafts(
     if type_hint == "task" and stripped:
         add("create_task", {"title": stripped}, confidence=0.7)
         return drafts
+    if type_hint == "income":
+        amount_hint = _extract_amount(text)
+        if amount_hint is not None:
+            add("create_income", {"amount": amount_hint, "category": "other"}, confidence=0.7)
+        return drafts
     if type_hint == "meal" and stripped:
         add("create_meal", {"meal_type": "snack", "items": [stripped]}, confidence=0.7)
         return drafts
@@ -430,6 +451,11 @@ def _fallback_drafts(
     amount = _extract_amount(text)
     if amount is not None and _match_any(lowered, ["花", "消费", "付款", "支付", "买", "￥", "¥", "$"]):
         add("create_expense", {"amount": amount, "category": "food"}, confidence=0.6)
+    if amount is not None and _match_any(
+        lowered,
+        ["收入", "赚了", "收到", "到账", "工资", "报销", "奖金", "打款", "进账"],
+    ):
+        add("create_income", {"amount": amount, "category": "other"}, confidence=0.6)
 
     if _match_any(lowered, ["提醒", "待办", "任务", "记得", "要做"]):
         add("create_task", {"title": text.strip()}, confidence=0.55)
@@ -440,6 +466,8 @@ def _fallback_drafts(
 def _call_tool(tool_name: str, payload: dict[str, Any]) -> dict[str, Any]:
     if tool_name == "create_expense":
         return create_expense(**payload)
+    if tool_name == "create_income":
+        return create_income(**payload)
     if tool_name == "create_task":
         return create_task(**payload)
     if tool_name == "create_mood":
@@ -452,7 +480,7 @@ def _call_tool(tool_name: str, payload: dict[str, Any]) -> dict[str, Any]:
 
 
 def _undo_tool(tool_name: str, result: dict[str, Any]) -> dict[str, Any]:
-    if tool_name in {"create_expense", "create_lifelog", "create_meal", "create_mood"}:
+    if tool_name in {"create_expense", "create_income", "create_lifelog", "create_meal", "create_mood"}:
         event_id = result.get("event_id")
         if isinstance(event_id, int):
             return {"event": soft_delete_event(event_id)}
@@ -499,7 +527,7 @@ def _normalize_time_fields(payload: dict[str, Any], tool_name: str) -> dict[str,
     fields: list[str] = []
     if tool_name == "create_task":
         fields = ["due_at", "remind_at"]
-    elif tool_name in {"create_expense", "create_lifelog", "create_meal", "create_mood"}:
+    elif tool_name in {"create_expense", "create_income", "create_lifelog", "create_meal", "create_mood"}:
         fields = ["happened_at"]
 
     for field in fields:
@@ -708,6 +736,8 @@ def _inject_type_hint(text: str, type_hint: str | None) -> str:
 def _clarify_for_type_hint(type_hint: str | None) -> str:
     if type_hint == "expense":
         return "请补充这笔支出的金额。"
+    if type_hint == "income":
+        return "请补充这笔收入的金额。"
     if type_hint == "meal":
         return "请补充你吃了什么。"
     if type_hint == "task":

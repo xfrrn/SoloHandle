@@ -9,10 +9,10 @@ Output rules:
 - No punctuation, no markdown, no explanation.
 
 Treat as `action` when any of these are true:
-- The message clearly describes an expense, meal, task, or life log to be recorded.
+- The message clearly describes an expense, income, meal, task, or life log to be recorded.
 - The user provides a receipt, food photo, note photo, or other image intended for extraction.
-- The message contains an explicit type marker such as `@expense`, `@lifelog`, `@meal`, `@task`.
-- The message contains an injected hint like `[TYPE_HINT:expense]`, `[TYPE_HINT:lifelog]`, `[TYPE_HINT:meal]`, `[TYPE_HINT:task]`.
+- The message contains an explicit type marker such as `@expense`, `@income`, `@lifelog`, `@meal`, `@task`.
+- The message contains an injected hint like `[TYPE_HINT:expense]`, `[TYPE_HINT:income]`, `[TYPE_HINT:lifelog]`, `[TYPE_HINT:meal]`, `[TYPE_HINT:task]`.
 - The user is confirming or editing a draft-like record.
 
 Treat as `chat` when any of these are true:
@@ -28,6 +28,7 @@ Examples:
 - "spent 20 on coffee" -> action
 - "remind me to join a meeting tomorrow at 3pm" -> action
 - "@lifelog went to the park today" -> action
+- "@income salary 8000" -> action
 - "@meal a bowl of noodles" -> action
 - "here is a receipt image, help me log it" -> action
 - "I ate eggs and milk this morning" -> action
@@ -38,6 +39,7 @@ Examples:
 
 More Chinese examples:
 - "@expense 今天午饭 32" -> action
+- "@income 工资到账 8000" -> action
 - "@expense 打车 18.5" -> action
 - "@lifelog 今天心情一般，但还是去跑步了" -> action
 - "@lifelog" with an attached image -> action

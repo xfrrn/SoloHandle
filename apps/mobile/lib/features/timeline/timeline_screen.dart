@@ -116,6 +116,12 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
             ),
             const SizedBox(width: 8),
             _FilterChip(
+              label: "\u6536\u5165",
+              selected: state.selectedTypes.contains("income"),
+              onTap: () => notifier.toggleType("income"),
+            ),
+            const SizedBox(width: 8),
+            _FilterChip(
               label: "\u5FC3\u60C5",
               selected: state.selectedTypes.contains("mood"),
               onTap: () => notifier.toggleType("mood"),
@@ -404,6 +410,11 @@ class _TypeAvatar extends StatelessWidget {
         bg = AppColors.warningLight;
         fg = AppColors.warning;
         break;
+      case "income":
+        icon = Icons.savings_outlined;
+        bg = AppColors.successLight;
+        fg = AppColors.success;
+        break;
       case "meal":
         icon = Icons.restaurant;
         bg = const Color(0xFFFFF0EB);
@@ -442,6 +453,10 @@ class _TypeBadge extends StatelessWidget {
       case "expense":
         label = "\u652F\u51FA";
         color = AppColors.warning;
+        break;
+      case "income":
+        label = "\u6536\u5165";
+        color = AppColors.success;
         break;
       case "meal":
         label = "\u7528\u9910";
@@ -587,6 +602,18 @@ class _DetailTop extends StatelessWidget {
         secondary = "$category \u00B7 $currency";
         icon = Icons.receipt_long;
         color = AppColors.warning;
+        size = 26;
+        break;
+      case "income":
+        label = "\u6536\u5165\u8BB0\u5F55";
+        final amount = event.data["amount"]?.toString() ?? "0";
+        final category =
+            _mapIncomeCategory((event.data["category"] ?? "other").toString());
+        final currency = event.data["currency"]?.toString() ?? "CNY";
+        primary = "+\u00A5$amount";
+        secondary = "$category \u00B7 $currency";
+        icon = Icons.savings_outlined;
+        color = AppColors.success;
         size = 26;
         break;
       case "meal":
@@ -945,6 +972,15 @@ _Summary _buildSummary(EventDto event) {
         title: "\u00A5$amount \u00B7 $category",
         subtitle: note.isNotEmpty ? note : null,
       );
+    case "income":
+      final amount = event.data["amount"]?.toString() ?? "0";
+      final category =
+          _mapIncomeCategory((event.data["category"] ?? "other").toString());
+      final note = (event.data["note"]?.toString() ?? "").trim();
+      return _Summary(
+        title: "+\u00A5$amount \u00B7 $category",
+        subtitle: note.isNotEmpty ? note : null,
+      );
     case "meal":
       final mealType = _mapMealType(event.data["meal_type"]?.toString());
       final items = ((event.data["items"] as List?) ?? [])
@@ -1005,6 +1041,27 @@ List<String> _lifelogImages(EventDto event) {
 String _mapCategory(String value) {
   if (value == "other") return "\u5176\u4ED6";
   return value;
+}
+
+String _mapIncomeCategory(String value) {
+  switch (value) {
+    case "salary":
+      return "\u5DE5\u8D44";
+    case "bonus":
+      return "\u5956\u91D1";
+    case "freelance":
+      return "\u526F\u4E1A";
+    case "refund":
+      return "\u9000\u6B3E";
+    case "gift":
+      return "\u793C\u91D1";
+    case "investment":
+      return "\u6295\u8D44";
+    case "other":
+      return "\u5176\u4ED6";
+    default:
+      return value;
+  }
 }
 
 String _mapMealType(String? value) {

@@ -23,6 +23,7 @@
 LLM Router 及外部集成应遵守以下 tool 入参 schema：
 
 - `packages/schemas/tools/create_expense.schema.json`
+- `packages/schemas/tools/create_income.schema.json`
 - `packages/schemas/tools/create_lifelog.schema.json`
 - `packages/schemas/tools/create_meal.schema.json`
 - `packages/schemas/tools/create_mood.schema.json`
@@ -45,7 +46,10 @@ LLM Router 及外部集成应遵守以下 tool 入参 schema：
 ## 枚举值
 
 事件类型
-- `expense`, `lifelog`, `meal`, `mood`
+- `expense`, `income`, `lifelog`, `meal`, `mood`
+
+收入分类
+- `salary`, `bonus`, `freelance`, `refund`, `gift`, `investment`, `other`
 
 支出分类
 - `food`, `transport`, `shopping`, `entertainment`, `housing`, `bills`, `medical`, `education`, `personal_care`, `other`

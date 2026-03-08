@@ -72,6 +72,60 @@ def create_expense(
         )
 
 
+def create_income(
+    *,
+    amount: Any,
+    currency: Optional[str] = None,
+    category: Optional[str] = None,
+    note: Optional[str] = None,
+    happened_at: Optional[str] = None,
+    tags: Optional[Iterable[str]] = None,
+    source: Optional[str] = None,
+    confidence: Optional[float] = None,
+    idempotency_key: Optional[str] = None,
+    commit_id: Optional[str] = None,
+) -> dict[str, Any]:
+    """Create an income event."""
+    consts = get_constants()
+    amt = require_positive_number(amount, "amount")
+    cat = require_enum(
+        category or consts.income.default_category,
+        "category",
+        consts.income.categories,
+    )
+    if note is not None and not isinstance(note, str):
+        raise ToolError("invalid_param", "note must be string or null")
+    currency_value = currency or consts.defaults.currency
+    if not isinstance(currency_value, str) or not currency_value.strip():
+        raise ToolError("invalid_param", "currency must be non-empty string")
+
+    data = {
+        "amount": amt,
+        "currency": currency_value.strip(),
+        "category": cat,
+        "note": note,
+    }
+    happened_at_iso = normalize_iso8601(happened_at)
+    tags_list = normalize_tags(tags)
+    src = require_enum(source or consts.defaults.source, "source", consts.sources)
+    conf_value = confidence if confidence is not None else consts.defaults.confidence
+    conf = require_number_in_range(conf_value, "confidence", 0.0, 1.0)
+
+    with get_connection() as conn:
+        ensure_tables(conn)
+        service = EventService(EventRepository(conn))
+        return service.create_event(
+            event_type="income",
+            data=data,
+            happened_at=happened_at_iso,
+            tags=tags_list,
+            source=src,
+            confidence=conf,
+            idempotency_key=idempotency_key,
+            commit_id=commit_id,
+        )
+
+
 def create_lifelog(
     *,
     text: Any = None,

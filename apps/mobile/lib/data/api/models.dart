@@ -50,14 +50,18 @@ class EventDto {
       case "expense":
         final amount = data["amount"];
         final cat = data["category"] ?? "";
-        return "¥$amount $cat";
+        return "?? $amount $cat";
+      case "income":
+        final amount = data["amount"];
+        final cat = data["category"] ?? "";
+        return "?? $amount $cat";
       case "meal":
-        return data["description"] as String? ?? "用餐记录";
+        return data["description"] as String? ?? "????";
       case "mood":
         final emotion = data["emotion"] ?? data["mood"] ?? "";
-        return "心情：$emotion";
+        return "?? $emotion";
       case "lifelog":
-        return data["description"] as String? ?? "生活记录";
+        return data["description"] as String? ?? "????";
       default:
         return type;
     }
@@ -133,3 +137,4 @@ class PaginatedResponse<T> {
   final List<T> items;
   final int total;
 }
+

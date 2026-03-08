@@ -26,6 +26,12 @@ class ExpenseConfig:
 
 
 @dataclass(frozen=True)
+class IncomeConfig:
+    categories: list[str]
+    default_category: str
+
+
+@dataclass(frozen=True)
 class MealConfig:
     types: list[str]
 
@@ -49,6 +55,7 @@ class LimitsConfig:
 class AppConstants:
     defaults: DefaultsConfig
     expense: ExpenseConfig
+    income: IncomeConfig
     meal: MealConfig
     task: TaskConfig
     limits: LimitsConfig
@@ -115,6 +122,7 @@ def _load_json(path: Path) -> dict[str, Any]:
 def _validate_constants(data: dict[str, Any]) -> AppConstants:
     defaults = _require_dict(data.get("defaults"), "defaults")
     expense = _require_dict(data.get("expense"), "expense")
+    income = _require_dict(data.get("income"), "income")
     meal = _require_dict(data.get("meal"), "meal")
     task = _require_dict(data.get("task"), "task")
     limits = _require_dict(data.get("limits"), "limits")
@@ -132,6 +140,14 @@ def _validate_constants(data: dict[str, Any]) -> AppConstants:
     default_category = _require_str(expense.get("default_category"), "expense.default_category")
     if default_category not in expense_categories:
         raise ConstantsError("expense.default_category must be in expense.categories")
+
+    income_categories = _require_list_of_str(income.get("categories"), "income.categories")
+    income_default_category = _require_str(
+        income.get("default_category"),
+        "income.default_category",
+    )
+    if income_default_category not in income_categories:
+        raise ConstantsError("income.default_category must be in income.categories")
 
     meal_types = _require_list_of_str(meal.get("types"), "meal.types")
 
@@ -168,6 +184,10 @@ def _validate_constants(data: dict[str, Any]) -> AppConstants:
     return AppConstants(
         defaults=defaults_cfg,
         expense=ExpenseConfig(categories=expense_categories, default_category=default_category),
+        income=IncomeConfig(
+            categories=income_categories,
+            default_category=income_default_category,
+        ),
         meal=MealConfig(types=meal_types),
         task=TaskConfig(
             status=task_status,

@@ -245,6 +245,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
 
   List<_TypeHintOption> get _typeHintOptions {
     const options = [
+      _TypeHintOption(id: "income", label: "收入", alias: "income"),
       _TypeHintOption(id: "expense", label: "支出", alias: "expense"),
       _TypeHintOption(id: "lifelog", label: "日志", alias: "lifelog"),
       _TypeHintOption(id: "meal", label: "餐食", alias: "meal"),
@@ -580,7 +581,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
 
 class _TagHighlightController extends TextEditingController {
   static final RegExp _tagPattern =
-      RegExp(r"(?:^|\s)(@(expense|lifelog|meal|task)\b)", caseSensitive: false);
+      RegExp(r"(?:^|\s)(@(expense|income|lifelog|meal|task)\b)", caseSensitive: false);
 
   @override
   TextSpan buildTextSpan({

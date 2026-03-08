@@ -5,6 +5,7 @@
   "type": "object",
   "oneOf": [
     {"$ref": "#/$defs/expense_event"},
+    {"$ref": "#/$defs/income_event"},
     {"$ref": "#/$defs/lifelog_event"},
     {"$ref": "#/$defs/meal_event"},
     {"$ref": "#/$defs/mood_event"}
@@ -75,6 +76,28 @@
         "text": {"type": "string"}
       }
     },
+    "income_data": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["amount", "currency", "category", "note"],
+      "properties": {
+        "amount": {"type": "number", "exclusiveMinimum": 0},
+        "currency": {"type": "string"},
+        "category": {
+          "type": "string",
+          "enum": [
+            "salary",
+            "bonus",
+            "freelance",
+            "refund",
+            "gift",
+            "investment",
+            "other"
+          ]
+        },
+        "note": {"type": ["string", "null"]}
+      }
+    },
     "meal_data": {
       "type": "object",
       "additionalProperties": false,
@@ -106,6 +129,18 @@
           "properties": {
             "type": {"const": "expense"},
             "data": {"$ref": "#/$defs/expense_data"}
+          }
+        }
+      ]
+    },
+    "income_event": {
+      "allOf": [
+        {"$ref": "#/$defs/base"},
+        {
+          "type": "object",
+          "properties": {
+            "type": {"const": "income"},
+            "data": {"$ref": "#/$defs/income_data"}
           }
         }
       ]

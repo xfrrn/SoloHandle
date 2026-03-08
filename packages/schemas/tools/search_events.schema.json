@@ -10,7 +10,7 @@
       "type": ["array", "null"],
       "items": {
         "type": "string",
-        "enum": ["expense", "lifelog", "meal", "mood"]
+        "enum": ["expense", "income", "lifelog", "meal", "mood"]
       }
     },
     "date_from": {"type": ["string", "null"], "format": "date-time"},

@@ -20,6 +20,18 @@
     ],
     "default_category": "food"
   },
+  "income": {
+    "categories": [
+      "salary",
+      "bonus",
+      "freelance",
+      "refund",
+      "gift",
+      "investment",
+      "other"
+    ],
+    "default_category": "other"
+  },
   "meal": {
     "types": ["breakfast", "lunch", "dinner", "snack"]
   },
@@ -36,6 +48,6 @@
   },
   "sources": ["chat_text", "chat_image", "chat_voice", "import"],
   "event": {
-    "types": ["expense", "lifelog", "meal", "mood"]
+    "types": ["expense", "income", "lifelog", "meal", "mood"]
   }
 }

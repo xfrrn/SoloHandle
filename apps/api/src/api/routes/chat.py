@@ -206,7 +206,7 @@ async def chat(request: Request) -> dict:
                 text = f"{text}\n\n[语音附加内容]: {transcription}"
 
         if isinstance(text, str) and text.strip():
-            match = re.search(r"(?:^|\s)@(expense|lifelog|meal|task)\b", text, re.IGNORECASE)
+            match = re.search(r"(?:^|\s)@(expense|income|lifelog|meal|task)\b", text, re.IGNORECASE)
             if match:
                 if type_hint is None:
                     type_hint = match.group(1).lower()
@@ -217,7 +217,7 @@ async def chat(request: Request) -> dict:
         if type_hint is not None:
             if not isinstance(type_hint, str) or not type_hint.strip():
                 raise ToolError("invalid_param", "type_hint must be non-empty string")
-            allowed_type_hints = {"expense", "lifelog", "meal", "task"}
+            allowed_type_hints = {"expense", "income", "lifelog", "meal", "task"}
             if type_hint.strip() not in allowed_type_hints:
                 raise ToolError(
                     "invalid_param",

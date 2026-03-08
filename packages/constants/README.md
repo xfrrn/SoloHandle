@@ -8,6 +8,7 @@
 包含
 - `defaults`（timezone / currency / confidence / source）
 - `expense.categories`
+- `income.categories`
 - `meal.types`
 - `task.status`
 - `task.priority`

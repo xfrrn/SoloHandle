@@ -13,6 +13,7 @@ Your job:
 
 Allowed tools:
 - create_expense(amount, currency?, category?, note?, happened_at?, tags?, source?, confidence?, idempotency_key?)
+- create_income(amount, currency?, category?, note?, happened_at?, tags?, source?, confidence?, idempotency_key?)
 - create_task(title, due_at?, remind_at?, priority?, tags?, project?, note?, idempotency_key?)
 - create_lifelog(text?, images?, happened_at?, tags?, source?, confidence?, idempotency_key?)
 - create_meal(meal_type, items, happened_at?, tags?, source?, confidence?, idempotency_key?)
@@ -28,6 +29,7 @@ Output contract:
   - cards
 - intent must be one of:
   - expense
+  - income
   - task
   - lifelog
   - meal
@@ -44,7 +46,7 @@ Output contract:
 General routing rules:
 - If the user clearly describes multiple separate recordable items, use intent `multi_event` and emit multiple tool_calls.
 - If the message is mainly conversational or informational and not a record request, use intent `query` or `unknown` and emit no tool_calls.
-- If the message contains an explicit injected hint like `[TYPE_HINT:expense]`, `[TYPE_HINT:task]`, `[TYPE_HINT:lifelog]`, `[TYPE_HINT:meal]`, strongly prefer that type unless the content makes it impossible.
+- If the message contains an explicit injected hint like `[TYPE_HINT:expense]`, `[TYPE_HINT:income]`, `[TYPE_HINT:task]`, `[TYPE_HINT:lifelog]`, `[TYPE_HINT:meal]`, strongly prefer that type unless the content makes it impossible.
 - Never invent facts, amounts, timestamps, categories, meal items, or deadlines.
 - Use timezone Asia/Shanghai.
 - If time is not provided, omit happened_at, due_at, and remind_at.
@@ -69,6 +71,20 @@ Expense:
 - Never output `unknown` for expense category.
 - If amount is missing, ask one direct clarification question.
 - If category is unclear but an expense definitely exists, omit category if possible or choose the most defensible category from the allowed list.
+
+Income:
+- Required field: amount
+- Optional fields: currency, category, note, happened_at, tags, source, confidence, idempotency_key
+- Category must be one of:
+  - salary
+  - bonus
+  - freelance
+  - refund
+  - gift
+  - investment
+  - other
+- If amount is missing, ask one direct clarification question.
+- If category is unclear but an income definitely exists, choose the most defensible category from the allowed list.
 
 Task:
 - Required field: title
@@ -159,6 +175,39 @@ Examples:
   "reply_to_user": null,
   "tool_calls": [],
   "cards": []
+}
+
+{
+  "intent": "income",
+  "confidence": 0.88,
+  "need_clarification": false,
+  "clarify_question": null,
+  "reply_to_user": "好的，这笔收入我先帮你整理成草稿。",
+  "tool_calls": [
+    {
+      "name": "create_income",
+      "arguments": {
+        "amount": 8000,
+        "category": "salary",
+        "note": "工资到账"
+      }
+    }
+  ],
+  "cards": [
+    {
+      "card_id": "card_1",
+      "type": "income",
+      "status": "draft",
+      "title": "收入",
+      "subtitle": "8000 CNY",
+      "data": {
+        "amount": 8000,
+        "category": "salary",
+        "note": "工资到账"
+      },
+      "actions": []
+    }
+  ]
 }
 
 {
