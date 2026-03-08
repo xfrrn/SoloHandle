@@ -70,8 +70,8 @@ class OrchestratorService:
         routed_text = _inject_type_hint(text, type_hint)
         provider = load_provider_from_config()
 
-        # Deterministic route for explicit lifelog tag: avoid LLM misclassification.
-        if type_hint in {"lifelog", "income", "transfer", "repayment"}:
+        # Deterministic route for explicit tags: avoid LLM misclassification.
+        if type_hint in {"expense", "income", "transfer", "repayment", "lifelog", "meal", "task"}:
             drafts = _fallback_drafts(
                 text,
                 type_hint=type_hint,
@@ -501,7 +501,10 @@ def _fallback_drafts(
 
     lowered = text.lower()
     amount = _extract_amount(text)
-    if amount is not None and _match_any(lowered, ["花", "消费", "付款", "支付", "买", "￥", "¥", "$"]):
+    if amount is not None and _match_any(
+        lowered,
+        ["花", "消费", "付款", "支付", "买", "￥", "¥", "$", "元", "块", "早餐", "早饭", "午饭", "中饭", "晚饭", "夜宵", "吃了"],
+    ):
         add("create_expense", {"amount": amount, "category": "food"}, confidence=0.6)
     if amount is not None and _match_any(
         lowered,
