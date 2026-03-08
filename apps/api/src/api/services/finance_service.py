@@ -28,6 +28,7 @@ class FinanceService:
             next_month.isoformat(),
         )
         recent_events = self._repo.list_recent_income_expense_events(20)
+        accounts = self._repo.list_accounts()
 
         month_income = 0.0
         month_expense = 0.0
@@ -60,6 +61,16 @@ class FinanceService:
                     current_balance -= amount
             current_balance = round(current_balance, 2)
 
+        account_summaries = _build_account_summaries(accounts, self._repo.list_income_expense_events())
+        total_assets = round(
+            sum(item["current_balance"] for item in account_summaries if item["kind"] == "asset"),
+            2,
+        )
+        total_liabilities = round(
+            sum(-item["current_balance"] for item in account_summaries if item["kind"] == "liability"),
+            2,
+        )
+
         return {
             "balance": {
                 "current": current_balance,
@@ -75,6 +86,12 @@ class FinanceService:
                 "month_start": month_start.date().isoformat(),
                 "income_categories": _serialize_breakdown(income_categories),
                 "expense_categories": _serialize_breakdown(expense_categories),
+            },
+            "accounts": {
+                "items": account_summaries,
+                "total_assets": total_assets,
+                "total_liabilities": total_liabilities,
+                "net_assets": round(total_assets - total_liabilities, 2),
             },
             "recent": [_serialize_event(row) for row in recent_events],
         }
@@ -117,6 +134,11 @@ def _read_event_payload(row: dict[str, Any]) -> dict[str, Any]:
         "category": data.get("category"),
         "currency": data.get("currency") or "CNY",
         "note": data.get("note"),
+        "account_id": data.get("account_id"),
+        "from_account_id": data.get("from_account_id"),
+        "to_account_id": data.get("to_account_id"),
+        "from_account_name": data.get("from_account_name"),
+        "to_account_name": data.get("to_account_name"),
     }
 
 
@@ -131,6 +153,11 @@ def _serialize_event(row: dict[str, Any]) -> dict[str, Any]:
         "currency": payload.get("currency") or "CNY",
         "category": payload.get("category"),
         "note": payload.get("note"),
+        "account_id": payload.get("account_id"),
+        "from_account_id": payload.get("from_account_id"),
+        "to_account_id": payload.get("to_account_id"),
+        "from_account_name": payload.get("from_account_name"),
+        "to_account_name": payload.get("to_account_name"),
     }
 
 
@@ -139,6 +166,53 @@ def _serialize_breakdown(values: dict[str, float]) -> list[dict[str, Any]]:
         {"category": category, "amount": round(amount, 2)}
         for category, amount in sorted(values.items(), key=lambda item: item[1], reverse=True)
     ]
+
+
+def _build_account_summaries(
+    accounts: list[dict[str, Any]],
+    events: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    result: list[dict[str, Any]] = []
+    for account in accounts:
+        account_id = account.get("id")
+        base_balance = float(account.get("balance_base") or 0.0)
+        base_at = account.get("balance_base_at")
+        kind = account.get("kind") or "asset"
+        current = base_balance
+        for row in events:
+            payload = _read_event_payload(row)
+            if isinstance(base_at, str) and base_at and isinstance(row.get("happened_at"), str):
+                if row["happened_at"] < base_at:
+                    continue
+            amount = payload.get("amount")
+            if not isinstance(amount, float):
+                continue
+            if row.get("type") == "income":
+                if payload.get("account_id") != account_id:
+                    continue
+                current += amount
+            elif row.get("type") == "expense":
+                if payload.get("account_id") != account_id:
+                    continue
+                current -= amount
+            elif row.get("type") == "transfer":
+                if payload.get("from_account_id") == account_id:
+                    current -= amount
+                if payload.get("to_account_id") == account_id:
+                    current += amount
+        result.append(
+            {
+                "account_id": account_id,
+                "name": account.get("name"),
+                "kind": kind,
+                "subtype": account.get("subtype"),
+                "currency": account.get("currency") or "CNY",
+                "base_balance": base_balance,
+                "base_at": base_at,
+                "current_balance": round(current, 2),
+            }
+        )
+    return result
 
 
 def _add_month(value: datetime) -> datetime:

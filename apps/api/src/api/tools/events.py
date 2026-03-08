@@ -16,6 +16,8 @@ from api.db.connection import (
     require_positive_number,
 )
 from api.repositories.events_repo import EventRepository
+from api.repositories.accounts_repo import AccountsRepository
+from api.services.accounts_service import AccountsService
 from api.services.events_service import EventService
 
 def create_expense(
@@ -27,6 +29,7 @@ def create_expense(
     happened_at: Optional[str] = None,
     tags: Optional[Iterable[str]] = None,
     source: Optional[str] = None,
+    account_id: Optional[int] = None,
     confidence: Optional[float] = None,
     idempotency_key: Optional[str] = None,
     commit_id: Optional[str] = None,
@@ -59,6 +62,11 @@ def create_expense(
 
     with get_connection() as conn:
         ensure_tables(conn)
+        if account_id is not None:
+            if not isinstance(account_id, int) or account_id <= 0:
+                raise ToolError("invalid_param", "account_id must be positive integer")
+            AccountsService(AccountsRepository(conn)).get_account(account_id)
+            data["account_id"] = account_id
         service = EventService(EventRepository(conn))
         return service.create_event(
             event_type="expense",
@@ -81,6 +89,7 @@ def create_income(
     happened_at: Optional[str] = None,
     tags: Optional[Iterable[str]] = None,
     source: Optional[str] = None,
+    account_id: Optional[int] = None,
     confidence: Optional[float] = None,
     idempotency_key: Optional[str] = None,
     commit_id: Optional[str] = None,
@@ -113,9 +122,76 @@ def create_income(
 
     with get_connection() as conn:
         ensure_tables(conn)
+        if account_id is not None:
+            if not isinstance(account_id, int) or account_id <= 0:
+                raise ToolError("invalid_param", "account_id must be positive integer")
+            AccountsService(AccountsRepository(conn)).get_account(account_id)
+            data["account_id"] = account_id
         service = EventService(EventRepository(conn))
         return service.create_event(
             event_type="income",
+            data=data,
+            happened_at=happened_at_iso,
+            tags=tags_list,
+            source=src,
+            confidence=conf,
+            idempotency_key=idempotency_key,
+            commit_id=commit_id,
+        )
+
+
+def create_transfer(
+    *,
+    amount: Any,
+    from_account_id: int,
+    to_account_id: int,
+    currency: Optional[str] = None,
+    note: Optional[str] = None,
+    happened_at: Optional[str] = None,
+    tags: Optional[Iterable[str]] = None,
+    source: Optional[str] = None,
+    confidence: Optional[float] = None,
+    idempotency_key: Optional[str] = None,
+    commit_id: Optional[str] = None,
+) -> dict[str, Any]:
+    """Create a transfer event."""
+    consts = get_constants()
+    amt = require_positive_number(amount, "amount")
+    if not isinstance(from_account_id, int) or from_account_id <= 0:
+        raise ToolError("invalid_param", "from_account_id must be positive integer")
+    if not isinstance(to_account_id, int) or to_account_id <= 0:
+        raise ToolError("invalid_param", "to_account_id must be positive integer")
+    if from_account_id == to_account_id:
+        raise ToolError("invalid_param", "from_account_id and to_account_id must be different")
+    if note is not None and not isinstance(note, str):
+        raise ToolError("invalid_param", "note must be string or null")
+    currency_value = currency or consts.defaults.currency
+    if not isinstance(currency_value, str) or not currency_value.strip():
+        raise ToolError("invalid_param", "currency must be non-empty string")
+
+    happened_at_iso = normalize_iso8601(happened_at)
+    tags_list = normalize_tags(tags)
+    src = require_enum(source or consts.defaults.source, "source", consts.sources)
+    conf_value = confidence if confidence is not None else consts.defaults.confidence
+    conf = require_number_in_range(conf_value, "confidence", 0.0, 1.0)
+
+    with get_connection() as conn:
+        ensure_tables(conn)
+        accounts = AccountsService(AccountsRepository(conn))
+        from_account = accounts.get_account(from_account_id)
+        to_account = accounts.get_account(to_account_id)
+        data = {
+            "amount": amt,
+            "currency": currency_value.strip(),
+            "from_account_id": from_account_id,
+            "to_account_id": to_account_id,
+            "from_account_name": from_account["name"],
+            "to_account_name": to_account["name"],
+            "note": note,
+        }
+        service = EventService(EventRepository(conn))
+        return service.create_event(
+            event_type="transfer",
             data=data,
             happened_at=happened_at_iso,
             tags=tags_list,

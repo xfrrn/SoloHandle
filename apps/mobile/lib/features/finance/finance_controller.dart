@@ -28,6 +28,56 @@ class FinanceController extends AsyncNotifier<FinanceSummaryState> {
       return FinanceSummaryState.fromJson(data);
     });
   }
+
+  Future<void> createAccount({
+    required String name,
+    required String kind,
+    required String subtype,
+    required double balanceBase,
+  }) async {
+    final repo = ref.read(financeRepositoryProvider);
+    state = await AsyncValue.guard(() async {
+      await repo.createAccount(
+        name: name,
+        kind: kind,
+        subtype: subtype,
+        balanceBase: balanceBase,
+      );
+      final data = await repo.getSummary();
+      return FinanceSummaryState.fromJson(data);
+    });
+  }
+
+  Future<void> setAccountBalance({
+    required int accountId,
+    required double balanceBase,
+  }) async {
+    final repo = ref.read(financeRepositoryProvider);
+    state = await AsyncValue.guard(() async {
+      await repo.setAccountBalance(accountId: accountId, balanceBase: balanceBase);
+      final data = await repo.getSummary();
+      return FinanceSummaryState.fromJson(data);
+    });
+  }
+
+  Future<void> createTransfer({
+    required double amount,
+    required int fromAccountId,
+    required int toAccountId,
+    String? note,
+  }) async {
+    final repo = ref.read(financeRepositoryProvider);
+    state = await AsyncValue.guard(() async {
+      await repo.createTransfer(
+        amount: amount,
+        fromAccountId: fromAccountId,
+        toAccountId: toAccountId,
+        note: note,
+      );
+      final data = await repo.getSummary();
+      return FinanceSummaryState.fromJson(data);
+    });
+  }
 }
 
 final financeControllerProvider =

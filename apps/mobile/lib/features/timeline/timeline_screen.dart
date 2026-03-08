@@ -462,6 +462,11 @@ class _TypeAvatar extends StatelessWidget {
         bg = AppColors.successLight;
         fg = AppColors.success;
         break;
+      case "transfer":
+        icon = Icons.swap_horiz;
+        bg = AppColors.accentLight;
+        fg = AppColors.accent;
+        break;
       case "meal":
         icon = Icons.restaurant;
         bg = const Color(0xFFFFF0EB);
@@ -504,6 +509,10 @@ class _TypeBadge extends StatelessWidget {
       case "income":
         label = "\u6536\u5165";
         color = AppColors.success;
+        break;
+      case "transfer":
+        label = "\u8F6C\u8D26";
+        color = AppColors.accent;
         break;
       case "meal":
         label = "\u7528\u9910";
@@ -661,6 +670,17 @@ class _DetailTop extends StatelessWidget {
         secondary = "$category \u00B7 $currency";
         icon = Icons.savings_outlined;
         color = AppColors.success;
+        size = 26;
+        break;
+      case "transfer":
+        label = "\u8F6C\u8D26\u8BB0\u5F55";
+        final amount = event.data["amount"]?.toString() ?? "0";
+        final from = (event.data["from_account_name"]?.toString() ?? "").trim();
+        final to = (event.data["to_account_name"]?.toString() ?? "").trim();
+        primary = "\u00A5$amount";
+        secondary = from.isNotEmpty && to.isNotEmpty ? "$from \u2192 $to" : "";
+        icon = Icons.swap_horiz;
+        color = AppColors.accent;
         size = 26;
         break;
       case "meal":
@@ -1027,6 +1047,17 @@ _Summary _buildSummary(EventDto event) {
       return _Summary(
         title: "+\u00A5$amount \u00B7 $category",
         subtitle: note.isNotEmpty ? note : null,
+      );
+    case "transfer":
+      final amount = event.data["amount"]?.toString() ?? "0";
+      final from = (event.data["from_account_name"]?.toString() ?? "").trim();
+      final to = (event.data["to_account_name"]?.toString() ?? "").trim();
+      final note = (event.data["note"]?.toString() ?? "").trim();
+      return _Summary(
+        title: "\u00A5$amount \u00B7 \u8F6C\u8D26",
+        subtitle: note.isNotEmpty
+            ? note
+            : (from.isNotEmpty && to.isNotEmpty ? "$from \u2192 $to" : null),
       );
     case "meal":
       final mealType = _mapMealType(event.data["meal_type"]?.toString());

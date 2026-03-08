@@ -229,6 +229,25 @@ def ensure_tables(conn: DBConnection) -> None:
             )
             """
         )
+        cur.execute(
+            """
+            CREATE TABLE IF NOT EXISTS accounts (
+                id BIGSERIAL PRIMARY KEY,
+                name TEXT NOT NULL,
+                kind TEXT NOT NULL,
+                subtype TEXT NOT NULL,
+                currency TEXT NOT NULL DEFAULT 'CNY',
+                balance_base DOUBLE PRECISION NOT NULL DEFAULT 0,
+                balance_base_at TEXT NOT NULL,
+                is_active INTEGER NOT NULL DEFAULT 1,
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL
+            )
+            """
+        )
+        cur.execute(
+            "CREATE INDEX IF NOT EXISTS idx_accounts_kind_active ON accounts(kind, is_active)"
+        )
 
         cur.execute("ALTER TABLE tasks ADD COLUMN IF NOT EXISTS reminded_at TEXT")
         cur.execute("ALTER TABLE tasks ADD COLUMN IF NOT EXISTS notification_id BIGINT")
@@ -239,6 +258,14 @@ def ensure_tables(conn: DBConnection) -> None:
         cur.execute("ALTER TABLE finance_settings ADD COLUMN IF NOT EXISTS balance_base_at TEXT")
         cur.execute("ALTER TABLE finance_settings ADD COLUMN IF NOT EXISTS currency TEXT NOT NULL DEFAULT 'CNY'")
         cur.execute("ALTER TABLE finance_settings ADD COLUMN IF NOT EXISTS updated_at TEXT")
+        cur.execute("ALTER TABLE accounts ADD COLUMN IF NOT EXISTS kind TEXT NOT NULL DEFAULT 'asset'")
+        cur.execute("ALTER TABLE accounts ADD COLUMN IF NOT EXISTS subtype TEXT NOT NULL DEFAULT 'other_asset'")
+        cur.execute("ALTER TABLE accounts ADD COLUMN IF NOT EXISTS currency TEXT NOT NULL DEFAULT 'CNY'")
+        cur.execute("ALTER TABLE accounts ADD COLUMN IF NOT EXISTS balance_base DOUBLE PRECISION NOT NULL DEFAULT 0")
+        cur.execute("ALTER TABLE accounts ADD COLUMN IF NOT EXISTS balance_base_at TEXT")
+        cur.execute("ALTER TABLE accounts ADD COLUMN IF NOT EXISTS is_active INTEGER NOT NULL DEFAULT 1")
+        cur.execute("ALTER TABLE accounts ADD COLUMN IF NOT EXISTS created_at TEXT")
+        cur.execute("ALTER TABLE accounts ADD COLUMN IF NOT EXISTS updated_at TEXT")
 
         conn.commit()
         _tables_ready = True

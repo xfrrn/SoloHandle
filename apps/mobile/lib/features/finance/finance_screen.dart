@@ -64,6 +64,16 @@ class _FinanceScreenState extends ConsumerState<FinanceScreen> {
                 onSetBalance: () => _showSetBalanceDialog(context),
               ),
               const SizedBox(height: 16),
+              _AccountsSection(
+                accounts: data.accounts,
+                onCreateAccount: () => _showCreateAccountDialog(context),
+                onCreateTransfer: data.accounts.items.length >= 2
+                    ? () => _showCreateTransferDialog(context, data.accounts.items)
+                    : null,
+                onSetAccountBalance: (account) =>
+                    _showSetAccountBalanceDialog(context, account),
+              ),
+              const SizedBox(height: 16),
               _MonthSummaryGrid(month: data.month, currency: data.balance.currency),
               const SizedBox(height: 16),
               _BreakdownSection(
@@ -177,6 +187,315 @@ class _FinanceScreenState extends ConsumerState<FinanceScreen> {
       );
     }
   }
+
+  Future<void> _showCreateAccountDialog(BuildContext context) async {
+    final nameController = TextEditingController();
+    final balanceController = TextEditingController(text: '0');
+    var selectedKind = 'asset';
+    var selectedSubtype = _subtypesForKind(selectedKind).first;
+    final result = await showDialog<_AccountDraft>(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setModalState) => AlertDialog(
+          title: const Text('新增账户'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  controller: nameController,
+                  decoration: const InputDecoration(labelText: '账户名称'),
+                ),
+                const SizedBox(height: 12),
+                DropdownButtonFormField<String>(
+                  initialValue: selectedKind,
+                  decoration: const InputDecoration(labelText: '账户类型'),
+                  items: const [
+                    DropdownMenuItem(value: 'asset', child: Text('资产账户')),
+                    DropdownMenuItem(value: 'liability', child: Text('负债账户')),
+                  ],
+                  onChanged: (value) {
+                    if (value == null) return;
+                    setModalState(() {
+                      selectedKind = value;
+                      selectedSubtype = _subtypesForKind(value).first;
+                    });
+                  },
+                ),
+                const SizedBox(height: 12),
+                DropdownButtonFormField<String>(
+                  initialValue: selectedSubtype,
+                  decoration: const InputDecoration(labelText: '账户子类'),
+                  items: _subtypesForKind(selectedKind)
+                      .map(
+                        (value) => DropdownMenuItem(
+                          value: value,
+                          child: Text(_mapAccountSubtypeLabel(value)),
+                        ),
+                      )
+                      .toList(),
+                  onChanged: (value) {
+                    if (value == null) return;
+                    setModalState(() => selectedSubtype = value);
+                  },
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: balanceController,
+                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                  decoration: const InputDecoration(
+                    labelText: '初始余额/欠款',
+                    hintText: '例如 2000 或 -3500',
+                  ),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('取消'),
+            ),
+            FilledButton(
+              onPressed: () {
+                final balance = double.tryParse(balanceController.text.trim());
+                final name = nameController.text.trim();
+                if (balance == null || name.isEmpty) return;
+                Navigator.of(context).pop(
+                  _AccountDraft(
+                    name: name,
+                    kind: selectedKind,
+                    subtype: selectedSubtype,
+                    balance: balance,
+                  ),
+                );
+              },
+              child: const Text('创建'),
+            ),
+          ],
+        ),
+      ),
+    );
+    nameController.dispose();
+    balanceController.dispose();
+    if (result == null || !context.mounted) return;
+    try {
+      await ref.read(financeControllerProvider.notifier).createAccount(
+            name: result.name,
+            kind: result.kind,
+            subtype: result.subtype,
+            balanceBase: result.balance,
+          );
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('账户已创建')),
+      );
+    } catch (_) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('创建账户失败')),
+      );
+    }
+  }
+
+  Future<void> _showSetAccountBalanceDialog(
+    BuildContext context,
+    FinanceAccountModel account,
+  ) async {
+    final controller = TextEditingController(
+      text: account.currentBalance.toStringAsFixed(2),
+    );
+    final result = await showDialog<double>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('设置 ${account.name} 余额'),
+        content: TextField(
+          controller: controller,
+          keyboardType: const TextInputType.numberWithOptions(decimal: true),
+          decoration: const InputDecoration(labelText: '当前余额/欠款'),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('取消'),
+          ),
+          FilledButton(
+            onPressed: () {
+              final balance = double.tryParse(controller.text.trim());
+              if (balance == null) return;
+              Navigator.of(context).pop(balance);
+            },
+            child: const Text('保存'),
+          ),
+        ],
+      ),
+    );
+    controller.dispose();
+    if (result == null || !context.mounted) return;
+    try {
+      await ref.read(financeControllerProvider.notifier).setAccountBalance(
+            accountId: account.accountId,
+            balanceBase: result,
+          );
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('账户余额已更新')),
+      );
+    } catch (_) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('更新账户余额失败')),
+      );
+    }
+  }
+
+  Future<void> _showCreateTransferDialog(
+    BuildContext context,
+    List<FinanceAccountModel> accounts,
+  ) async {
+    final amountController = TextEditingController();
+    final noteController = TextEditingController();
+    var fromAccount = accounts.first;
+    var toAccount = accounts.length > 1 ? accounts[1] : accounts.first;
+    final result = await showDialog<_TransferDraft>(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setModalState) => AlertDialog(
+          title: const Text('账户转账'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                DropdownButtonFormField<int>(
+                  initialValue: fromAccount.accountId,
+                  decoration: const InputDecoration(labelText: '转出账户'),
+                  items: accounts
+                      .map(
+                        (account) => DropdownMenuItem(
+                          value: account.accountId,
+                          child: Text(account.name),
+                        ),
+                      )
+                      .toList(),
+                  onChanged: (value) {
+                    if (value == null) return;
+                    setModalState(() {
+                      fromAccount = accounts.firstWhere((item) => item.accountId == value);
+                      if (fromAccount.accountId == toAccount.accountId && accounts.length > 1) {
+                        toAccount = accounts.firstWhere(
+                          (item) => item.accountId != value,
+                        );
+                      }
+                    });
+                  },
+                ),
+                const SizedBox(height: 12),
+                DropdownButtonFormField<int>(
+                  initialValue: toAccount.accountId,
+                  decoration: const InputDecoration(labelText: '转入账户'),
+                  items: accounts
+                      .where((account) => account.accountId != fromAccount.accountId)
+                      .map(
+                        (account) => DropdownMenuItem(
+                          value: account.accountId,
+                          child: Text(account.name),
+                        ),
+                      )
+                      .toList(),
+                  onChanged: (value) {
+                    if (value == null) return;
+                    setModalState(() {
+                      toAccount = accounts.firstWhere((item) => item.accountId == value);
+                    });
+                  },
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: amountController,
+                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                  decoration: const InputDecoration(labelText: '金额'),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: noteController,
+                  decoration: const InputDecoration(labelText: '备注（可选）'),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('取消'),
+            ),
+            FilledButton(
+              onPressed: () {
+                final amount = double.tryParse(amountController.text.trim());
+                if (amount == null || amount <= 0) return;
+                Navigator.of(context).pop(
+                  _TransferDraft(
+                    amount: amount,
+                    fromAccountId: fromAccount.accountId,
+                    toAccountId: toAccount.accountId,
+                    note: noteController.text.trim(),
+                  ),
+                );
+              },
+              child: const Text('转账'),
+            ),
+          ],
+        ),
+      ),
+    );
+    amountController.dispose();
+    noteController.dispose();
+    if (result == null || !context.mounted) return;
+    try {
+      await ref.read(financeControllerProvider.notifier).createTransfer(
+            amount: result.amount,
+            fromAccountId: result.fromAccountId,
+            toAccountId: result.toAccountId,
+            note: result.note.isEmpty ? null : result.note,
+          );
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('转账已记录')),
+      );
+    } catch (_) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('转账失败')),
+      );
+    }
+  }
+}
+
+class _AccountDraft {
+  const _AccountDraft({
+    required this.name,
+    required this.kind,
+    required this.subtype,
+    required this.balance,
+  });
+
+  final String name;
+  final String kind;
+  final String subtype;
+  final double balance;
+}
+
+class _TransferDraft {
+  const _TransferDraft({
+    required this.amount,
+    required this.fromAccountId,
+    required this.toAccountId,
+    required this.note,
+  });
+
+  final double amount;
+  final int fromAccountId;
+  final int toAccountId;
+  final String note;
 }
 
 class _BalanceCard extends StatelessWidget {
@@ -306,6 +625,177 @@ class _MonthSummaryGrid extends StatelessWidget {
           ],
         ),
       ],
+    );
+  }
+}
+
+class _AccountsSection extends StatelessWidget {
+  const _AccountsSection({
+    required this.accounts,
+    required this.onCreateAccount,
+    required this.onCreateTransfer,
+    required this.onSetAccountBalance,
+  });
+
+  final FinanceAccountsSummaryModel accounts;
+  final VoidCallback onCreateAccount;
+  final VoidCallback? onCreateTransfer;
+  final ValueChanged<FinanceAccountModel> onSetAccountBalance;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Text(
+              '账户总览',
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w700,
+                  ),
+            ),
+            const Spacer(),
+            TextButton.icon(
+              onPressed: onCreateAccount,
+              icon: const Icon(Icons.add, size: 16),
+              label: const Text('新增账户'),
+            ),
+            if (onCreateTransfer != null)
+              TextButton.icon(
+                onPressed: onCreateTransfer,
+                icon: const Icon(Icons.swap_horiz, size: 16),
+                label: const Text('转账'),
+              ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        GridView.count(
+          crossAxisCount: 3,
+          mainAxisSpacing: 12,
+          crossAxisSpacing: 12,
+          childAspectRatio: 1.08,
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          children: [
+            _MetricCard(
+              title: '总资产',
+              value: _formatAmount(accounts.totalAssets, 'CNY'),
+              color: AppColors.success,
+              icon: Icons.account_balance_outlined,
+            ),
+            _MetricCard(
+              title: '总负债',
+              value: _formatAmount(accounts.totalLiabilities, 'CNY'),
+              color: AppColors.danger,
+              icon: Icons.credit_card_outlined,
+            ),
+            _MetricCard(
+              title: '净资产',
+              value: _formatSignedAmount(accounts.netAssets, 'CNY'),
+              color: accounts.netAssets >= 0 ? AppColors.accent : AppColors.danger,
+              icon: Icons.stacked_line_chart,
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        if (accounts.items.isEmpty)
+          const GlassCard(
+            child: Padding(
+              padding: EdgeInsets.symmetric(vertical: 12),
+              child: Center(child: Text('还没有账户，先把银行卡、支付宝、花呗这些加进来')),
+            ),
+          )
+        else
+          ...accounts.items.map(
+            (account) => Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: _AccountTile(
+                account: account,
+                onTap: () => onSetAccountBalance(account),
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+}
+
+class _AccountTile extends StatelessWidget {
+  const _AccountTile({
+    required this.account,
+    required this.onTap,
+  });
+
+  final FinanceAccountModel account;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final isAsset = account.kind == 'asset';
+    final color = isAsset ? AppColors.success : AppColors.danger;
+    return InkWell(
+      borderRadius: BorderRadius.circular(24),
+      onTap: onTap,
+      child: GlassCard(
+        child: Row(
+          children: [
+            Container(
+              width: 42,
+              height: 42,
+              decoration: BoxDecoration(
+                color: color.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: Icon(
+                isAsset ? Icons.account_balance_wallet_outlined : Icons.credit_card_outlined,
+                color: color,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    account.name,
+                    style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                          fontWeight: FontWeight.w700,
+                        ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    '${isAsset ? '资产' : '负债'} · ${_mapAccountSubtypeLabel(account.subtype)}',
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: AppColors.textSecondary,
+                        ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 12),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                Text(
+                  _formatSignedAmount(account.currentBalance, account.currency),
+                  style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                        color: color,
+                        fontWeight: FontWeight.w700,
+                      ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  '点按校准',
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: AppColors.textSecondary,
+                      ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
@@ -653,14 +1143,23 @@ class _EntryTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isIncome = entry.type == 'income';
-    final color = isIncome ? AppColors.success : AppColors.warning;
-    final signedAmount = isIncome
-        ? _formatSignedAmount(entry.amount, entry.currency)
-        : _formatSignedAmount(-entry.amount, entry.currency);
+    final isTransfer = entry.type == 'transfer';
+    final color = isTransfer
+        ? AppColors.accent
+        : (isIncome ? AppColors.success : AppColors.warning);
+    final signedAmount = isTransfer
+        ? _formatAmount(entry.amount, entry.currency)
+        : (isIncome
+            ? _formatSignedAmount(entry.amount, entry.currency)
+            : _formatSignedAmount(-entry.amount, entry.currency));
     final note = (entry.note ?? '').trim();
     final category = (entry.category ?? '').trim();
     final subtitleParts = <String>[
-      if (category.isNotEmpty) _mapCategoryLabel(category),
+      if (isTransfer &&
+          (entry.fromAccountName ?? '').isNotEmpty &&
+          (entry.toAccountName ?? '').isNotEmpty)
+        '${entry.fromAccountName} -> ${entry.toAccountName}',
+      if (!isTransfer && category.isNotEmpty) _mapCategoryLabel(category),
       if (entry.happenedAt.isNotEmpty) formatIsoToLocal(entry.happenedAt),
     ];
     return InkWell(
@@ -677,7 +1176,9 @@ class _EntryTile extends StatelessWidget {
                 borderRadius: BorderRadius.circular(14),
               ),
               child: Icon(
-                isIncome ? Icons.south_west_rounded : Icons.north_east_rounded,
+                isTransfer
+                    ? Icons.swap_horiz
+                    : (isIncome ? Icons.south_west_rounded : Icons.north_east_rounded),
                 color: color,
               ),
             ),
@@ -687,7 +1188,11 @@ class _EntryTile extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    note.isNotEmpty ? note : (isIncome ? '收入记录' : '支出记录'),
+                    note.isNotEmpty
+                        ? note
+                        : (isTransfer
+                            ? '转账记录'
+                            : (isIncome ? '收入记录' : '支出记录')),
                     style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                           fontWeight: FontWeight.w600,
                         ),
@@ -796,6 +1301,42 @@ String _mapCategoryLabel(String value) {
       return '个人护理';
     case 'other':
       return '其他';
+    default:
+      return value;
+  }
+}
+
+List<String> _subtypesForKind(String kind) {
+  if (kind == 'liability') {
+    return const ['huabei', 'credit_card', 'jd_baitiao', 'loan', 'other_liability'];
+  }
+  return const ['bank', 'wechat', 'alipay', 'cash', 'investment', 'other_asset'];
+}
+
+String _mapAccountSubtypeLabel(String value) {
+  switch (value) {
+    case 'bank':
+      return '银行卡';
+    case 'wechat':
+      return '微信零钱';
+    case 'alipay':
+      return '支付宝';
+    case 'cash':
+      return '现金';
+    case 'investment':
+      return '投资账户';
+    case 'huabei':
+      return '花呗';
+    case 'credit_card':
+      return '信用卡';
+    case 'jd_baitiao':
+      return '白条';
+    case 'loan':
+      return '借款';
+    case 'other_asset':
+      return '其他资产';
+    case 'other_liability':
+      return '其他负债';
     default:
       return value;
   }

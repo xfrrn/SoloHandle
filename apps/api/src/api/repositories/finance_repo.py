@@ -49,7 +49,7 @@ class FinanceRepository:
                 SELECT id, type, data_json, happened_at, created_at
                 FROM events
                 WHERE is_deleted = 0
-                  AND type IN ('income', 'expense')
+                  AND type IN ('income', 'expense', 'transfer')
                   AND happened_at >= ?
                 ORDER BY happened_at DESC, id DESC
                 """,
@@ -61,7 +61,7 @@ class FinanceRepository:
                 SELECT id, type, data_json, happened_at, created_at
                 FROM events
                 WHERE is_deleted = 0
-                  AND type IN ('income', 'expense')
+                  AND type IN ('income', 'expense', 'transfer')
                 ORDER BY happened_at DESC, id DESC
                 """
             )
@@ -90,11 +90,24 @@ class FinanceRepository:
             SELECT id, type, data_json, happened_at, created_at
             FROM events
             WHERE is_deleted = 0
-              AND type IN ('income', 'expense')
+              AND type IN ('income', 'expense', 'transfer')
             ORDER BY happened_at DESC, id DESC
             LIMIT ?
             """,
             (limit,),
+        )
+        return [dict(row) for row in cur.fetchall()]
+
+    def list_accounts(self) -> list[dict[str, Any]]:
+        cur = self._conn.cursor()
+        cur.execute(
+            """
+            SELECT id, name, kind, subtype, currency, balance_base, balance_base_at,
+                   is_active, created_at, updated_at
+            FROM accounts
+            WHERE is_active = 1
+            ORDER BY kind ASC, id ASC
+            """
         )
         return [dict(row) for row in cur.fetchall()]
 
