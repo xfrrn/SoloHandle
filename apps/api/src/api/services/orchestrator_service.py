@@ -418,18 +418,18 @@ def _fallback_drafts(
         add("create_task", {"title": stripped}, confidence=0.7)
         return drafts
     if type_hint == "meal" and stripped:
-        add("create_meal", {"meal_type": "unknown", "items": [stripped]}, confidence=0.7)
+        add("create_meal", {"meal_type": "snack", "items": [stripped]}, confidence=0.7)
         return drafts
     if type_hint == "expense":
         amount_hint = _extract_amount(text)
         if amount_hint is not None:
-            add("create_expense", {"amount": amount_hint, "category": "unknown"}, confidence=0.7)
+            add("create_expense", {"amount": amount_hint, "category": "food"}, confidence=0.7)
         return drafts
 
     lowered = text.lower()
     amount = _extract_amount(text)
     if amount is not None and _match_any(lowered, ["花", "消费", "付款", "支付", "买", "￥", "¥", "$"]):
-        add("create_expense", {"amount": amount, "category": "unknown"}, confidence=0.6)
+        add("create_expense", {"amount": amount, "category": "food"}, confidence=0.6)
 
     if _match_any(lowered, ["提醒", "待办", "任务", "记得", "要做"]):
         add("create_task", {"title": text.strip()}, confidence=0.55)

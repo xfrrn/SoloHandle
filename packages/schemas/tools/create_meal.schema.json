@@ -8,7 +8,7 @@
   "properties": {
     "meal_type": {
       "type": "string",
-      "enum": ["breakfast", "lunch", "dinner", "snack", "unknown"]
+      "enum": ["breakfast", "lunch", "dinner", "snack"]
     },
     "items": {"type": "array", "items": {"type": "string"}, "minItems": 1},
     "happened_at": {"type": ["string", "null"], "format": "date-time"},

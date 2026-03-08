@@ -57,10 +57,11 @@
             "shopping",
             "entertainment",
             "housing",
+            "bills",
             "medical",
             "education",
-            "other",
-            "unknown"
+            "personal_care",
+            "other"
           ]
         },
         "note": {"type": ["string", "null"]}
@@ -81,7 +82,7 @@
       "properties": {
         "meal_type": {
           "type": "string",
-          "enum": ["breakfast", "lunch", "dinner", "snack", "unknown"]
+          "enum": ["breakfast", "lunch", "dinner", "snack"]
         },
         "items": {"type": "array", "items": {"type": "string"}, "minItems": 1}
       }

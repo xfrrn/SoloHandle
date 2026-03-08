@@ -307,7 +307,7 @@ class _CardRendererState extends State<CardRenderer> {
   }
 
   String _categoryLabel(String? value) {
-    if (value == null || value.trim().isEmpty || value == "unknown") {
+    if (value == null || value.trim().isEmpty) {
       return "未分类";
     }
     return value;

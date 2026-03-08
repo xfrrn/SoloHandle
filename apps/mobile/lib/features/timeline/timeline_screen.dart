@@ -581,7 +581,7 @@ class _DetailTop extends StatelessWidget {
         label = "\u652F\u51FA\u8BB0\u5F55";
         final amount = event.data["amount"]?.toString() ?? "0";
         final category =
-            _mapCategory((event.data["category"] ?? "unknown").toString());
+            _mapCategory((event.data["category"] ?? "other").toString());
         final currency = event.data["currency"]?.toString() ?? "CNY";
         primary = "\u00A5$amount";
         secondary = "$category \u00B7 $currency";
@@ -939,7 +939,7 @@ _Summary _buildSummary(EventDto event) {
     case "expense":
       final amount = event.data["amount"]?.toString() ?? "0";
       final category =
-          _mapCategory((event.data["category"] ?? "unknown").toString());
+          _mapCategory((event.data["category"] ?? "other").toString());
       final note = (event.data["note"]?.toString() ?? "").trim();
       return _Summary(
         title: "\u00A5$amount \u00B7 $category",
@@ -1003,7 +1003,6 @@ List<String> _lifelogImages(EventDto event) {
 }
 
 String _mapCategory(String value) {
-  if (value == "unknown") return "\u672A\u5206\u7C7B";
   if (value == "other") return "\u5176\u4ED6";
   return value;
 }

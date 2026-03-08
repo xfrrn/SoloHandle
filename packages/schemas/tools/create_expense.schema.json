@@ -10,17 +10,18 @@
     "currency": {"type": "string", "default": "CNY"},
     "category": {
       "type": "string",
-      "default": "unknown",
+      "default": "food",
       "enum": [
         "food",
         "transport",
         "shopping",
         "entertainment",
         "housing",
+        "bills",
         "medical",
         "education",
-        "other",
-        "unknown"
+        "personal_care",
+        "other"
       ]
     },
     "note": {"type": ["string", "null"]},

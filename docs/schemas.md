@@ -48,10 +48,10 @@ LLM Router 及外部集成应遵守以下 tool 入参 schema：
 - `expense`, `lifelog`, `meal`, `mood`
 
 支出分类
-- `food`, `transport`, `shopping`, `entertainment`, `housing`, `medical`, `education`, `other`, `unknown`
+- `food`, `transport`, `shopping`, `entertainment`, `housing`, `bills`, `medical`, `education`, `personal_care`, `other`
 
 餐食类型
-- `breakfast`, `lunch`, `dinner`, `snack`, `unknown`
+- `breakfast`, `lunch`, `dinner`, `snack`
 
 任务状态
 - `todo`, `doing`, `done`, `canceled`

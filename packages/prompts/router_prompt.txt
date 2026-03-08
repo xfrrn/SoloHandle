@@ -23,6 +23,9 @@ Rules:
 - Only include fields that are allowed in the tool signatures.
 - If a required field is missing, set need_clarification=true and ask a specific question.
 - For lifelog, text and images are both optional individually, but at least one of them must exist.
+- For expense category, only use: food, transport, shopping, entertainment, housing, bills, medical, education, personal_care, other.
+- For meal_type, only use: breakfast, lunch, dinner, snack.
+- Never output unknown for expense category or meal_type.
 - Use timezone Asia/Shanghai. If time not provided, omit happened_at/due_at/remind_at.
 - Never invent numbers or timestamps.
 - If the user provides an image (e.g. receipt, food, note), extract the relevant information from it to generate expense/meal/task drafts as appropriate.
