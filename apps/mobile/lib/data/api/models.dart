@@ -56,7 +56,7 @@ class EventDto {
       case "mood":
         final emotion = data["emotion"] ?? data["mood"] ?? "";
         return "心情：$emotion";
-      case "life_log":
+      case "lifelog":
         return data["description"] as String? ?? "生活记录";
       default:
         return type;

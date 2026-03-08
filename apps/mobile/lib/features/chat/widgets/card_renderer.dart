@@ -119,9 +119,6 @@ class _CardRendererState extends State<CardRenderer> {
   String _headerSubtitle(CardDto card) {
     if (card.type == "expense") {
       final amount = _asNum(card.data["amount"]);
-      final currencyValue = card.data["currency"]?.toString().trim();
-      final currency =
-          (currencyValue?.isNotEmpty ?? false) ? currencyValue! : "CNY";
       final category = _categoryLabel(card.data["category"]?.toString());
       if (amount != null) return "¥${_formatAmount(amount)} · $category";
       return category;

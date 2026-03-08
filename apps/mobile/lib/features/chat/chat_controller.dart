@@ -129,7 +129,7 @@ class ChatController extends StateNotifier<ChatState> {
       clarifyQuestion: "",
     );
     try {
-      final imageForRequest = hasImage ? imageBase64!.first : null;
+      final imageForRequest = hasImage ? imageBase64.first : null;
       final req = ChatRequest(
         text: text,
         typeHint: typeHint,

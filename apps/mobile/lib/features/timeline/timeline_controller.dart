@@ -135,6 +135,7 @@ class TimelineController extends StateNotifier<TimelineState> {
       final api = EventsApi(dio);
       final resp = await api.list(
         query: state.searchQuery.isEmpty ? null : state.searchQuery,
+        types: state.selectedTypes.isEmpty ? null : state.selectedTypes.toList(),
       );
       state = state.copyWith(events: resp.items, loading: false);
     } on DioException catch (exc) {

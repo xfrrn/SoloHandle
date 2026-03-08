@@ -127,8 +127,8 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
             const SizedBox(width: 8),
             _FilterChip(
               label: "\u65E5\u5FD7",
-              selected: state.selectedTypes.contains("life_log"),
-              onTap: () => notifier.toggleType("life_log"),
+              selected: state.selectedTypes.contains("lifelog"),
+              onTap: () => notifier.toggleType("lifelog"),
             ),
           ],
         ),
