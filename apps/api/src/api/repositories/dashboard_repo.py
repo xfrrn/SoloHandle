@@ -55,9 +55,9 @@ class DashboardRepository:
             FROM events
             WHERE is_deleted = 0
             """,
-        ).fetchone()
+        ).fetchall()
         out: list[str] = []
-        for row in rows.fetchall():
+        for row in rows:
             value = row["happened_at"]
             if isinstance(value, str):
                 out.append(value)
