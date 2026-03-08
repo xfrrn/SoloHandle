@@ -1,5 +1,6 @@
 import "dart:convert";
 import "dart:typed_data";
+import "package:dio/dio.dart";
 import "package:flutter/material.dart";
 import "package:flutter_riverpod/flutter_riverpod.dart";
 import "package:go_router/go_router.dart";
@@ -426,15 +427,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                     ScrollViewKeyboardDismissBehavior.onDrag,
                 padding: EdgeInsets.fromLTRB(16, hasMessages ? 8 : 12, 16, 16),
                 children: [
-                  if (!hasMessages)
-                    _WelcomeSection(
-                      onSuggestion: (text) {
-                        _controller.text = text;
-                        _controller.selection = TextSelection.fromPosition(
-                          TextPosition(offset: _controller.text.length),
-                        );
-                      },
-                    ),
+                  if (!hasMessages) const _WelcomeSection(),
                   for (var i = 0; i < state.messages.length; i++)
                     Builder(
                       builder: (_) {
@@ -784,13 +777,68 @@ class _Header extends StatelessWidget {
   }
 }
 
-class _WelcomeSection extends StatelessWidget {
-  const _WelcomeSection({required this.onSuggestion});
+class _WelcomeSection extends StatefulWidget {
+  const _WelcomeSection();
 
-  final ValueChanged<String> onSuggestion;
+  @override
+  State<_WelcomeSection> createState() => _WelcomeSectionState();
+}
+
+class _WelcomeSectionState extends State<_WelcomeSection> {
+  _DailyQuote? _quote;
+  bool _loading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchQuote();
+  }
+
+  Future<void> _fetchQuote() async {
+    try {
+      final dio = Dio(
+        BaseOptions(
+          connectTimeout: const Duration(seconds: 6),
+          receiveTimeout: const Duration(seconds: 6),
+        ),
+      );
+      final resp = await dio.get("https://v1.hitokoto.cn/");
+      final data = (resp.data as Map?)?.cast<String, dynamic>();
+      if (data == null) return;
+      final hitokoto = data["hitokoto"] as String?;
+      final from = data["from"] as String?;
+      if (!mounted) return;
+      setState(() {
+        _quote = _DailyQuote(
+          text: (hitokoto == null || hitokoto.trim().isEmpty)
+              ? "\u4e16\u95f4\u6240\u6709\u7684\u76f8\u9047\uff0c\u90fd\u662f\u4e45\u522b\u91cd\u9022\u3002"
+              : hitokoto.trim(),
+          from: (from == null || from.trim().isEmpty) ? "\u672a\u77e5" : from.trim(),
+        );
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _quote = const _DailyQuote(
+          text: "\u4e16\u95f4\u6240\u6709\u7684\u76f8\u9047\uff0c\u90fd\u662f\u4e45\u522b\u91cd\u9022\u3002",
+          from: "\u4e00\u4ee3\u5b97\u5e08",
+        );
+      });
+    } finally {
+      if (mounted) {
+        setState(() => _loading = false);
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
+    final quote = _quote ??
+        const _DailyQuote(
+          text: "\u4e16\u95f4\u6240\u6709\u7684\u76f8\u9047\uff0c\u90fd\u662f\u4e45\u522b\u91cd\u9022\u3002",
+          from: "\u4e00\u4ee3\u5b97\u5e08",
+        );
+
     return TweenAnimationBuilder<double>(
       tween: Tween(begin: 0, end: 1),
       duration: const Duration(milliseconds: 420),
@@ -806,7 +854,7 @@ class _WelcomeSection extends StatelessWidget {
       },
       child: Container(
         margin: const EdgeInsets.only(bottom: 16),
-        padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
+        padding: const EdgeInsets.fromLTRB(16, 16, 16, 14),
         decoration: BoxDecoration(
           color: AppColors.surface,
           borderRadius: BorderRadius.circular(18),
@@ -831,80 +879,51 @@ class _WelcomeSection extends StatelessWidget {
                     color: AppColors.accentLight,
                     shape: BoxShape.circle,
                   ),
-                  child:
-                      const Icon(Icons.auto_awesome, color: AppColors.accent),
+                  child: const Icon(Icons.menu_book_rounded, color: AppColors.accent),
                 ),
                 const SizedBox(width: 12),
-                Expanded(
-                  child: Text(
-                    "今天想从哪件事开始？",
-                    style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                          fontWeight: FontWeight.w600,
-                        ),
-                  ),
+                Text(
+                  "\u6bcf\u65e5\u4e00\u8a00",
+                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                        fontWeight: FontWeight.w700,
+                      ),
                 ),
               ],
             ),
             const SizedBox(height: 12),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: [
-                _SuggestionChip(
-                  label: "记一笔支出",
-                  onTap: () => onSuggestion("我今天花了50元买咖啡"),
-                ),
-                _SuggestionChip(
-                  label: "添加一个任务",
-                  onTap: () => onSuggestion("提醒我明天上午10点开会"),
-                ),
-                _SuggestionChip(
-                  label: "记录今天心情",
-                  onTap: () => onSuggestion("我今天心情不错，挺开心"),
-                ),
-                _SuggestionChip(
-                  label: "写一条生活记录",
-                  onTap: () => onSuggestion("今天去跑步了，感觉很放松"),
-                ),
-              ],
-            ),
+            if (_loading)
+              const Padding(
+                padding: EdgeInsets.symmetric(vertical: 8),
+                child: LinearProgressIndicator(minHeight: 2),
+              )
+            else ...[
+              Text(
+                "\"${quote.text}\"",
+                style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                      height: 1.5,
+                      fontWeight: FontWeight.w500,
+                    ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                "\u2014\u2014\u300a${quote.from}\u300b",
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: AppColors.textSecondary,
+                    ),
+              ),
+            ],
           ],
         ),
       ),
     );
   }
 }
+class _DailyQuote {
+  const _DailyQuote({required this.text, required this.from});
 
-class _SuggestionChip extends StatelessWidget {
-  const _SuggestionChip({required this.label, required this.onTap});
-
-  final String label;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(18),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 160),
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-        decoration: BoxDecoration(
-          color: AppColors.background,
-          borderRadius: BorderRadius.circular(18),
-          border: Border.all(color: AppColors.divider),
-        ),
-        child: Text(
-          label,
-          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: AppColors.textPrimary,
-              ),
-        ),
-      ),
-    );
-  }
+  final String text;
+  final String from;
 }
-
 class _DelayedReveal extends StatefulWidget {
   const _DelayedReveal({
     required this.child,
