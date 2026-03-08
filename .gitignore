@@ -6,7 +6,6 @@
 
 # Local environment files
 .env
-.env.*
 
 # Python runtime cache
 **/__pycache__/
